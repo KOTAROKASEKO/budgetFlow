@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:moneymanager/model/expenseModel.dart';
@@ -44,12 +45,28 @@ class _DashboardState extends State<Dashboard> {
     year = now.year;
     month = now.month;
     formattedDate = "${year}-${month.toString().padLeft(2, '0')}";
+    
     fetchData(formattedDate);
   }
 
+  void checkConnection() async {
+  var connectivityResult = await Connectivity().checkConnectivity();
+  if (connectivityResult == ConnectivityResult.none) {
+    print("No internet connection");
+    setState(() {
+      isLoading = false;
+      isOnline = false;
+    });
+  } else {
+    print("Connected to internet");
+    isOnline = true;
+  }
+}
+
   void fetchData(String formattedDate) async {
     try {
-      
+      checkConnection();
+
       this.formattedDate = formattedDate;
 
       setState(() {
