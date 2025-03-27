@@ -17,7 +17,7 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   String category = "Food";
   int? budget = 0;
-  List<int> dayBalances = [];
+  List<double> dayBalances = [];
   List<expenseModel> expenseModels = [];
   int? avg = 0;
   String formattedDate = '';
@@ -29,13 +29,12 @@ class _DashboardState extends State<Dashboard> {
 //=====editing members
   TextEditingController _budgetController = TextEditingController();
   TextEditingController _descriptionController = TextEditingController();
+
   String EditedId = '';
   String editingDate = '';
   String amount='';
   String description='';
   bool isOnline = true;
-
-  
 
   @override
   void initState() {
@@ -54,7 +53,6 @@ class _DashboardState extends State<Dashboard> {
   if (connectivityResult == ConnectivityResult.none) {
     print("No internet connection");
     setState(() {
-      isLoading = false;
       isOnline = false;
     });
   } else {
@@ -93,11 +91,11 @@ class _DashboardState extends State<Dashboard> {
             doc.data() as Map<String, dynamic>?; // Ensure type safety
 
         if (data != null && data.containsKey("amount")) {
-          int amount = data["amount"];
+          double amount = double.parse('${data["amount"]}');
           int date = data["date"];
 
           expenseModels.add(expenseModel(
-              amount: amount,
+              amount: double.parse('$amount'),
               date: date,
               id: doc.id,
               description: data["description"] ?? '',
@@ -131,51 +129,50 @@ class _DashboardState extends State<Dashboard> {
   int sum = 0;
   int numDays = 0;
 
-  int getCurrentFinance() {
-    int subtraction = 0;
-    int daySum = 0;
 
-    for (int i = 0; i < expenseModels.length; i++) {
-      if (i != 0) {
-        if (expenseModels[i].date != expenseModels[i - 1].date) {
-          subtraction++;
-        }
-      }
-      if (i == 0) {
-        subtraction = 1;
-      }
-      daySum = daySum + expenseModels[i].amount;
-    }
-    int total = 0;
-    for (int j = 0; j <= expenseModels.length - 1; j++) {
-      total += expenseModels[j].amount;
-    }
+int getCurrentFinance() {
+  int subtraction = 0;
 
-    total = (subtraction * budget!) - total;
-    // Use integer division operator ~/ for dividing integers
-    return total;
+  if(expenseModels.length!=0){
+    subtraction = expenseModels[0].date - expenseModels[expenseModels.length-1].date  + 1;
   }
+  
+
+  double total = 0;
+
+  for (int j = 0; j < expenseModels.length; j++) {
+    total += expenseModels[j].amount;
+  }
+
+  total = (subtraction * budget!) - total;
+
+  // Round up to the nearest integer
+  return total.ceil();
+}
 
   int getAverage() {
     int days = 1;
 
     if (expenseModels.isNotEmpty) {
-      days = expenseModels[expenseModels.length - 1].date -
-          expenseModels[0].date +
-          1;
+      print('latest day${expenseModels[expenseModels.length-1].date}');
+      days = expenseModels[0].date - expenseModels[expenseModels.length-1].date  + 1;
+          print('how many days exist: $days');
     }
 
-    int total = 0;
+    double total = 0;
     for (int j = 0; j < expenseModels.length; j++) {
       total += expenseModels[j].amount;
     }
-
-    avg = int.parse('${total ~/ days}');
+    try{
+      avg = total ~/ days;
+    }catch(e){
+      print('error in getAverage $e');
+    }
+    
     return avg ?? 0;
   }
 
-  bool isEnteringText = false;
-
+  
   @override
   Widget build(BuildContext context) {
     
@@ -834,10 +831,10 @@ class _DashboardState extends State<Dashboard> {
             GestureDetector(
               onTap: () async {
                 print('amount is ${amount}');
-                int? budget = int.tryParse(amount);
-                print('budget is $budget');
+                double? enteredExpense = double.tryParse(amount);
+                print('budget is $enteredExpense');
 
-                if (budget != null) {
+                if (enteredExpense != null) {
                   try {
                     Uuid uuid = Uuid();
                     String id = uuid.v4();
@@ -854,7 +851,7 @@ class _DashboardState extends State<Dashboard> {
                         .doc(EditedId==''?id:EditedId)
                         .set({
                       "category": category,
-                      "amount": budget,
+                      "amount": enteredExpense,
                       "description": description,
                       "date": parsedDate ?? now.day,
                     });

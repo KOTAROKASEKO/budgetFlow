@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class expenseModel{
-    int amount;
+    double amount;
     int date;
     String id;
     String? description;
