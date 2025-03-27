@@ -168,7 +168,6 @@ int getCurrentFinance() {
     }catch(e){
       print('error in getAverage $e');
     }
-    
     return avg ?? 0;
   }
 
