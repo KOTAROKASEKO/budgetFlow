@@ -32,8 +32,8 @@ class _DashboardState extends State<Dashboard> {
 
   String EditedId = '';
   String editingDate = '';
-  String amount='';
-  String description='';
+  String amount = '';
+  String description = '';
   bool isOnline = true;
 
   @override
@@ -44,22 +44,22 @@ class _DashboardState extends State<Dashboard> {
     year = now.year;
     month = now.month;
     formattedDate = "${year}-${month.toString().padLeft(2, '0')}";
-    
+
     fetchData(formattedDate);
   }
 
   void checkConnection() async {
-  var connectivityResult = await Connectivity().checkConnectivity();
-  if (connectivityResult == ConnectivityResult.none) {
-    print("No internet connection");
-    setState(() {
-      isOnline = false;
-    });
-  } else {
-    print("Connected to internet");
-    isOnline = true;
+    var connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      print("No internet connection");
+      setState(() {
+        isOnline = false;
+      });
+    } else {
+      print("Connected to internet");
+      isOnline = true;
+    }
   }
-}
 
   void fetchData(String formattedDate) async {
     try {
@@ -70,6 +70,7 @@ class _DashboardState extends State<Dashboard> {
       setState(() {
         isLoading = true;
       });
+
       DocumentSnapshot ref = await FirebaseFirestore.instance
           .collection("budget")
           .doc(userId.uid)
@@ -79,6 +80,7 @@ class _DashboardState extends State<Dashboard> {
       } else {
         budget = 0; // Set a default value if the document doesn't exist
       }
+
       QuerySnapshot expensesSnapshot = await FirebaseFirestore.instance
           .collection("expenses")
           .doc(userId.uid)
@@ -121,60 +123,61 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> refresh() async {
-   
     fetchData(formattedDate);
-    
   }
 
   int sum = 0;
   int numDays = 0;
 
+  int pace = 0;
 
-int getCurrentFinance() {
-  int subtraction = 0;
+  int getCurrentFinance() {
+    int subtraction = 0;
 
-  if(expenseModels.length!=0){
-    subtraction = expenseModels[0].date - expenseModels[expenseModels.length-1].date  + 1;
+    if (expenseModels.length != 0) {
+      subtraction = expenseModels[0].date -
+          expenseModels[expenseModels.length - 1].date +
+          1;
+    }
+
+    double total = 0;
+
+    for (int j = 0; j < expenseModels.length; j++) {
+      total += expenseModels[j].amount;
+    }
+
+    total = (subtraction * budget!) - total;
+
+    // Round up to the nearest integer
+    pace = total.ceil();
+    return pace;
   }
-  
-
-  double total = 0;
-
-  for (int j = 0; j < expenseModels.length; j++) {
-    total += expenseModels[j].amount;
-  }
-
-  total = (subtraction * budget!) - total;
-
-  // Round up to the nearest integer
-  return total.ceil();
-}
 
   int getAverage() {
     int days = 1;
 
     if (expenseModels.isNotEmpty) {
-      print('latest day${expenseModels[expenseModels.length-1].date}');
-      days = expenseModels[0].date - expenseModels[expenseModels.length-1].date  + 1;
-          print('how many days exist: $days');
+      print('latest day${expenseModels[expenseModels.length - 1].date}');
+      days = expenseModels[0].date -
+          expenseModels[expenseModels.length - 1].date +
+          1;
+      print('how many days exist: $days');
     }
 
     double total = 0;
     for (int j = 0; j < expenseModels.length; j++) {
       total += expenseModels[j].amount;
     }
-    try{
+    try {
       avg = total ~/ days;
-    }catch(e){
+    } catch (e) {
       print('error in getAverage $e');
     }
     return avg ?? 0;
   }
 
-  
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       appBar: AppBar(
         backgroundColor: theme.shiokuriBlue,
@@ -204,7 +207,6 @@ int getCurrentFinance() {
           editingDate = '';
 
           showModalBottomSheet(
-            
             enableDrag: true,
             isScrollControlled: true,
             context: context,
@@ -235,231 +237,290 @@ int getCurrentFinance() {
           size: 20,
         ),
       ),
-      
-      body: isOnline? Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: <Widget>[
-          SizedBox(
-            height: 10,
-          ),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            GestureDetector(
-              onTap: () {
-                showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                          content: Container(
-                        width: 200,
-                        height: 200,
-                        child: Column(
-                          children: [
-                            Text("Set your daily expense: RM ${budget ?? 0}"),
-                            SizedBox(
-                              height: 20,
-                            ),
-                            TextField(
-                              controller: TextEditingController()
-                                ..text = budget.toString(),
-                              onChanged: (value) {
-                                budget = int.parse(value);
-                              },
-                            ),
-                            SizedBox(
-                              height: 20,
-                            ),
-                            ElevatedButton(
-                                onPressed: () async {
-                                  await FirebaseFirestore.instance
-                                      .collection("budget")
-                                      .doc(userId.uid)
-                                      .set({"budget": budget});
-                                  refresh();
-                                  Navigator.pop(context);
-                                },
-                                child: Text("Save"))
-                          ],
-                        ),
-                      ));
-                    });
-              },
-              child: Container(
-                height: 100,
-                width: 200,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                        color: const Color.fromARGB(255, 131, 131, 131),
-                        offset: Offset(0, 10),
-                        blurRadius: 10)
-                  ],
+      body: isOnline
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: <Widget>[
+                SizedBox(
+                  height: 10,
                 ),
-                child: Center(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                      Text(
-                        "Daily Budget",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            fontFamily: 'fancy'),
-                      ),
-                      Text(
-                        "RM ${budget ?? 0}",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      )
-                    ])),
-              ),
-            ),
-            Column(children: [
-              Text('average/day'),
-              Text(
-                'RM ${getAverage()}',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-              ),
-              Text(
-                "compare to plann",
-                style: TextStyle(fontFamily: 'fancy'),
-              ),
-              Text(
-                "RM ${getCurrentFinance()}",
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: getCurrentFinance() < 0 ? Colors.red : Colors.green),
-              )
-            ]),
-          ]),
-          SizedBox(
-            height: 20,
-          ),
-          Expanded(
-              child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius:
-                        BorderRadius.only(topRight: Radius.circular(60)),
-                    gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          theme.shiokuriBlue,
-                          const Color.fromARGB(255, 235, 235, 235)
-                        ]),
-                  ),
-                  child: LiquidPullToRefresh(
-                    backgroundColor: theme.shiokuriBlue,
-                    color: Colors.white,
-                      springAnimationDurationInMilliseconds: 400,
-                      onRefresh: () {
-                        return refresh();
-                      },
-                      child: isLoading
-                          ? Center(
-                              child: Column(children: [
-                              SizedBox(
-                                height: 20,
-                              ),
-                              monthModifier(),
-                              CircularProgressIndicator()
-                            ]))
-                          : doesExist
-                              ? ListView.builder(
-                                  itemCount: expenseModels.length,
-                                  itemBuilder: (context, index) {
-                                    print(expenseModels[index].date);
-                                    if (index > 0) {
-                                      if (expenseModels[index].date !=
-                                          expenseModels[index - 1].date) {
-                                        print(
-                                            "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
-                                        return Column(children: [
-                                          Text(
-                                            "Day ${expenseModels[index].date}",
-                                            style: TextStyle(
-                                                fontSize: 16,
-                                                fontFamily: 'fancy',
-                                                fontWeight: FontWeight.bold),
-                                          ),
-                                          expenseTile(index),
-                                        ]);
-                                      } else {
-                                        print(
-                                            "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
-                                        return expenseTile(index);
-                                      }
-                                    } else {
-                                      return Column(children: [
-                                        SizedBox(
-                                          height: 20,
-                                        ),
-                                        monthModifier(),
-                                        SizedBox(
-                                          height: 20,
-                                        ),
-                                        Text(
-                                          "Day ${expenseModels[index].date}",
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                    content: Container(
+                                  width: 200,
+                                  height: 160,
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                          "Budget/day:",
                                           style: TextStyle(
-                                              fontSize: 16,
-                                              fontFamily: 'fancy',
-                                              fontWeight: FontWeight.bold),
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color.fromARGB(255, 35, 35, 35),
+                                              fontSize: 20,
+                                          ),
+                                          ),
+                                      SizedBox(
+                                        height: 20,
+                                      ),
+                                      TextField(
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                          color: const Color.fromARGB(255, 46, 46, 46)
                                         ),
-                                        expenseTile(index),
-                                      ]);
-                                    }
-                                  },
+                                        textAlign: TextAlign.center,
+                                        controller: TextEditingController()
+                                          ..text = budget.toString(),
+                                        onChanged: (value) {
+                                          budget = int.parse(value);
+                                        },
+                                      ),
+                                      SizedBox(
+                                        height: 20,
+                                      ),
+                                      GestureDetector(
+                                          onTap: () async {
+                                            await FirebaseFirestore.instance
+                                                .collection("budget")
+                                                .doc(userId.uid)
+                                                .set({"budget": budget});
+                                            refresh();
+                                            Navigator.pop(context);
+                                          },
+                                          child: Container(
+                                            height: 40,
+                                            width: 100,
+                                            decoration: BoxDecoration(
+                                              color: theme.shiokuriBlue,
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child:Center(
+                                              child: Text(
+                                                "Save",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                  fontSize: 17,)
+                                                ),
+                                            )
+                                          )
+                                          )
+                                    ],
+                                  ),
+                                ));
+                              });
+                        },
+                        child: Container(
+                          height: 100,
+                          width: 200,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                  color:
+                                      const Color.fromARGB(255, 131, 131, 131),
+                                  offset: Offset(0, 10),
+                                  blurRadius: 10)
+                            ],
+                          ),
+                          child: Center(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                Text(
+                                  "Daily Budget",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      fontFamily: 'fancy'),
+                                ),
+                                Text(
+                                  "RM ${budget ?? 0}",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
                                 )
-                              : Center(
-                                  child: LiquidPullToRefresh(
-                                  onRefresh: () {
-                                    return refresh();
-                                  },
-                                  child: ListView(children: [
+                              ])),
+                        ),
+                      ),
+                      Column(children: [
+                        Text('average/day'),
+                        Text(
+                          'RM ${getAverage()}',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 20),
+                        ),
+                        Text(
+                          pace >= 0
+                              ? 'You are saving :'
+                              : 'You have exceeded :',
+                          style: TextStyle(
+                              fontFamily: 'fancy',
+                              fontWeight: FontWeight.bold,
+                              color: const Color.fromARGB(255, 54, 54, 54)),
+                        ),
+                        Text(
+                          "RM ${pace}",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: pace <= 0 ? Colors.red : Colors.green),
+                        ),
+                      ]),
+                    ]),
+                SizedBox(
+                  height: 20,
+                ),
+                Expanded(
+                    child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.only(topRight: Radius.circular(60)),
+                          gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                theme.shiokuriBlue,
+                                const Color.fromARGB(255, 235, 235, 235)
+                              ]),
+                        ),
+                        child: ClipRRect(
+                            borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(60)),
+                          child:LiquidPullToRefresh(
+                            backgroundColor: theme.shiokuriBlue,
+                            color: Colors.white,
+                            springAnimationDurationInMilliseconds: 400,
+                            onRefresh: () {
+                              return refresh();
+                            },
+                            child: isLoading
+                                ? Center(
+                                    child: Column(children: [
                                     SizedBox(
                                       height: 20,
                                     ),
                                     monthModifier(),
-                                    SizedBox(
-                                      height: 30,
-                                    ),
-                                    Text(
-                                      'Record doesnt exist',
-                                      style: TextStyle(
-                                          fontFamily: 'fancy',
-                                          fontWeight: FontWeight.bold,
-                                          color: const Color.fromARGB(
-                                              255, 39, 39, 39)),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    SizedBox(
-                                      height: 20,
-                                    ),
-                                  ]),
-                                )))))
-        ],
-      )
-           :
-            Center(
-          child: LiquidPullToRefresh(
-            onRefresh: (){
-              return refresh();
-            },
-            child:ListView(
-            children: [
-              Icon(Icons.wifi_off),
-              Text('You are offline', style: TextStyle(fontFamily: 'fancy', fontSize: 20),),
-              Text('Please check your internet connection', style: TextStyle(fontFamily: 'fancy', fontSize: 20),),
-              SizedBox(height: 20,),
-              ElevatedButton(onPressed: (){
-                fetchData(formattedDate);
-              }, child: Text('Retry'))
-            ],
-          ),)
-        ),
+                                    CircularProgressIndicator()
+                                  ]))
+                                : doesExist
+                                    ? ListView.builder(
+                                        itemCount: expenseModels.length,
+                                        itemBuilder: (context, index) {
+                                          print(expenseModels[index].date);
+                                          if (index > 0) {
+                                            if (expenseModels[index].date !=
+                                                expenseModels[index - 1].date) {
+                                              print(
+                                                  "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
+                                              return Column(children: [
+                                                Text(
+                                                  "Day ${expenseModels[index].date}",
+                                                  style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontFamily: 'fancy',
+                                                      fontWeight:
+                                                          FontWeight.bold),
+                                                ),
+                                                expenseTile(index),
+                                              ]);
+                                            } else {
+                                              print(
+                                                  "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
+                                              return expenseTile(index);
+                                            }
+                                          } else {
+                                            return Column(children: [
+                                              SizedBox(
+                                                height: 20,
+                                              ),
+                                              monthModifier(),
+                                              SizedBox(
+                                                height: 20,
+                                              ),
+                                              Text(
+                                                "Day ${expenseModels[index].date}",
+                                                style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontFamily: 'fancy',
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                              expenseTile(index),
+                                            ]);
+                                          }
+                                        },
+                                      )
+                                    : 
+                                    Center(
+                                        child: LiquidPullToRefresh(
+                                        onRefresh: () {
+                                          return refresh();
+                                        },
+                                        child: ListView(children: [
+                                          SizedBox(
+                                            height: 20,
+                                          ),
+                                          monthModifier(),
+                                          SizedBox(
+                                            height: 30,
+                                          ),
+                                          Text(
+                                            'Record doesnt exist',
+                                            style: TextStyle(
+                                                fontFamily: 'fancy',
+                                                fontWeight: FontWeight.bold,
+                                                color: const Color.fromARGB(
+                                                    255, 39, 39, 39)),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          SizedBox(
+                                            height: 20,
+                                          ),
+                                        ]),
+                                      )
+                                    )
+                                  )
+                                ))
+                              )
+              ],
+            )
+          : Center(
+              child: LiquidPullToRefresh(
+              onRefresh: () {
+                return refresh();
+              },
+              child: ListView(
+                children: [
+                  Icon(Icons.wifi_off),
+                  Text(
+                    'You are offline',
+                    style: TextStyle(fontFamily: 'fancy', fontSize: 20),
+                  ),
+                  Text(
+                    'Please check your internet connection',
+                    style: TextStyle(fontFamily: 'fancy', fontSize: 20),
+                  ),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  ElevatedButton(
+                      onPressed: () {
+                        fetchData(formattedDate);
+                      },
+                      child: Text('Retry'))
+                ],
+              ),
+            )),
     );
   }
 
@@ -524,14 +585,22 @@ int getCurrentFinance() {
   }
 
   Widget expenseTile(int index) {
+
+    int whichIndex = expenseInstances().icons.indexWhere(
+        (element) => element.itemName.toLowerCase() == expenseModels[index].category!.toLowerCase());
     return ListTile(
-      leading: getIcon(expenseModels[index].category ?? 'Others', index),
-      title: Text("RM ${expenseModels[index].amount}", style: TextStyle(fontWeight: FontWeight.bold, color: const Color.fromARGB(255, 50, 50, 50)),),
-      subtitle: Text(
-        "${expenseModels[index].description}",
-        maxLines: 1,
-         style: TextStyle(fontWeight: FontWeight.bold, color: const Color.fromARGB(255, 81, 81, 81))
+      leading: expenseInstances().icons[whichIndex].itemIcon,
+      title: Text(
+        "RM ${expenseModels[index].amount}",
+        style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: const Color.fromARGB(255, 50, 50, 50)),
       ),
+      subtitle: Text("${expenseModels[index].description}",
+          maxLines: 1,
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: const Color.fromARGB(255, 81, 81, 81))),
       onTap: () {
         showModalBottomSheet(
             context: context,
@@ -623,9 +692,12 @@ int getCurrentFinance() {
                                     Navigator.pop(context);
                                     //=====
                                     EditedId = expenseModels[index].id;
-                                    amount = expenseModels[index].amount.toString();
-                                    description = expenseModels[index].description??'';
-                                    editingDate = expenseModels[index].date.toString();
+                                    amount =
+                                        expenseModels[index].amount.toString();
+                                    description =
+                                        expenseModels[index].description ?? '';
+                                    editingDate =
+                                        expenseModels[index].date.toString();
 
                                     print('edited id is $EditedId');
                                     print('amount is $amount');
@@ -668,55 +740,8 @@ int getCurrentFinance() {
     );
   }
 
-  Widget getIcon(String? category, int index) {
-    if (category == null || category == '') {
-      category = categoryStorage.categoryList[3];
-    }
-    print('category is $category');
+  
 
-    if (category == categoryStorage.categoryList[0]) {
-      return CompleteIcon(
-          Icon(
-            Icons.fastfood,
-            color: Colors.white,
-          ),
-          category);
-    } else if (category == categoryStorage.categoryList[1]) {
-      return CompleteIcon(
-          Icon(
-            Icons.directions_bus,
-            color: Colors.white,
-          ),
-          category);
-    } else if (category == categoryStorage.categoryList[2]) {
-      return CompleteIcon(
-          Icon(
-            Icons.movie,
-            color: Colors.white,
-          ),
-          category);
-    } else {
-      return CompleteIcon(
-          Icon(
-            Icons.attach_money,
-            color: Colors.white,
-          ),
-          category);
-    }
-  }
-
-  Widget CompleteIcon(Widget icon, String category) {
-    return Container(
-      height: 40,
-      width: 40,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: categoryStorage
-            .colorList[categoryStorage.categoryList.indexOf(category)],
-      ),
-      child: icon,
-    );
-  }
 
 //edit, enter expense
 
@@ -796,37 +821,64 @@ int getCurrentFinance() {
             //////
             SizedBox(height: 10),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Category',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 90, 90, 90),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Category : ${category}',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 90, 90, 90),
+                        fontSize: 20),
                   ),
-                ),
-                DropdownButton<String>(
-                  value: category,
-                  items: categoryStorage.categoryList.map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
+                )
+              ],
+            ),
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 231, 231, 231), // 背景色
+                borderRadius: BorderRadius.circular(20), // 角を丸くする
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20), // ClipRRect で角丸を適用
+                child: PrimaryScrollController(
+                  controller: scrollController,
+                  child: GridView.builder(
+                  padding: EdgeInsets.all(10), // アイコンが枠にくっつかないように余白を追加
+                  itemCount: expenseInstances().icons.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4, // 3列
+                    crossAxisSpacing: 20.0,
+                    mainAxisSpacing: 20.0,
+                  ),
+                  itemBuilder: (BuildContext context, int index) {
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          category = expenseInstances().icons[index].itemName;
+                        });
+                      },
+                      child: expenseInstances().icons[index].itemIcon,
                     );
-                  }).toList(),
-                  onChanged: (String? value) {
-                    setState(() {
-                      category = value!;
-                    });
                   },
                 ),
-              ],
+              ),)
             ),
             SizedBox(height: 10),
             Text(
               errTxt,
               style: TextStyle(color: Colors.red),
             ),
-            SizedBox(height: 20),
             GestureDetector(
               onTap: () async {
                 print('amount is ${amount}');
@@ -847,7 +899,7 @@ int getCurrentFinance() {
                         .collection("expenses")
                         .doc(userId.uid)
                         .collection(formattedDate)
-                        .doc(EditedId==''?id:EditedId)
+                        .doc(EditedId == '' ? id : EditedId)
                         .set({
                       "category": category,
                       "amount": enteredExpense,
@@ -896,6 +948,7 @@ int getCurrentFinance() {
                     ),
                   )),
             ),
+            SizedBox(height: 20),
           ],
         ),
       ),
