@@ -1,7 +1,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:moneymanager/DashBoard.dart';
+import 'package:moneymanager/View_BottomTab.dart';
 import 'package:moneymanager/google_login.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -77,7 +77,7 @@ class _AuthPageState extends State<AuthPage> {
     sharedPreferences.setBool("isLoggedIn", true);
     userId.initUid();
     Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (context) => Dashboard()));
+        context, MaterialPageRoute(builder: (context) => BottomTab()));
   }
 
   bool isSignIn = true;

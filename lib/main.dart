@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:moneymanager/DashBoard.dart';
 import 'package:moneymanager/View_Auth.dart';
+import 'package:moneymanager/View_BottomTab.dart';
 import 'package:moneymanager/firebase_options.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       
-      home: isLoggedIn ? Dashboard() : AuthPage(),
+      home: isLoggedIn ? BottomTab() : AuthPage(),
     );
   }
 }
