@@ -50,6 +50,7 @@ class _BuyListState extends State<BuyList> {
         style: TextStyle(
             fontSize: 24,
             color: Colors.white,
+            
           ),),
         centerTitle: true,
         backgroundColor: theme.shiokuriBlue,

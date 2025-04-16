@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
-
   @override
   State<AuthPage> createState() => _AuthPageState();
 }
@@ -144,7 +143,7 @@ class _AuthPageState extends State<AuthPage> {
                   isSignIn ? _signInWithEmail() : _signUpWithEmail();
                 },
                 child: Container(
-                  width: 200,
+                  width: 250,
                   height: 60,
                   decoration: BoxDecoration(
                     color: const Color.fromARGB(255, 152, 209, 255),
@@ -216,9 +215,9 @@ class _AuthPageState extends State<AuthPage> {
     return Column(children: [
       Container(
           height: 200,
-          width: 200,
+          width: 250,
           decoration: BoxDecoration(
-            color: const Color.fromARGB(255, 236, 236, 236),
+            color: const Color.fromARGB(255, 255, 255, 255),
             borderRadius: BorderRadius.circular(100),
           ),
           child: ConstrainedBox(
@@ -244,7 +243,7 @@ class _AuthPageState extends State<AuthPage> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20)),
                   itemExtent: 200,
-                  shrinkExtent: 100,
+                  shrinkExtent: 60,
                   children: [
                     Container(
                       decoration: BoxDecoration(
