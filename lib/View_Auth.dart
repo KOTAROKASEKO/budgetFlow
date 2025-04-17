@@ -2,7 +2,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:moneymanager/View_BottomTab.dart';
-import 'package:moneymanager/google_login.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -161,7 +160,6 @@ class _AuthPageState extends State<AuthPage> {
                 ),
               ),
               SizedBox(height: 16),
-              signInWithGoogleUI(),
             ],
           ),
         ),
@@ -169,47 +167,6 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
    
-
-   signInWithGoogleUI() {
-    return InkWell(
-      onTap: (){
-        GoogleLogin.signInWithGoogle().then((data){
-          if(data != null){
-            toggleLoginStatus();
-          }
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 30.0,vertical: 8.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(
-              color: Colors.black.withOpacity(0.2)
-          ),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 30,
-              width: 30,
-              child: Image.network(
-                "https://cdn.iconscout.com/icon/free/png-256/free-google-1772223-1507807.png",
-                height: 40,
-                width: 40,
-              ),
-            ),
-            const SizedBox(
-              width: 10.0,
-            ),
-            const  Text("Sign In With Google", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600, height: 0),)
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget toggleButton() {
     return Column(children: [

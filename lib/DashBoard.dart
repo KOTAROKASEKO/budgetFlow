@@ -890,10 +890,7 @@ class _DashboardState extends State<Dashboard> {
                     Uuid uuid = Uuid();
                     String id = uuid.v4();
                     DateTime now = DateTime.now();
-                    print('tempdate is $editingDate');
                     int? parsedDate = int.tryParse(editingDate);
-                    print('parsed date is $parsedDate');
-                    print('formatted date is $formattedDate');
 
                     await FirebaseFirestore.instance
                         .collection("expenses")
