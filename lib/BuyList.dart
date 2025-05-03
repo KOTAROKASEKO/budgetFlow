@@ -147,15 +147,22 @@ class _BuyListState extends State<BuyList> {
           backgroundColor: theme.shiokuriBlue,
         ),
         appBar: AppBar(
-          title: Text(
-            'Buy List',
-            style: TextStyle(
-              fontSize: 24,
-              color: Colors.white,
-            ),
-          ),
-          centerTitle: true,
           backgroundColor: theme.shiokuriBlue,
+        shape: ShapeBorder.lerp(
+            RoundedRectangleBorder(
+                borderRadius: BorderRadius.only(
+                    //bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20))),
+            RoundedRectangleBorder(
+                borderRadius: BorderRadius.only(
+                    //bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20))),
+            1),
+        centerTitle: true,
+        title: Text(
+          "Buy List",
+          style: TextStyle(fontFamily: 'fancy', fontSize: 20),
+        ),
         ),
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
