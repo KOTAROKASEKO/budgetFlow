@@ -179,6 +179,7 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: myBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.shiokuriBlue,
         shape: ShapeBorder.lerp(

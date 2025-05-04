@@ -47,7 +47,7 @@ dependencies:
   build_runner: ^2.4.15
   carousel_slider: ^5.0.0
   firebase_ui_oauth_google: ^1.4.1
-
+  table_calendar: ^3.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -92,6 +92,9 @@ flutter:
     - family: giza
       fonts:
         - asset: assets/giza.ttf
+    - family: thick
+      fonts:
+        - asset: assets/thick.ttf
   #   - family: Trajan Pro
   #     fonts:
   #       - asset: fonts/TrajanPro.ttf

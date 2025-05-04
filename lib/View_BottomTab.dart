@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:moneymanager/BuyList.dart';
 import 'package:moneymanager/DashBoard.dart';
+import 'package:moneymanager/todoMake.dart';
 
 class BottomTab extends StatefulWidget {
   const BottomTab({Key? key}) : super(key: key);
@@ -13,6 +14,7 @@ class _BottomTabState extends State<BottomTab> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
+    todoPage(),
     Dashboard(),
     BuyList(),
   ];
@@ -26,13 +28,14 @@ class _BottomTabState extends State<BottomTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         height: 80,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30), // ← 両端だけ丸く
+            topLeft: Radius.circular(30),
             topRight: Radius.circular(30),
           ),
           boxShadow: [
@@ -59,6 +62,10 @@ class _BottomTabState extends State<BottomTab> {
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.home),
+                label: 'ToDo',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.money),
                 label: 'Home',
               ),
               BottomNavigationBarItem(
