@@ -29,7 +29,7 @@ class _BuyListState extends State<BuyList> {
                   controller: draggableController,
                   initialChildSize: 0.4,
                   minChildSize: 0.4,
-                  maxChildSize: 0.95, // allow it to expand more
+                  maxChildSize: 0.95,
                   expand: false,
                   builder: (context, scrollController) {
                     return StatefulBuilder(
