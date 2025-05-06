@@ -32,9 +32,24 @@ class _todoPageState extends State<todoPage> {
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.of(context).size;
-
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.white,
+        child: Icon(Icons.add, color: Colors.black),
+        onPressed: () {
+          showModalBottomSheet(
+            enableDrag: true,
+            isScrollControlled: true,
+            context: context,
+            builder: (context) {
+              return showTaskCard();
+            },
+          );
+
+        },
+      ),
       backgroundColor: Colors.black,
+      
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text('Todo List', style: TextStyle(
@@ -112,7 +127,6 @@ class _todoPageState extends State<todoPage> {
                 weekendTextStyle: TextStyle(color: Colors.white),
                 todayTextStyle: TextStyle(color: Colors.black),
                 selectedTextStyle: TextStyle(color: Colors.white),
-
                 selectedDecoration: BoxDecoration(
                   color: theme.shiokuriBlue,
                   shape: BoxShape.circle,
@@ -124,22 +138,105 @@ class _todoPageState extends State<todoPage> {
               ),
               headerStyle: HeaderStyle(
                 titleTextStyle: TextStyle(
-                  color: Colors.white, // ← ヘッダー「May 2025」を白に
+                  color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
                 formatButtonVisible: false,
+                titleCentered: true,
+                leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white),
+                rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white),
               ),
               focusedDay: DateTime.now(),
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
               onDaySelected: (selectedDay, focusedDay) {
-                // 処理を書くところ
+                showModalBottomSheet(context: context, builder: (context){
+                  return showTaskCard();
+                });
               },
             )
-],
+
+          ],
         ),
       ),
     );
   }
+
+  Widget showTaskCard(){
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.7,
+      expand: false,
+      builder: (context, scrollController) {
+        return StatefulBuilder(
+    builder: (context, StateSetter setState) {
+      return Container(
+        width: MediaQuery.of(context).size.width,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+        child: SingleChildScrollView(
+          controller: scrollController,
+          padding: EdgeInsets.symmetric(horizontal: 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              SizedBox(height: 20),
+              Container(
+                width: 100,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.grey,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Expense Detail',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 73, 73, 73),
+                  fontSize: 17,
+                ),
+              ),
+
+              //budget field
+              
+              
+              GestureDetector(
+                onTap: () async {
+                  
+                },
+                child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey,
+                          blurRadius: 10,
+                        ),
+                      ],
+                      color: theme.shiokuriBlue,
+                      borderRadius: BorderRadius.circular(40),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Save',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    )),
+              ),
+              SizedBox(height: 20),
+            ],
+          ),
+        ),
+      );
+    },
+        );
+      },
+    );
+  }
 }
+

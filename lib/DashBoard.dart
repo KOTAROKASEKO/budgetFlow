@@ -40,6 +40,8 @@ class _DashboardState extends State<Dashboard> {
   void initState() {
     // TODO: implement initState
     super.initState();
+
+    print("user id is "+ userId.uid);
     DateTime now = DateTime.now();
     year = now.year;
     month = now.month;
@@ -179,7 +181,7 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: myBackgroundColor,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: theme.shiokuriBlue,
         shape: ShapeBorder.lerp(
