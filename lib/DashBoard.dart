@@ -41,7 +41,7 @@ class _DashboardState extends State<Dashboard> {
     // TODO: implement initState
     super.initState();
 
-    print("user id is "+ userId.uid);
+    print("user id is " + userId.uid);
     DateTime now = DateTime.now();
     year = now.year;
     month = now.month;
@@ -214,22 +214,9 @@ class _DashboardState extends State<Dashboard> {
             isScrollControlled: true,
             context: context,
             builder: (context) {
-              return DraggableScrollableSheet(
-                initialChildSize: 0.7,
-                minChildSize: 0.4,
-                maxChildSize: 0.7,
-                expand: false,
-                builder: (context, scrollController) {
-                  return StatefulBuilder(
-                    builder: (context, StateSetter setState) {
-                      return enterExpense(
-                        context,
-                        setState,
-                        scrollController,
-                      );
-                    },
-                  );
-                },
+              return enterExpense(
+                context,
+                setState,
               );
             },
           );
@@ -262,22 +249,23 @@ class _DashboardState extends State<Dashboard> {
                                   child: Column(
                                     children: [
                                       Text(
-                                          "Budget/day:",
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: const Color.fromARGB(255, 35, 35, 35),
-                                              fontSize: 20,
-                                          ),
-                                          ),
+                                        "Budget/day:",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color.fromARGB(
+                                              255, 35, 35, 35),
+                                          fontSize: 20,
+                                        ),
+                                      ),
                                       SizedBox(
                                         height: 20,
                                       ),
                                       TextField(
                                         style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                          color: const Color.fromARGB(255, 46, 46, 46)
-                                        ),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                            color: const Color.fromARGB(
+                                                255, 46, 46, 46)),
                                         textAlign: TextAlign.center,
                                         controller: TextEditingController()
                                           ..text = budget.toString(),
@@ -298,23 +286,22 @@ class _DashboardState extends State<Dashboard> {
                                             Navigator.pop(context);
                                           },
                                           child: Container(
-                                            height: 40,
-                                            width: 100,
-                                            decoration: BoxDecoration(
-                                              color: theme.shiokuriBlue,
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child:Center(
-                                              child: Text(
-                                                "Save",
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                  fontSize: 17,)
-                                                ),
-                                            )
-                                          )
-                                          )
+                                              height: 40,
+                                              width: 100,
+                                              decoration: BoxDecoration(
+                                                color: theme.shiokuriBlue,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Center(
+                                                child: Text("Save",
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.white,
+                                                      fontSize: 17,
+                                                    )),
+                                              )))
                                     ],
                                   ),
                                 ));
@@ -399,102 +386,98 @@ class _DashboardState extends State<Dashboard> {
                         child: ClipRRect(
                             borderRadius: BorderRadius.only(
                                 topRight: Radius.circular(60)),
-                          child:LiquidPullToRefresh(
-                            backgroundColor: theme.shiokuriBlue,
-                            color: Colors.white,
-                            springAnimationDurationInMilliseconds: 400,
-                            onRefresh: () {
-                              return refresh();
-                            },
-                            child: isLoading
-                                ? Center(
-                                    child: Column(children: [
-                                    SizedBox(
-                                      height: 20,
-                                    ),
-                                    monthModifier(),
-                                    CircularProgressIndicator()
-                                  ]))
-                                : doesExist
-                                    ? ListView.builder(
-                                        itemCount: expenseModels.length,
-                                        itemBuilder: (context, index) {
-                                          print(expenseModels[index].date);
-                                          if (index > 0) {
-                                            if (expenseModels[index].date !=
-                                                expenseModels[index - 1].date) {
-                                              print(
-                                                  "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
-                                              return Column(children: [
-                                                Text(
-                                                  "Day ${expenseModels[index].date}",
-                                                  style: TextStyle(
-                                                      fontSize: 16,
-                                                      fontFamily: 'fancy',
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                                ),
-                                                expenseTile(index),
-                                              ]);
-                                            } else {
-                                              print(
-                                                  "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
-                                              return expenseTile(index);
-                                            }
-                                          } else {
-                                            return Column(children: [
+                            child: LiquidPullToRefresh(
+                                backgroundColor: theme.shiokuriBlue,
+                                color: Colors.white,
+                                springAnimationDurationInMilliseconds: 400,
+                                onRefresh: () {
+                                  return refresh();
+                                },
+                                child: isLoading
+                                    ? Center(
+                                        child: Column(children: [
+                                        SizedBox(
+                                          height: 20,
+                                        ),
+                                        monthModifier(),
+                                        CircularProgressIndicator()
+                                      ]))
+                                    : doesExist
+                                        ? ListView.builder(
+                                            itemCount: expenseModels.length,
+                                            itemBuilder: (context, index) {
+                                              print(expenseModels[index].date);
+                                              if (index > 0) {
+                                                if (expenseModels[index].date !=
+                                                    expenseModels[index - 1]
+                                                        .date) {
+                                                  print(
+                                                      "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
+                                                  return Column(children: [
+                                                    Text(
+                                                      "Day ${expenseModels[index].date}",
+                                                      style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontFamily: 'fancy',
+                                                          fontWeight:
+                                                              FontWeight.bold),
+                                                    ),
+                                                    expenseTile(index),
+                                                  ]);
+                                                } else {
+                                                  print(
+                                                      "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
+                                                  return expenseTile(index);
+                                                }
+                                              } else {
+                                                return Column(children: [
+                                                  SizedBox(
+                                                    height: 20,
+                                                  ),
+                                                  monthModifier(),
+                                                  SizedBox(
+                                                    height: 20,
+                                                  ),
+                                                  Text(
+                                                    "Day ${expenseModels[index].date}",
+                                                    style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontFamily: 'fancy',
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                                  ),
+                                                  expenseTile(index),
+                                                ]);
+                                              }
+                                            },
+                                          )
+                                        : Center(
+                                            child: LiquidPullToRefresh(
+                                            onRefresh: () {
+                                              return refresh();
+                                            },
+                                            child: ListView(children: [
                                               SizedBox(
                                                 height: 20,
                                               ),
                                               monthModifier(),
                                               SizedBox(
-                                                height: 20,
+                                                height: 30,
                                               ),
                                               Text(
-                                                "Day ${expenseModels[index].date}",
+                                                'Record doesnt exist',
                                                 style: TextStyle(
-                                                    fontSize: 16,
                                                     fontFamily: 'fancy',
-                                                    fontWeight:
-                                                        FontWeight.bold),
+                                                    fontWeight: FontWeight.bold,
+                                                    color: const Color.fromARGB(
+                                                        255, 39, 39, 39)),
+                                                textAlign: TextAlign.center,
                                               ),
-                                              expenseTile(index),
-                                            ]);
-                                          }
-                                        },
-                                      )
-                                    : 
-                                    Center(
-                                        child: LiquidPullToRefresh(
-                                        onRefresh: () {
-                                          return refresh();
-                                        },
-                                        child: ListView(children: [
-                                          SizedBox(
-                                            height: 20,
-                                          ),
-                                          monthModifier(),
-                                          SizedBox(
-                                            height: 30,
-                                          ),
-                                          Text(
-                                            'Record doesnt exist',
-                                            style: TextStyle(
-                                                fontFamily: 'fancy',
-                                                fontWeight: FontWeight.bold,
-                                                color: const Color.fromARGB(
-                                                    255, 39, 39, 39)),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          SizedBox(
-                                            height: 20,
-                                          ),
-                                        ]),
-                                      )
-                                    )
-                                  )
-                                ))
-                              )
+                                              SizedBox(
+                                                height: 20,
+                                              ),
+                                            ]),
+                                          ))))))
               ],
             )
           : Center(
@@ -588,9 +571,9 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Widget expenseTile(int index) {
-
-    int whichIndex = expenseInstances().icons.indexWhere(
-        (element) => element.itemName.toLowerCase() == expenseModels[index].category!.toLowerCase());
+    int whichIndex = expenseInstances().icons.indexWhere((element) =>
+        element.itemName.toLowerCase() ==
+        expenseModels[index].category!.toLowerCase());
     return ListTile(
       leading: expenseInstances().icons[whichIndex].itemIcon,
       title: Text(
@@ -711,23 +694,9 @@ class _DashboardState extends State<Dashboard> {
                                       isScrollControlled: true,
                                       context: context,
                                       builder: (context) {
-                                        return DraggableScrollableSheet(
-                                          initialChildSize: 0.7,
-                                          minChildSize: 0.4,
-                                          maxChildSize: 0.7,
-                                          expand: false,
-                                          builder: (context, scrollController) {
-                                            return StatefulBuilder(
-                                              builder: (context,
-                                                  StateSetter setState) {
-                                                return enterExpense(
-                                                  context,
-                                                  setState,
-                                                  scrollController,
-                                                );
-                                              },
-                                            );
-                                          },
+                                        return enterExpense(
+                                          context,
+                                          setState,
                                         );
                                       },
                                     );
@@ -743,15 +712,9 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  
-
-
-//edit, enter expense
-
   Widget enterExpense(
     BuildContext context,
     StateSetter setState,
-    ScrollController scrollController,
   ) {
     print('enter expense was called');
     String errTxt = "";
@@ -760,198 +723,222 @@ class _DashboardState extends State<Dashboard> {
     _budgetController.text = amount;
     _descriptionController.text = description;
 
-    return Container(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-      child: SingleChildScrollView(
-        controller: scrollController,
-        padding: EdgeInsets.symmetric(horizontal: 30),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            SizedBox(height: 20),
-            Container(
-              width: 100,
-              height: 6,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Expense Detail',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 73, 73, 73),
-                fontSize: 17,
-              ),
-            ),
-
-            //budget field
-            TextField(
-              onChanged: (value) {
-                amount = value;
-              },
-              onSubmitted: (vlaue) {
-                print('onsubmit called $vlaue');
-                _budgetController.text = amount;
-                _descriptionController.text = description;
-              },
-              keyboardType: TextInputType.number,
-              controller: _budgetController,
-              decoration: InputDecoration(
-                icon: Icon(Icons.monetization_on, color: Colors.black),
-                hintText: "Enter amount",
-              ),
-            ),
-
-            //description field
-
-            TextField(
-              onChanged: (value) {
-                print('value is $value');
-                description = value;
-              },
-              onSubmitted: (vlaue) {
-                print('onsubmit called $vlaue');
-              },
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                icon: Icon(Icons.edit),
-                hintText: "Description (optional)",
-              ),
-            ),
-            //////
-            SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    'Category : ${category}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 90, 90, 90),
-                        fontSize: 20),
-                  ),
-                )
-              ],
-            ),
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 231, 231, 231), // 背景色
-                borderRadius: BorderRadius.circular(20), // 角を丸くする
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color.fromARGB(255, 255, 255, 255),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20), // ClipRRect で角丸を適用
-                child: PrimaryScrollController(
-                  controller: scrollController,
-                  child: GridView.builder(
-                  padding: EdgeInsets.all(10), // アイコンが枠にくっつかないように余白を追加
-                  itemCount: expenseInstances().icons.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4, // 3列
-                    crossAxisSpacing: 20.0,
-                    mainAxisSpacing: 20.0,
-                  ),
-                  itemBuilder: (BuildContext context, int index) {
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          category = expenseInstances().icons[index].itemName;
-                        });
-                      },
-                      child: expenseInstances().icons[index].itemIcon,
-                    );
-                  },
-                ),
-              ),)
-            ),
-            SizedBox(height: 10),
-            Text(
-              errTxt,
-              style: TextStyle(color: Colors.red),
-            ),
-            GestureDetector(
-              onTap: () async {
-                print('amount is ${amount}');
-                double? enteredExpense = double.tryParse(amount);
-                print('budget is $enteredExpense');
-
-                if (enteredExpense != null) {
-                  try {
-                    Uuid uuid = Uuid();
-                    String id = uuid.v4();
-                    DateTime now = DateTime.now();
-                    int? parsedDate = int.tryParse(editingDate);
-
-                    await FirebaseFirestore.instance
-                        .collection("expenses")
-                        .doc(userId.uid)
-                        .collection(formattedDate)
-                        .doc(EditedId == '' ? id : EditedId)
-                        .set({
-                      "category": category,
-                      "amount": enteredExpense,
-                      "description": description,
-                      "date": parsedDate ?? now.day,
-                    });
-
-                    if (context.mounted) {
-                      amount = '';
-                      description = '';
-                      EditedId = '';
-                      _budgetController.text = '';
-                      _descriptionController.text = '';
-                      editingDate = '';
-
-                      Navigator.pop(context);
-                      refresh();
-                    }
-                  } catch (e) {
-                    print("Error saving data: $e");
-                  }
-                } else {
-                  setState(() {
-                    errTxt = "Please enter a valid number";
-                  });
-                }
-              },
-              child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.7,
+      expand: false,
+      builder: (context, scrollController) {
+        return StatefulBuilder(
+          builder: (context, StateSetter setState) {
+            return Container(
+              decoration:
+                  BoxDecoration(borderRadius: BorderRadius.circular(20)),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: EdgeInsets.symmetric(horizontal: 30),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    SizedBox(height: 20),
+                    Container(
+                      width: 100,
+                      height: 6,
+                      decoration: BoxDecoration(
                         color: Colors.grey,
-                        blurRadius: 10,
+                        borderRadius: BorderRadius.circular(3),
                       ),
-                    ],
-                    color: theme.shiokuriBlue,
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Save',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.white),
                     ),
-                  )),
-            ),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
+                    SizedBox(height: 20),
+                    Text(
+                      'Expense Detail',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 73, 73, 73),
+                        fontSize: 17,
+                      ),
+                    ),
+
+                    //budget field
+                    TextField(
+                      onChanged: (value) {
+                        amount = value;
+                      },
+                      onSubmitted: (value) {
+                        print('onsubmit called $value');
+                        _budgetController.text = amount;
+                        _descriptionController.text = description;
+                      },
+                      keyboardType: TextInputType.number,
+                      controller: _budgetController,
+                      decoration: InputDecoration(
+                        icon: Icon(Icons.monetization_on, color: Colors.black),
+                        hintText: "Enter amount",
+                        border: UnderlineInputBorder(), // Only underline
+                      ),
+                    ),
+
+                    SizedBox(height: 10),
+
+                    //description field
+
+                    TextField(
+                      onChanged: (value) {
+                        print('value is $value');
+                        description = value;
+                      },
+                      onSubmitted: (vlaue) {
+                        print('onsubmit called $vlaue');
+                      },
+                      controller: _descriptionController,
+                      decoration: InputDecoration(
+                        icon: Icon(Icons.edit),
+                        hintText: "Description (optional)",
+                      ),
+                    ),
+                    //////
+                    SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Category : ${category}',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color.fromARGB(255, 90, 90, 90),
+                                fontSize: 20),
+                          ),
+                        )
+                      ],
+                    ),
+                    Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color:
+                              const Color.fromARGB(255, 231, 231, 231), // 背景色
+                          borderRadius: BorderRadius.circular(20), // 角を丸くする
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color.fromARGB(255, 255, 255, 255),
+                              spreadRadius: 2,
+                              blurRadius: 5,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(20), // ClipRRect で角丸を適用
+                          child: PrimaryScrollController(
+                            controller: scrollController,
+                            child: GridView.builder(
+                              padding:
+                                  EdgeInsets.all(10), // アイコンが枠にくっつかないように余白を追加
+                              itemCount: expenseInstances().icons.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4, // 3列
+                                crossAxisSpacing: 20.0,
+                                mainAxisSpacing: 20.0,
+                              ),
+                              itemBuilder: (BuildContext context, int index) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      category = expenseInstances()
+                                          .icons[index]
+                                          .itemName;
+                                    });
+                                  },
+                                  child:
+                                      expenseInstances().icons[index].itemIcon,
+                                );
+                              },
+                            ),
+                          ),
+                        )),
+                    SizedBox(height: 10),
+                    Text(
+                      errTxt,
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    GestureDetector(
+                      onTap: () async {
+                        print('amount is ${amount}');
+                        double? enteredExpense = double.tryParse(amount);
+                        print('budget is $enteredExpense');
+
+                        if (enteredExpense != null) {
+                          try {
+                            Uuid uuid = Uuid();
+                            String id = uuid.v4();
+                            DateTime now = DateTime.now();
+                            int? parsedDate = int.tryParse(editingDate);
+
+                            await FirebaseFirestore.instance
+                                .collection("expenses")
+                                .doc(userId.uid)
+                                .collection(formattedDate)
+                                .doc(EditedId == '' ? id : EditedId)
+                                .set({
+                              "category": category,
+                              "amount": enteredExpense,
+                              "description": description,
+                              "date": parsedDate ?? now.day,
+                            });
+
+                            if (context.mounted) {
+                              amount = '';
+                              description = '';
+                              EditedId = '';
+                              _budgetController.text = '';
+                              _descriptionController.text = '';
+                              editingDate = '';
+
+                              Navigator.pop(context);
+                              refresh();
+                            }
+                          } catch (e) {
+                            print("Error saving data: $e");
+                          }
+                        } else {
+                          setState(() {
+                            errTxt = "Please enter a valid number";
+                          });
+                        }
+                      },
+                      child: Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey,
+                                blurRadius: 10,
+                              ),
+                            ],
+                            color: theme.shiokuriBlue,
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Save',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
+                            ),
+                          )),
+                    ),
+                    SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
