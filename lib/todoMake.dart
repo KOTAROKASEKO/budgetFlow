@@ -5,7 +5,7 @@ import 'package:moneymanager/uid/uid.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class todoPage extends StatefulWidget {
-  const todoPage({Key? key}) : super(key: key);
+  const todoPage({super.key});
 
   @override
   _todoPageState createState() => _todoPageState();
@@ -13,6 +13,7 @@ class todoPage extends StatefulWidget {
 
 class _todoPageState extends State<todoPage> {
   String userGoal = "";
+  @override
   initState() {
       getGoal();
       super.initState();

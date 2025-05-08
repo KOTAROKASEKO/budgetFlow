@@ -5,6 +5,8 @@ import 'package:moneymanager/uid/uid.dart';
 import 'package:uuid/uuid.dart';
 
 class BuyList extends StatefulWidget {
+  const BuyList({super.key});
+
   @override
   _BuyListState createState() => _BuyListState();
 }
@@ -143,8 +145,8 @@ class _BuyListState extends State<BuyList> {
               },
             );
           },
-          child: Icon(Icons.add),
           backgroundColor: theme.shiokuriBlue,
+          child: Icon(Icons.add),
         ),
         appBar: AppBar(
           backgroundColor: theme.shiokuriBlue,
@@ -233,7 +235,7 @@ class _BuyListState extends State<BuyList> {
     DateTime now = DateTime.now();
     int year = now.year;
     int month = now.month;
-    String formattedDate = "${year}-${month.toString().padLeft(2, '0')}";
+    String formattedDate = "$year-${month.toString().padLeft(2, '0')}";
     await FirebaseFirestore.instance
         .collection("expenses")
         .doc(userId.uid)

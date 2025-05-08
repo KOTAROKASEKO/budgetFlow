@@ -29,11 +29,11 @@ class _DashboardState extends State<Dashboard> {
   bool doesExist = true;
 
 //=====editing members
-  TextEditingController _budgetController = TextEditingController();
-  TextEditingController _descriptionController = TextEditingController();
-    final DraggableScrollableController draggableController =
+  final TextEditingController _budgetController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final DraggableScrollableController draggableController =
       DraggableScrollableController();
-    double sheetSize = 0.7;
+  double sheetSize = 0.7;
 
   String EditedId = '';
   String editingDate = '';
@@ -47,43 +47,67 @@ class _DashboardState extends State<Dashboard> {
     super.initState();
 
     _performUpdateCheck();
-    
 
-    print("user id is " + userId.uid);
+    print("user id is ${userId.uid}");
     DateTime now = DateTime.now();
     year = now.year;
     month = now.month;
-    formattedDate = "${year}-${month.toString().padLeft(2, '0')}";
+    formattedDate = "$year-${month.toString().padLeft(2, '0')}";
 
     fetchData(formattedDate);
   }
 
-    void _performUpdateCheck() {
+  void _performUpdateCheck() {
     // Pass the current context to ShowUpdate if needed for dialogs shown from within ShowUpdate
     // For this example, the dialog is shown from the callback.
     UpdateChecker.checkUpdate(context, (currentVersion, newVersion) {
       // This callback is triggered if an update is available
-      if (mounted) { // Check if the widget is still in the tree
+      if (mounted) {
+        // Check if the widget is still in the tree
         showDialog(
           context: context,
           barrierDismissible: false, // User must tap button!
           builder: (BuildContext dialogContext) {
             return AlertDialog(
-              title: const Text("Update Available"),
+              shape: RoundedRectangleBorder(
+                // 角を丸くする
+                borderRadius: BorderRadius.circular(15.0),
+              ),
+              title: const Text(
+                "Update is available", // タイトルを日本語に
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               content: Text(
-                  "A new version ($newVersion) is available. You are currently using version $currentVersion."),
+                  "Newer version ($newVersion) is available\nCurrent Version: $currentVersion"),
+              actionsAlignment: MainAxisAlignment.center, // アクションボタンを中央揃えに
+              actionsPadding: const EdgeInsets.only(
+                  bottom: 10.0, left: 10.0, right: 10.0), // アクションのパディング調整
               actions: <Widget>[
                 TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[700], // 「後で」ボタンの文字色
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 15, vertical: 10),
+                  ),
                   child: const Text("Later"),
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
                   },
                 ),
-                TextButton(
+                ElevatedButton(
+                  // 「今すぐアップデート」をElevatedButtonに変更して目立たせる
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.shiokuriBlue, // テーマカラーを背景色に設定
+                      foregroundColor: Colors.white, // テキストの色を白に
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      )),
                   child: const Text("Update Now"),
                   onPressed: () {
-                    Navigator.of(dialogContext).pop(); // Dismiss the dialog first
-                    UpdateChecker.launchAppStore(); // Call the method to launch URL
+                    Navigator.of(dialogContext).pop(); // 最初にダイアログを閉じる
+                    UpdateChecker.launchAppStore(); // URLを起動するメソッドを呼び出す
                   },
                 ),
               ],
@@ -180,7 +204,7 @@ class _DashboardState extends State<Dashboard> {
   int getCurrentFinance() {
     int subtraction = 0;
 
-    if (expenseModels.length != 0) {
+    if (expenseModels.isNotEmpty) {
       subtraction = expenseModels[0].date -
           expenseModels[expenseModels.length - 1].date +
           1;
@@ -225,8 +249,10 @@ class _DashboardState extends State<Dashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // drawer
       backgroundColor: Colors.white,
       appBar: AppBar(
+        
         backgroundColor: theme.shiokuriBlue,
         shape: ShapeBorder.lerp(
             RoundedRectangleBorder(
@@ -255,7 +281,6 @@ class _DashboardState extends State<Dashboard> {
           editingDate = '';
 
           showModalBottomSheet(
-            
             enableDrag: true,
             isScrollControlled: true,
             context: context,
@@ -287,72 +312,120 @@ class _DashboardState extends State<Dashboard> {
                         onTap: () {
                           showDialog(
                               context: context,
-                              builder: (context) {
+                              builder: (BuildContext dialogContext) { // builderのcontextには別名を使用
                                 return AlertDialog(
-                                    content: Container(
-                                  width: 200,
-                                  height: 160,
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        "Budget/day:",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: const Color.fromARGB(
-                                              255, 35, 35, 35),
-                                          fontSize: 20,
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        height: 20,
-                                      ),
-                                      TextField(
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20,
-                                            color: const Color.fromARGB(
-                                                255, 46, 46, 46)),
-                                        textAlign: TextAlign.center,
-                                        controller: TextEditingController()
-                                          ..text = budget.toString(),
-                                        onChanged: (value) {
-                                          budget = int.parse(value);
-                                        },
-                                      ),
-                                      SizedBox(
-                                        height: 20,
-                                      ),
-                                      GestureDetector(
-                                          onTap: () async {
-                                            await FirebaseFirestore.instance
-                                                .collection("budget")
-                                                .doc(userId.uid)
-                                                .set({"budget": budget});
-                                            refresh();
-                                            Navigator.pop(context);
-                                          },
-                                          child: Container(
-                                              height: 40,
-                                              width: 100,
-                                              decoration: BoxDecoration(
-                                                color: theme.shiokuriBlue,
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                              ),
-                                              child: Center(
-                                                child: Text("Save",
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Colors.white,
-                                                      fontSize: 17,
-                                                    )),
-                                              )))
-                                    ],
+                                  shape: RoundedRectangleBorder( // 角を丸くしてモダンな見た目に
+                                    borderRadius: BorderRadius.circular(15.0),
                                   ),
-                                ));
-                              });
-                        },
+                                  title: const Text( // タイトルを追加すると分かりやすくなります
+                                    "Set your daily budget",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  contentPadding: const EdgeInsets.all(0), // contentのデフォルトパディングを削除
+                                  content: Container(
+                                    width: double.maxFinite, // ダイアログの幅いっぱいに広げる
+                                    height: 280, // ★ダイアログのコンテンツエリアの高さを固定 (この値を調整してください)
+                                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10), // 内側のパディング
+                                    child: SingleChildScrollView( // 高さを超える場合にスクロール可能にする
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min, // Columnが必要な最小限の高さになるようにする
+                                        crossAxisAlignment: CrossAxisAlignment.center, // 子要素を中央揃えにする
+                                        children: [
+                                          const Text(
+                                            "Daily Budget :", // ラベルを少し変更
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Color.fromARGB(255, 35, 35, 35),
+                                              fontSize: 18, // フォントサイズを調整
+                                            ),
+                                          ),
+                                          const SizedBox(height: 15),
+                                          TextField(
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 24,
+                                              color: Color.fromARGB(255, 46, 46, 46),
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            controller: _budgetController,
+                                            keyboardType: TextInputType.number,
+                                            decoration: InputDecoration(
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(10.0),
+                                              ),
+                                              prefixText: "RM ",
+                                            ),
+                                            
+                                          ),
+                                          const SizedBox(height: 25),
+                                          GestureDetector(
+                                            onTap: () async {
+                                              // 保存処理
+                                              final String enteredValue = _budgetController.text;
+                                              final int? newBudget = int.tryParse(enteredValue);
+
+                                              if (newBudget != null) {
+                                                print("Budget to save (from dialog): $newBudget");
+
+                                                // Firebaseへの保存処理 (呼び出し元で行うか、ここでuserId.uidを渡すなどする)
+                                                await FirebaseFirestore.instance
+                                                    .collection("budget")
+                                                    .doc(userId.uid) // userIdも渡す必要がある
+                                                    .set({"budget": newBudget});
+                                                refresh(); // 親ウィジェットの更新処理 (呼び出し元で行う)
+
+                                                if (dialogContext.mounted) {
+                                                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                                    SnackBar(content: Text('予算を ¥$newBudget に設定しました。')),
+                                                  );
+                                                }
+                                              } else {
+                                                if (dialogContext.mounted) {
+                                                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                                    const SnackBar(content: Text('有効な数値を入力してください。')),
+                                                  );
+                                                }
+                                              }
+                                              if (dialogContext.mounted) {
+                                                  Navigator.pop(dialogContext); // ダイアログを閉じる
+                                              }
+                                            },
+                                            child: Container(
+                                              height: 45, // ボタンの高さを調整
+                                              width: 120, // ボタンの幅を調整
+                                              decoration: BoxDecoration(
+                                                color: theme.shiokuriBlue, // テーマカラーを使用
+                                                borderRadius: BorderRadius.circular(25), // ボタンの角をより丸く
+                                                boxShadow: [ // 影を追加して立体感を出す
+                                                  BoxShadow(
+                                                    color: Colors.black.withOpacity(0.15),
+                                                    spreadRadius: 1,
+                                                    blurRadius: 3,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: const Center(
+                                                child: Text(
+                                                  "Save",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                    fontSize: 17,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
                         child: Container(
                           height: 100,
                           width: 200,
@@ -405,7 +478,7 @@ class _DashboardState extends State<Dashboard> {
                               color: const Color.fromARGB(255, 54, 54, 54)),
                         ),
                         Text(
-                          "RM ${pace}",
+                          "RM $pace",
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 20,
@@ -566,7 +639,7 @@ class _DashboardState extends State<Dashboard> {
               month = 12;
               year--;
             }
-            String customDate = "${year}-${month.toString().padLeft(2, '0')}";
+            String customDate = "$year-${month.toString().padLeft(2, '0')}";
             fetchData(customDate);
           },
           child: Container(
@@ -585,7 +658,7 @@ class _DashboardState extends State<Dashboard> {
         width: 20,
       ),
       Text(
-        '${year}-${month}',
+        '$year-$month',
         style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'fancy'),
       ),
       //to next month
@@ -599,7 +672,7 @@ class _DashboardState extends State<Dashboard> {
               month = 1;
               year++;
             }
-            String customDate = "${year}-${month.toString().padLeft(2, '0')}";
+            String customDate = "$year-${month.toString().padLeft(2, '0')}";
             fetchData(customDate);
           },
           child: Container(
@@ -643,7 +716,7 @@ class _DashboardState extends State<Dashboard> {
                 minChildSize: 0.1,
                 maxChildSize: 0.7,
                 builder: (context, scrollController) {
-                  return Container(
+                  return SizedBox(
                       height: 200,
                       child: SingleChildScrollView(
                           child: Column(
@@ -759,305 +832,332 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  
-
   Widget enterExpense(
-  BuildContext context,
-  StateSetter setStateParent, // setState from the widget that calls showModalBottomSheet
-) {
-  print('enter expense was called');
+    BuildContext context,
+    StateSetter
+        setStateParent, // setState from the widget that calls showModalBottomSheet
+  ) {
+    print('enter expense was called');
 
-  // Variables local to this invocation of enterExpense, managed by StatefulBuilder's setState
-  String errTxt = ""; // Used for DraggableScrollableSheet's 'expand' property
+    // Variables local to this invocation of enterExpense, managed by StatefulBuilder's setState
+    String errTxt = ""; // Used for DraggableScrollableSheet's 'expand' property
 
+    // Pre-fill controllers when the sheet is first built.
+    // These lines run once per call to enterExpense.
+    _budgetController.text = amount;
+    _descriptionController.text = description;
 
-
-  // Pre-fill controllers when the sheet is first built.
-  // These lines run once per call to enterExpense.
-  _budgetController.text = amount;
-  _descriptionController.text = description;
-  
-
-  return StatefulBuilder(builder: (context, StateSetter setState) {
-    // 'setState' here is local to this StatefulBuilder.
-    // It will rebuild the DraggableScrollableSheet and its contents.
-    return DraggableScrollableSheet(
-      initialChildSize: sheetSize,
-      controller: draggableController,
-      minChildSize: 0.4,
-      maxChildSize: 1.0, // Explicitly defining max size
-      expand: false, // If true, sheet tries to expand to maxChildSize
-      builder: (sheetContext, scrollController) { // Renamed context to sheetContext
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(sheetContext).canvasColor, // Background for the sheet
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-            boxShadow: [ // Optional: Add a subtle shadow
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                spreadRadius: 0,
-              ),
-            ]
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            padding: EdgeInsets.symmetric(horizontal: 30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                SizedBox(height: 12), // Space for drag handle
-                Container( // Drag handle
-                  width: 40,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(10),
+    return StatefulBuilder(builder: (context, StateSetter setState) {
+      // 'setState' here is local to this StatefulBuilder.
+      // It will rebuild the DraggableScrollableSheet and its contents.
+      return DraggableScrollableSheet(
+        initialChildSize: sheetSize,
+        controller: draggableController,
+        minChildSize: 0.4,
+        maxChildSize: 1.0, // Explicitly defining max size
+        expand: false, // If true, sheet tries to expand to maxChildSize
+        builder: (sheetContext, scrollController) {
+          // Renamed context to sheetContext
+          return Container(
+            decoration: BoxDecoration(
+                color: Theme.of(sheetContext)
+                    .canvasColor, // Background for the sheet
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  // Optional: Add a subtle shadow
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    spreadRadius: 0,
                   ),
-                ),
-                SizedBox(height: 20),
-                Text(
-                  'Expense Detail',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 73, 73, 73),
-                    fontSize: 17,
-                  ),
-                ),
-                SizedBox(height: 15),
-
-                // Budget field
-                TextField(
-                  onTap: () {
-                    print("scrolling up ");
-                    setState(() {
-                      sheetSize = 1.0;
-                    });
-                  },
-                  onChanged: (value) {
-                    amount = value; // Update parent-level variable (ensure parent handles state)
-                  },
-                  onSubmitted: (value) {
-                    print('onsubmit called for budget: $value');
-                    // Potentially move focus or trigger validation
-                  },
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  controller: _budgetController,
-                  decoration: InputDecoration(
-                    icon: Icon(Icons.monetization_on, color: Colors.black54),
-                    hintText: "Enter amount",
-                    border: UnderlineInputBorder(),
-                  ),
-                ),
-
-                SizedBox(height: 10),
-
-                // Description field
-                TextField(
-                  onTap: () {
-                    setState(() {
-                      sheetSize = 1.0;
-                    });
-                    // If you also want to set the 'expand' property directly:
-                    // setState(() {
-                    //   isExapanded = true;
-                    // });
-                  },
-                  onChanged: (value) {
-                    print('description value is $value');
-                    description = value; // Update parent-level variable
-                  },
-                  onSubmitted: (value) {
-                    print('onsubmit called for description: $value');
-                  },
-                  controller: _descriptionController,
-                  decoration: InputDecoration(
-                    icon: Icon(Icons.edit, color: Colors.black54),
-                    hintText: "Description (optional)",
-                    border: UnderlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        'Category : ${category}', // Display current category
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color.fromARGB(255, 90, 90, 90),
-                            fontSize: 18), // Adjusted size
-                      ),
-                    )
-                  ],
-                ),
-                Container(
-                    height: 200, // Fixed height for GridView container
+                ]),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              padding: EdgeInsets.symmetric(horizontal: 30),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  SizedBox(height: 12), // Space for drag handle
+                  Container(
+                    // Drag handle
+                    width: 40,
+                    height: 5,
                     decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 240, 240, 240), // Lighter background
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: GridView.builder( // Removed PrimaryScrollController wrapper
-                        controller: scrollController, // Use the sheet's scrollController
-                        padding: EdgeInsets.all(15),
-                        itemCount: expenseInstances().icons.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 15.0, // Adjusted spacing
-                          mainAxisSpacing: 15.0,   // Adjusted spacing
-                        ),
-                        itemBuilder: (BuildContext context, int index) {
-                          final item = expenseInstances().icons[index];
-                          bool isSelected = category == item.itemName;
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() { // This updates the UI within the StatefulBuilder
-                                category = item.itemName;
-                              });
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isSelected ? theme.shiokuriBlue.withOpacity(0.3) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                                border: isSelected ? Border.all(color: theme.shiokuriBlue, width: 2) : null,
-                              ),
-                              child: Tooltip(
-                                message: item.itemName,
-                                child: Column( // To show icon and optionally text
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    item.itemIcon,
-                                    // Text(item.itemName, style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis) // Optional: show name
-                                  ],
-                                ),
-                              )
-                            ),
-                          );
-                        },
-                      ),
-                    )),
-                SizedBox(height: 15),
-                if (errTxt.isNotEmpty) // Only show error text if it's not empty
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(
-                      errTxt,
-                      style: TextStyle(color: Colors.red, fontSize: 14),
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                GestureDetector(
-                  onTap: () async {
-                    // Basic validation
-                    if (amount.trim().isEmpty || double.tryParse(amount.trim()) == null) {
+                  SizedBox(height: 20),
+                  Text(
+                    'Expense Detail',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 73, 73, 73),
+                      fontSize: 17,
+                    ),
+                  ),
+                  SizedBox(height: 15),
+
+                  // Budget field
+                  TextField(
+                    onTap: () {
+                      print("scrolling up ");
                       setState(() {
-                        errTxt = "Please enter a valid amount.";
+                        sheetSize = 1.0;
                       });
-                      return;
-                    }
-                    if (category.isEmpty) {
-                       setState(() {
-                        errTxt = "Please select a category.";
-                      });
-                      return;
-                    }
-                    setState(() { // Clear error on successful validation start
-                      errTxt = "";
-                    });
-
-                    double? enteredExpense = double.tryParse(amount.trim());
-
-                    if (enteredExpense != null) { // Should always be true due to above check
-                      try {
-                        Uuid uuid = Uuid();
-                        String id = uuid.v4(); // Generate new ID
-                        DateTime now = DateTime.now();
-                        int? parsedDate = int.tryParse(editingDate); // Day of the month
-
-                        // Construct the date for the expense
-                        // Assuming formattedDate is "YYYY-MM" and parsedDate is "DD"
-                        // More robust date handling might be needed
-                        // For simplicity, using now.day if editingDate is invalid
-
-                        await FirebaseFirestore.instance
-                            .collection("expenses")
-                            .doc(userId.uid) // User's specific expenses
-                            .collection(formattedDate) // Collection per month (e.g., "2024-05")
-                            .doc(EditedId.isEmpty ? id : EditedId) // Use new ID or existing ID
-                            .set({
-                          "category": category,
-                          "amount": enteredExpense,
-                          "description": description.trim(),
-                          "date": parsedDate ?? now.day, // Storing day of the month
-                          "timestamp": FieldValue.serverTimestamp(), // For ordering
-                          "monthYear": formattedDate, // Store YYYY-MM for easier querying
-                          "expenseId": EditedId.isEmpty ? id : EditedId, // Store the ID itself
-                        });
-
-                        if (sheetContext.mounted) { // Use sheetContext
-                          // Reset parent-level variables (ensure parent handles this state change)
-                          amount = '0.0';
-                          description = '';
-                          EditedId = '';
-                          _budgetController.clear();
-                          _descriptionController.clear();
-                          editingDate = '';
-                          // category = "Food"; // Optionally reset category
-
-                          Navigator.pop(sheetContext); // Use sheetContext
-                          sheetSize = 0.7;
-                          refresh(); // Call parent's refresh
-                        }
-                      } catch (e) {
-                        sheetSize = 0.7;
-                        print("Error saving data: $e");
-                        
-                      }
-                    }
-                    // No 'else' needed here for enteredExpense == null because of earlier validation
-                  },
-                  child: Container(
-                    width: double.infinity, // Make button wider
-                    padding: EdgeInsets.symmetric(vertical: 15),
-                    decoration: BoxDecoration(
-                      color: theme.shiokuriBlue,
-                      borderRadius: BorderRadius.circular(30), // More rounded
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
+                    },
+                    onChanged: (value) {
+                      amount =
+                          value; // Update parent-level variable (ensure parent handles state)
+                    },
+                    onSubmitted: (value) {
+                      print('onsubmit called for budget: $value');
+                      // Potentially move focus or trigger validation
+                    },
+                    keyboardType:
+                        TextInputType.numberWithOptions(decimal: true),
+                    controller: _budgetController,
+                    decoration: InputDecoration(
+                      icon: Icon(Icons.monetization_on, color: Colors.black54),
+                      hintText: "Enter amount",
+                      border: UnderlineInputBorder(),
                     ),
-                    child: Center(
+                  ),
+
+                  SizedBox(height: 10),
+
+                  // Description field
+                  TextField(
+                    onTap: () {
+                      setState(() {
+                        sheetSize = 1.0;
+                      });
+                      // If you also want to set the 'expand' property directly:
+                      // setState(() {
+                      //   isExapanded = true;
+                      // });
+                    },
+                    onChanged: (value) {
+                      print('description value is $value');
+                      description = value; // Update parent-level variable
+                    },
+                    onSubmitted: (value) {
+                      print('onsubmit called for description: $value');
+                    },
+                    controller: _descriptionController,
+                    decoration: InputDecoration(
+                      icon: Icon(Icons.edit, color: Colors.black54),
+                      hintText: "Description (optional)",
+                      border: UnderlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          'Category : $category', // Display current category
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color.fromARGB(255, 90, 90, 90),
+                              fontSize: 18), // Adjusted size
+                        ),
+                      )
+                    ],
+                  ),
+                  Container(
+                      height: 200, // Fixed height for GridView container
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(
+                            255, 240, 240, 240), // Lighter background
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: GridView.builder(
+                          // Removed PrimaryScrollController wrapper
+                          controller:
+                              scrollController, // Use the sheet's scrollController
+                          padding: EdgeInsets.all(15),
+                          itemCount: expenseInstances().icons.length,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            crossAxisSpacing: 15.0, // Adjusted spacing
+                            mainAxisSpacing: 15.0, // Adjusted spacing
+                          ),
+                          itemBuilder: (BuildContext context, int index) {
+                            final item = expenseInstances().icons[index];
+                            bool isSelected = category == item.itemName;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  // This updates the UI within the StatefulBuilder
+                                  category = item.itemName;
+                                });
+                              },
+                              child: Container(
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? theme.shiokuriBlue.withOpacity(0.3)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: isSelected
+                                        ? Border.all(
+                                            color: theme.shiokuriBlue, width: 2)
+                                        : null,
+                                  ),
+                                  child: Tooltip(
+                                    message: item.itemName,
+                                    child: Column(
+                                      // To show icon and optionally text
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        item.itemIcon,
+                                        // Text(item.itemName, style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis) // Optional: show name
+                                      ],
+                                    ),
+                                  )),
+                            );
+                          },
+                        ),
+                      )),
+                  SizedBox(height: 15),
+                  if (errTxt
+                      .isNotEmpty) // Only show error text if it's not empty
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
                       child: Text(
-                        EditedId.isEmpty ? 'Save Expense' : 'Update Expense',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: 16),
+                        errTxt,
+                        style: TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ),
+                  GestureDetector(
+                    onTap: () async {
+                      // Basic validation
+                      if (amount.trim().isEmpty ||
+                          double.tryParse(amount.trim()) == null) {
+                        setState(() {
+                          errTxt = "Please enter a valid amount.";
+                        });
+                        return;
+                      }
+                      if (category.isEmpty) {
+                        setState(() {
+                          errTxt = "Please select a category.";
+                        });
+                        return;
+                      }
+                      setState(() {
+                        // Clear error on successful validation start
+                        errTxt = "";
+                      });
+
+                      double? enteredExpense = double.tryParse(amount.trim());
+
+                      if (enteredExpense != null) {
+                        // Should always be true due to above check
+                        try {
+                          Uuid uuid = Uuid();
+                          String id = uuid.v4(); // Generate new ID
+                          DateTime now = DateTime.now();
+                          int? parsedDate =
+                              int.tryParse(editingDate); // Day of the month
+
+                          // Construct the date for the expense
+                          // Assuming formattedDate is "YYYY-MM" and parsedDate is "DD"
+                          // More robust date handling might be needed
+                          // For simplicity, using now.day if editingDate is invalid
+
+                          await FirebaseFirestore.instance
+                              .collection("expenses")
+                              .doc(userId.uid) // User's specific expenses
+                              .collection(
+                                  formattedDate) // Collection per month (e.g., "2024-05")
+                              .doc(EditedId.isEmpty
+                                  ? id
+                                  : EditedId) // Use new ID or existing ID
+                              .set({
+                            "category": category,
+                            "amount": enteredExpense,
+                            "description": description.trim(),
+                            "date": parsedDate ??
+                                now.day, // Storing day of the month
+                            "timestamp":
+                                FieldValue.serverTimestamp(), // For ordering
+                            "monthYear":
+                                formattedDate, // Store YYYY-MM for easier querying
+                            "expenseId": EditedId.isEmpty
+                                ? id
+                                : EditedId, // Store the ID itself
+                          });
+
+                          if (sheetContext.mounted) {
+                            // Use sheetContext
+                            // Reset parent-level variables (ensure parent handles this state change)
+                            amount = '0.0';
+                            description = '';
+                            EditedId = '';
+                            _budgetController.clear();
+                            _descriptionController.clear();
+                            editingDate = '';
+                            // category = "Food"; // Optionally reset category
+
+                            Navigator.pop(sheetContext); // Use sheetContext
+                            sheetSize = 0.7;
+                            refresh(); // Call parent's refresh
+                          }
+                        } catch (e) {
+                          sheetSize = 0.7;
+                          print("Error saving data: $e");
+                        }
+                      }
+                      // No 'else' needed here for enteredExpense == null because of earlier validation
+                    },
+                    child: Container(
+                      width: double.infinity, // Make button wider
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                        color: theme.shiokuriBlue,
+                        borderRadius: BorderRadius.circular(30), // More rounded
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          EditedId.isEmpty ? 'Save Expense' : 'Update Expense',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 16),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                SizedBox(height: MediaQuery.of(sheetContext).padding.bottom + 20), // Ensure content is above navigation bar
-              ],
+                  SizedBox(
+                      height: MediaQuery.of(sheetContext).padding.bottom +
+                          20), // Ensure content is above navigation bar
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
-  });
-}
+          );
+        },
+      );
+    });
+  }
 
-  Future<void> sheetScroller() async{
+  Future<void> sheetScroller() async {
     await Future.delayed(Duration(milliseconds: 100));
     draggableController.animateTo(
       1.0, // Target max size
