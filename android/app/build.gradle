@@ -37,8 +37,9 @@ android {
         applicationId = "com.kotarokase.moneyTracker"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
-        versionCode = 18 // Increment this for each release
-        versionName = "1.5.2" // Update this for each release
+        versionCode = 20 // Increment this for each release
+        versionName = "1.6.0" // Update this for each release
+        
     }
 
     buildTypes {

@@ -1,12 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // For date formatting (month name)
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
-import 'package:moneymanager/model/expenseModel.dart';
+import 'package:moneymanager/feedback/feedback.dart';
+import 'package:moneymanager/main.dart';
+import 'package:moneymanager/model/expenseModel.dart'; // Assuming your model is here
 import 'package:moneymanager/showUpdate.dart';
-import 'package:moneymanager/themeColor.dart';
-import 'package:moneymanager/uid/uid.dart';
+import 'package:moneymanager/themeColor.dart'; // Provides 'theme'
+import 'package:moneymanager/uid/uid.dart';     // Provides 'userId'
 import 'package:uuid/uuid.dart';
+
+// Placeholder for CategoryIcon data class if not defined elsewhere
+// You should have this defined, perhaps in your expenseModel.dart or a separate file.
+class CategoryIcon {
+  final String itemName;
+  final Icon itemIcon; // Storing the Icon widget directly
+
+  CategoryIcon({required this.itemName, required this.itemIcon});
+}
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -16,98 +28,94 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  final ShowUpdate UpdateChecker = ShowUpdate();
-  String category = "Food";
-  int? budget = 0;
-  List<double> dayBalances = [];
-  List<expenseModel> expenseModels = [];
-  int? avg = 0;
-  String formattedDate = '';
-  int month = 0;
-  int year = 0;
-  bool isLoading = true;
-  bool doesExist = true;
+  final ShowUpdate _updateChecker = ShowUpdate();
+  String _category = "Food"; // Default category for new expenses
+  int _budget = 0;
+  List<expenseModel> _expenseModels = [];
+  int _avg = 0;
+  int _total = 0;
+  String _formattedDate = ''; // Format: YYYY-MM
+  int _month = DateTime.now().month;
+  int _year = DateTime.now().year;
+  bool _isLoading = true;
+  bool _doesExist = true; // True if expenses exist for the month
+  int _pace = 0; // Saving or overspending
 
-//=====editing members
-  final TextEditingController _budgetController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final DraggableScrollableController draggableController =
-      DraggableScrollableController();
-  double sheetSize = 0.7;
+  final TextEditingController _budgetInputController = TextEditingController();
+  final TextEditingController _expenseAmountController = TextEditingController();
+  final TextEditingController _expenseDescriptionController = TextEditingController();
+  final DraggableScrollableController _draggableController = DraggableScrollableController();
 
-  String EditedId = '';
-  String editingDate = '';
-  String amount = '';
-  String description = '';
-  bool isOnline = true;
+  String _editedId = ''; // ID of the expense being edited
+  String _editingDateNum = ''; // Day number (as String) for editing
+
+  bool _isOnline = true;
+  late List<CategoryIcon> _categoryIcons;
+  
+  
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-
+    _categoryIcons = _getExpenseCategoriesWithIcons(); // Initialize categories
     _performUpdateCheck();
+    _initializeDateAndFetchData();
 
-    print("user id is ${userId.uid}");
+  }
+
+  List<CategoryIcon> _getExpenseCategoriesWithIcons() {
+    // Replace this with your actual category data and icons
+    // Ensure colors match your theme.shiokuriBlue or are appropriate
+    return [
+      CategoryIcon(itemName: "Food", itemIcon: Icon(Icons.food_bank, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "restaurant", itemIcon: Icon(Icons.fastfood_outlined, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "Transport", itemIcon: Icon(Icons.directions_car_filled_outlined, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "Shopping", itemIcon: Icon(Icons.shopping_bag_outlined, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "Bills", itemIcon: Icon(Icons.receipt_long_outlined, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "Entertainment", itemIcon: Icon(Icons.movie_filter_outlined, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "Health", itemIcon: Icon(Icons.healing_outlined, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "Education", itemIcon: Icon(Icons.school_outlined, color: theme.shiokuriBlue)),
+      CategoryIcon(itemName: "Others", itemIcon: Icon(Icons.category_outlined, color: theme.shiokuriBlue)),
+    ];
+  }
+
+  void _initializeDateAndFetchData() {
     DateTime now = DateTime.now();
-    year = now.year;
-    month = now.month;
-    formattedDate = "$year-${month.toString().padLeft(2, '0')}";
-
-    fetchData(formattedDate);
+    _year = now.year;
+    _month = now.month;
+    _formattedDate = "$_year-${_month.toString().padLeft(2, '0')}";
+    fetchData(_formattedDate);
   }
 
   void _performUpdateCheck() {
-    // Pass the current context to ShowUpdate if needed for dialogs shown from within ShowUpdate
-    // For this example, the dialog is shown from the callback.
-    UpdateChecker.checkUpdate(context, (currentVersion, newVersion) {
-      // This callback is triggered if an update is available
+    _updateChecker.checkUpdate(context, (currentVersion, newVersion) {
       if (mounted) {
-        // Check if the widget is still in the tree
         showDialog(
           context: context,
-          barrierDismissible: false, // User must tap button!
+          barrierDismissible: false,
           builder: (BuildContext dialogContext) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(
-                // 角を丸くする
-                borderRadius: BorderRadius.circular(15.0),
-              ),
-              title: const Text(
-                "Update is available", // タイトルを日本語に
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: Text(
-                  "Newer version ($newVersion) is available\nCurrent Version: $currentVersion"),
-              actionsAlignment: MainAxisAlignment.center, // アクションボタンを中央揃えに
-              actionsPadding: const EdgeInsets.only(
-                  bottom: 10.0, left: 10.0, right: 10.0), // アクションのパディング調整
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+              title: const Text("Update Available", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              content: Text("A newer version ($newVersion) is available.\nCurrent Version: $currentVersion"),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
+              actionsPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
               actions: <Widget>[
                 TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey[700], // 「後で」ボタンの文字色
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 15, vertical: 10),
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.grey[700], padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10)),
                   child: const Text("Later"),
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
                 ElevatedButton(
-                  // 「今すぐアップデート」をElevatedButtonに変更して目立たせる
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.shiokuriBlue, // テーマカラーを背景色に設定
-                      foregroundColor: Colors.white, // テキストの色を白に
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      )),
+                      backgroundColor: theme.shiokuriBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0))),
                   child: const Text("Update Now"),
                   onPressed: () {
-                    Navigator.of(dialogContext).pop(); // 最初にダイアログを閉じる
-                    UpdateChecker.launchAppStore(); // URLを起動するメソッドを呼び出す
+                    Navigator.of(dialogContext).pop();
+                    _updateChecker.launchAppStore();
                   },
                 ),
               ],
@@ -118,1051 +126,1024 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
-  void checkConnection() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      print("No internet connection");
-      setState(() {
-        isOnline = false;
-      });
-    } else {
-      print("Connected to internet");
-      isOnline = true;
+  Future<void> fetchData(String dateToFetch) async {
+    if (!_isOnline && _expenseModels.isEmpty) { // Only show full block if truly no data and offline
+      setState(() => _isLoading = false);
+      return;
     }
-  }
+    setState(() {
+      _isLoading = true;
+      _formattedDate = dateToFetch;
+      // Update _year and _month from dateToFetch
+      var parts = dateToFetch.split('-');
+      _year = int.parse(parts[0]);
+      _month = int.parse(parts[1]);
+    });
 
-  void fetchData(String formattedDate) async {
     try {
-      checkConnection();
-
-      this.formattedDate = formattedDate;
-
-      setState(() {
-        isLoading = true;
-      });
-
-      DocumentSnapshot ref = await FirebaseFirestore.instance
+      DocumentSnapshot budgetDoc = await FirebaseFirestore.instance
           .collection("budget")
           .doc(userId.uid)
           .get();
-      if (ref.exists) {
-        budget = ref["budget"];
-      } else {
-        budget = 0; // Set a default value if the document doesn't exist
+      if (mounted) {
+        setState(() {
+          if (budgetDoc.exists) {
+            _budget = (budgetDoc.data() as Map<String, dynamic>)['budget'] ?? 0;
+          } else {
+            _budget = 0;
+          }
+        });
       }
+
 
       QuerySnapshot expensesSnapshot = await FirebaseFirestore.instance
           .collection("expenses")
           .doc(userId.uid)
-          .collection(formattedDate)
+          .collection(dateToFetch)
+          .orderBy("date", descending: true) // Sort by day of the month
           .get();
 
-      expenseModels.clear(); // Clear the list before adding new data
-      for (var doc in expensesSnapshot.docs) {
-        Map<String, dynamic>? data =
-            doc.data() as Map<String, dynamic>?; // Ensure type safety
-
-        if (data != null && data.containsKey("amount")) {
-          double amount = double.parse('${data["amount"]}');
-          int date = data["date"];
-
-          expenseModels.add(expenseModel(
-              amount: double.parse('$amount'),
-              date: date,
+      if (mounted) {
+        _expenseModels.clear();
+        for (var doc in expensesSnapshot.docs) {
+          Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+          if (data != null && data.containsKey("amount") && data.containsKey("date")) {
+            _expenseModels.add(expenseModel(
+              amount: (data["amount"] as num).toDouble(),
+              date: (data["date"] as num).toInt(),
               id: doc.id,
-              description: data["description"] ?? '',
-              category: data["category"] ?? ''));
+              description: data["description"] as String?,
+              category: data["category"] as String?,
+            ));
+          }
         }
+        _calculateFinancialSummary();
+        setState(() {
+          _isLoading = false;
+          _doesExist = _expenseModels.isNotEmpty;
+        });
       }
-      expenseModels
-          .sort((a, b) => b.date.compareTo(a.date)); // Sort the list by date
-
-      print("Expenses list: $expenseModels"); // Debugging output
-      setState(() {
-        isLoading = false;
-        doesExist = expenseModels.isNotEmpty;
-        getCurrentFinance();
-      });
     } catch (e) {
-      setState(() {
-        isLoading = false;
-        doesExist = expenseModels.isNotEmpty;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error fetching data: $e"), backgroundColor: Colors.redAccent),
+        );
+      }
       print("Error fetching data: $e");
     }
   }
 
-  Future<void> refresh() async {
-    fetchData(formattedDate);
+  void _calculateFinancialSummary() {
+    if (!mounted) return;
+
+    if (_expenseModels.isEmpty) {
+      setState(() {
+        _avg = 0;
+        int daysInCurrentViewMonth = DateTime(_year, _month + 1, 0).day;
+        _pace = _budget * daysInCurrentViewMonth; // Full budget remaining for the month
+      });
+      return;
+    }
+
+    double totalExpenses = _expenseModels.fold(0.0, (sum, item) => sum + item.amount);
+    
+    // Since expenses are sorted by date (day of month) descending, the first is the latest.
+    int latestExpenseDayInMonth = _expenseModels.first.date;
+
+    int daysPassedForCalc;
+    DateTime today = DateTime.now();
+
+    if (_year == today.year && _month == today.month) { // Current actual month
+      daysPassedForCalc = (latestExpenseDayInMonth > today.day) ? latestExpenseDayInMonth : today.day;
+      daysPassedForCalc = (daysPassedForCalc > today.day) ? today.day : daysPassedForCalc; // Cap at today
+    } else { // Viewing a past or future month
+      daysPassedForCalc = latestExpenseDayInMonth;
+    }
+    daysPassedForCalc = daysPassedForCalc > 0 ? daysPassedForCalc : 1; // Avoid division by zero
+
+    setState(() {
+      _total = totalExpenses.round();
+      _avg = (totalExpenses / daysPassedForCalc).round();
+      double idealSpendingToDate = _budget * daysPassedForCalc.toDouble();
+      _pace = (idealSpendingToDate - totalExpenses).round();
+    });
   }
 
-  int sum = 0;
-  int numDays = 0;
-
-  int pace = 0;
-
-  int getCurrentFinance() {
-    int subtraction = 0;
-
-    if (expenseModels.isNotEmpty) {
-      subtraction = expenseModels[0].date -
-          expenseModels[expenseModels.length - 1].date +
-          1;
-    }
-
-    double total = 0;
-
-    for (int j = 0; j < expenseModels.length; j++) {
-      total += expenseModels[j].amount;
-    }
-
-    total = (subtraction * budget!) - total;
-
-    // Round up to the nearest integer
-    pace = total.ceil();
-    return pace;
+  Future<void> _refresh() async {
+    await fetchData(_formattedDate);
   }
 
-  int getAverage() {
-    int days = 1;
+  void _openBudgetDialog() {
+    _budgetInputController.text = _budget.toString();
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          title: const Text("Set Daily Budget", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: TextField(
+            controller: _budgetInputController,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              prefixText: "RM ",
+              hintText: "e.g., 50",
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.0)),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: theme.shiokuriBlue, width: 2),
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actionsPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
+          actions: [
+            TextButton(
+              child: Text("Cancel", style: TextStyle(color: Colors.grey[700], fontSize: 16)),
+              onPressed: () => Navigator.pop(dialogContext),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.shiokuriBlue, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+              ),
+              child: const Text("Save", style: TextStyle(fontSize: 16)),
+              onPressed: () async {
+                final int? newBudget = int.tryParse(_budgetInputController.text);
+                if (newBudget != null && newBudget >= 0) {
+                  try {
+                    await FirebaseFirestore.instance.collection("budget").doc(userId.uid).set({"budget": newBudget});
+                    if (mounted) {
+                      setState(() => _budget = newBudget);
+                      _calculateFinancialSummary(); // Recalculate pace
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Daily budget updated to RM $newBudget.'), backgroundColor: Colors.green),
+                      );
+                    }
+                  } catch (e) {
+                    if(mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to update budget: $e'), backgroundColor: Colors.redAccent),
+                      );
+                    }
+                  }
+                } else {
+                   if(mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please enter a valid budget amount.'), backgroundColor: Colors.orangeAccent),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-    if (expenseModels.isNotEmpty) {
-      print('latest day${expenseModels[expenseModels.length - 1].date}');
-      days = expenseModels[0].date -
-          expenseModels[expenseModels.length - 1].date +
-          1;
-      print('how many days exist: $days');
+  void _showAddEditExpenseSheet({expenseModel? expenseToEdit}) {
+    bool isEditing = expenseToEdit != null;
+
+    if (isEditing) {
+      _editedId = expenseToEdit.id;
+      _expenseAmountController.text = expenseToEdit.amount.toStringAsFixed(2);
+      _expenseDescriptionController.text = expenseToEdit.description ?? '';
+      _category = expenseToEdit.category ?? 'Others';
+      _editingDateNum = expenseToEdit.date.toString();
+    } else {
+      _editedId = '';
+      _expenseAmountController.clear();
+      _expenseDescriptionController.clear();
+      _category = "Food"; // Default category
+      _editingDateNum = DateTime.now().day.toString(); // Default to current day
     }
 
-    double total = 0;
-    for (int j = 0; j < expenseModels.length; j++) {
-      total += expenseModels[j].amount;
-    }
-    try {
-      avg = total ~/ days;
-    } catch (e) {
-      print('error in getAverage $e');
-    }
-    return avg ?? 0;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent, // Important for custom shape
+      builder: (context) => _buildAddEditExpenseSheetContent(isEditing: isEditing),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // drawer
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+      // Make sure you have access to your theme object, e.g., 'theme.shiokuriBlue'
+      // and 'theme.backgroundColor' if you intend to use it (though for dark theme, we'll override).
+
+      drawer: GestureDetector(
         
-        backgroundColor: theme.shiokuriBlue,
-        shape: ShapeBorder.lerp(
-            RoundedRectangleBorder(
-                borderRadius: BorderRadius.only(
-                    //bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20))),
-            RoundedRectangleBorder(
-                borderRadius: BorderRadius.only(
-                    //bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20))),
-            1),
-        centerTitle: true,
-        title: Text(
-          "Finance Planner",
-          style: TextStyle(fontFamily: 'fancy', fontSize: 20),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: theme.shiokuriBlue,
-        onPressed: () async {
-          sheetSize = 0.7;
-          //=============================create new record (not edit)=========================
-          amount = '';
-          description = '';
-          EditedId = '';
-          editingDate = '';
-
-          showModalBottomSheet(
-            enableDrag: true,
-            isScrollControlled: true,
-            context: context,
-            builder: (context) {
-              return enterExpense(
-                context,
-                setState,
-              );
-            },
-          );
+        // This GestureDetector makes the entire drawer surface tappable to close itself.
+        // This is not standard behavior (usually, tapping outside or an item closes it).
+        // If you prefer standard behavior, you might remove this outer GestureDetector
+        // and let the Scaffold handle closing the drawer when the scrim is tapped.
+        onTap: () {
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).pop(); // Close drawer on tap of any part of it
+          }
         },
-        //======================================================================
-        child: Icon(
-          Icons.add,
-          size: 20,
-        ),
-      ),
-      body: isOnline
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.start,
+        child: Drawer(
+          backgroundColor: const Color(0xFF1A1A1A), // A deep, modern dark gray
+          child: SafeArea( // Ensures content isn't obscured by system UI (notches, etc.)
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                SizedBox(
-                  height: 10,
-                ),
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                // Custom Drawer Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+                  decoration: BoxDecoration(
+                    // Example of a subtle gradient or different shade for header
+                    color: theme.shiokuriBlue.withOpacity(0.15), // Using your theme's accent color subtly
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          showDialog(
-                              context: context,
-                              builder: (BuildContext dialogContext) { // builderのcontextには別名を使用
-                                return AlertDialog(
-                                  shape: RoundedRectangleBorder( // 角を丸くしてモダンな見た目に
-                                    borderRadius: BorderRadius.circular(15.0),
-                                  ),
-                                  title: const Text( // タイトルを追加すると分かりやすくなります
-                                    "Set your daily budget",
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  contentPadding: const EdgeInsets.all(0), // contentのデフォルトパディングを削除
-                                  content: Container(
-                                    width: double.maxFinite, // ダイアログの幅いっぱいに広げる
-                                    height: 280, // ★ダイアログのコンテンツエリアの高さを固定 (この値を調整してください)
-                                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10), // 内側のパディング
-                                    child: SingleChildScrollView( // 高さを超える場合にスクロール可能にする
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min, // Columnが必要な最小限の高さになるようにする
-                                        crossAxisAlignment: CrossAxisAlignment.center, // 子要素を中央揃えにする
-                                        children: [
-                                          const Text(
-                                            "Daily Budget :", // ラベルを少し変更
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color.fromARGB(255, 35, 35, 35),
-                                              fontSize: 18, // フォントサイズを調整
-                                            ),
-                                          ),
-                                          const SizedBox(height: 15),
-                                          TextField(
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 24,
-                                              color: Color.fromARGB(255, 46, 46, 46),
-                                            ),
-                                            textAlign: TextAlign.center,
-                                            controller: _budgetController,
-                                            keyboardType: TextInputType.number,
-                                            decoration: InputDecoration(
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(10.0),
-                                              ),
-                                              prefixText: "RM ",
-                                            ),
-                                            
-                                          ),
-                                          const SizedBox(height: 25),
-                                          GestureDetector(
-                                            onTap: () async {
-                                              // 保存処理
-                                              final String enteredValue = _budgetController.text;
-                                              final int? newBudget = int.tryParse(enteredValue);
-
-                                              if (newBudget != null) {
-                                                print("Budget to save (from dialog): $newBudget");
-
-                                                // Firebaseへの保存処理 (呼び出し元で行うか、ここでuserId.uidを渡すなどする)
-                                                await FirebaseFirestore.instance
-                                                    .collection("budget")
-                                                    .doc(userId.uid) // userIdも渡す必要がある
-                                                    .set({"budget": newBudget});
-                                                refresh(); // 親ウィジェットの更新処理 (呼び出し元で行う)
-
-                                                if (dialogContext.mounted) {
-                                                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                                    SnackBar(content: Text('予算を ¥$newBudget に設定しました。')),
-                                                  );
-                                                }
-                                              } else {
-                                                if (dialogContext.mounted) {
-                                                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                                    const SnackBar(content: Text('有効な数値を入力してください。')),
-                                                  );
-                                                }
-                                              }
-                                              if (dialogContext.mounted) {
-                                                  Navigator.pop(dialogContext); // ダイアログを閉じる
-                                              }
-                                            },
-                                            child: Container(
-                                              height: 45, // ボタンの高さを調整
-                                              width: 120, // ボタンの幅を調整
-                                              decoration: BoxDecoration(
-                                                color: theme.shiokuriBlue, // テーマカラーを使用
-                                                borderRadius: BorderRadius.circular(25), // ボタンの角をより丸く
-                                                boxShadow: [ // 影を追加して立体感を出す
-                                                  BoxShadow(
-                                                    color: Colors.black.withOpacity(0.15),
-                                                    spreadRadius: 1,
-                                                    blurRadius: 3,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: const Center(
-                                                child: Text(
-                                                  "Save",
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.white,
-                                                    fontSize: 17,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        child: Container(
-                          height: 100,
-                          width: 200,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                  color:
-                                      const Color.fromARGB(255, 131, 131, 131),
-                                  offset: Offset(0, 10),
-                                  blurRadius: 10)
-                            ],
-                          ),
-                          child: Center(
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                Text(
-                                  "Daily Budget",
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      fontFamily: 'fancy'),
-                                ),
-                                Text(
-                                  "RM ${budget ?? 0}",
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16),
-                                )
-                              ])),
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: theme.shiokuriBlue,
+                        child: const Icon(
+                          Icons.account_balance_wallet_rounded, // Example: Finance App Icon
+                          size: 30,
+                          color: Colors.white,
                         ),
                       ),
-                      Column(children: [
-                        Text('average/day'),
-                        Text(
-                          'RM ${getAverage()}',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 20),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Finance Planner", // Replace with your App's Name
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
                         ),
-                        Text(
-                          pace >= 0
-                              ? 'You are saving :'
-                              : 'You have exceeded :',
-                          style: TextStyle(
-                              fontFamily: 'fancy',
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 54, 54, 54)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Version 1.6.0", // Replace with dynamic version later if needed
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 13,
                         ),
-                        Text(
-                          "RM $pace",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: pace <= 0 ? Colors.red : Colors.green),
-                        ),
-                      ]),
-                    ]),
-                SizedBox(
-                  height: 20,
+                      ),
+                    ],
+                  ),
                 ),
+
+                // Menu Items
                 Expanded(
-                    child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.only(topRight: Radius.circular(60)),
-                          gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                theme.shiokuriBlue,
-                                const Color.fromARGB(255, 235, 235, 235)
-                              ]),
-                        ),
-                        child: ClipRRect(
-                            borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(60)),
-                            child: LiquidPullToRefresh(
-                                backgroundColor: theme.shiokuriBlue,
-                                color: Colors.white,
-                                springAnimationDurationInMilliseconds: 400,
-                                onRefresh: () {
-                                  return refresh();
-                                },
-                                child: isLoading
-                                    ? Center(
-                                        child: Column(children: [
-                                        SizedBox(
-                                          height: 20,
-                                        ),
-                                        monthModifier(),
-                                        CircularProgressIndicator()
-                                      ]))
-                                    : doesExist
-                                        ? ListView.builder(
-                                            itemCount: expenseModels.length,
-                                            itemBuilder: (context, index) {
-                                              print(expenseModels[index].date);
-                                              if (index > 0) {
-                                                if (expenseModels[index].date !=
-                                                    expenseModels[index - 1]
-                                                        .date) {
-                                                  print(
-                                                      "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
-                                                  return Column(children: [
-                                                    Text(
-                                                      "Day ${expenseModels[index].date}",
-                                                      style: TextStyle(
-                                                          fontSize: 16,
-                                                          fontFamily: 'fancy',
-                                                          fontWeight:
-                                                              FontWeight.bold),
-                                                    ),
-                                                    expenseTile(index),
-                                                  ]);
-                                                } else {
-                                                  print(
-                                                      "${expenseModels[index].date} and the previous one is ,${expenseModels[index - 1].date}");
-                                                  return expenseTile(index);
-                                                }
-                                              } else {
-                                                return Column(children: [
-                                                  SizedBox(
-                                                    height: 20,
-                                                  ),
-                                                  monthModifier(),
-                                                  SizedBox(
-                                                    height: 20,
-                                                  ),
-                                                  Text(
-                                                    "Day ${expenseModels[index].date}",
-                                                    style: TextStyle(
-                                                        fontSize: 16,
-                                                        fontFamily: 'fancy',
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
-                                                  expenseTile(index),
-                                                ]);
-                                              }
-                                            },
-                                          )
-                                        : Center(
-                                            child: LiquidPullToRefresh(
-                                            onRefresh: () {
-                                              return refresh();
-                                            },
-                                            child: ListView(children: [
-                                              SizedBox(
-                                                height: 20,
-                                              ),
-                                              monthModifier(),
-                                              SizedBox(
-                                                height: 30,
-                                              ),
-                                              Text(
-                                                'Record doesnt exist',
-                                                style: TextStyle(
-                                                    fontFamily: 'fancy',
-                                                    fontWeight: FontWeight.bold,
-                                                    color: const Color.fromARGB(
-                                                        255, 39, 39, 39)),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              SizedBox(
-                                                height: 20,
-                                              ),
-                                            ]),
-                                          ))))))
+                  child: ListView(
+                    padding: const EdgeInsets.only(top: 8.0), // Add some padding at the top of the list
+                    children: [
+                      _buildDrawerItem(
+                        context: context, // Pass context for Navigator & SnackBar
+                        icon: Icons.exit_to_app_outlined,
+                        text: 'Sign Out',
+                        accentColor: theme.shiokuriBlue,
+                        onTap: () async{
+                          Navigator.pop(context); // Close drawer first
+                            await signOut(context);
+                        },
+                      ),
+                      const Divider(color: Colors.white12, indent: 20, endIndent: 20, height: 1),
+                      _buildDrawerItem(
+                        context: context,
+                        icon: Icons.feedback_outlined,
+                        text: 'Send Feedback',
+                        accentColor: theme.shiokuriBlue,
+                        onTap: () {
+                          Navigator.pop(context);
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true, // Important for keyboard to not cover fields
+                            backgroundColor: Colors.transparent, // For custom shape and background
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+                            ),
+                            builder: (BuildContext modalContext) {
+                              return FeedbackForm(); // The actual form content
+                            },
+                          );
+                          
+                        },
+                      ),
+                      _buildDrawerItem(
+                        context: context,
+                        icon: Icons.info_outline_rounded,
+                        text: 'About Us',
+                        accentColor: theme.shiokuriBlue,
+                        onTap: () {
+                          Navigator.pop(context);
+                          // --- Navigate to About Us screen or show an AboutDialog ---
+                          // For example:
+                          // Navigator.push(context, MaterialPageRoute(builder: (context) => AboutUsScreen()));
+                          // Or:
+                          showDialog(
+                              context: context,
+                              builder: (context) => AboutDialog(
+                                    applicationName: 'Finance Planner',
+                                    applicationVersion: '1.6.0',
+                                    applicationIcon: CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: theme.shiokuriBlue,
+                                      child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
+                                    ),
+                                    applicationLegalese: '© ${DateTime.now().year} kotaro.sdn.bhd',
+                                    children: <Widget>[
+                                      const SizedBox(height: 15),
+                                      const Text('This app helps you manage your finances efficiently.'),
+                                    ],
+                                  ));
+                        },
+                      ),
+                      const Divider(color: Colors.white12, indent: 20, endIndent: 20, height: 1),
+                    ],
+                  ),
+                ),
+
+                // Optional Footer Text (e.g., a small quote or branding)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0, top: 12.0),
+                  child: Text(
+                    "Your finances, simplified.", // Or any other footer text
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
               ],
-            )
-          : Center(
-              child: LiquidPullToRefresh(
-              onRefresh: () {
-                return refresh();
-              },
-              child: ListView(
-                children: [
-                  Icon(Icons.wifi_off),
-                  Text(
-                    'You are offline',
-                    style: TextStyle(fontFamily: 'fancy', fontSize: 20),
-                  ),
-                  Text(
-                    'Please check your internet connection',
-                    style: TextStyle(fontFamily: 'fancy', fontSize: 20),
-                  ),
-                  SizedBox(
-                    height: 20,
-                  ),
-                  ElevatedButton(
-                      onPressed: () {
-                        fetchData(formattedDate);
-                      },
-                      child: Text('Retry'))
-                ],
-              ),
-            )),
+            ),
+          ),
+        ),
+      ),
+      backgroundColor: theme.backgroundColor, // Lighter background
+      appBar: AppBar(
+        backgroundColor: theme.shiokuriBlue,
+        elevation: 1,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+        ),
+        title: Text(
+          "Finance Dashboard",
+          style: theme.subtitle,
+        ),
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: theme.shiokuriBlue,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_card_outlined),
+        label: const Text("New Expense"),
+        onPressed: () => _showAddEditExpenseSheet(),
+        elevation: 4.0,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      body: _buildBody(),
     );
   }
 
-  Widget monthModifier() {
-    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      //to last month
-      GestureDetector(
-          onTap: () {
-            month--;
-            if (month == 0) {
-              month = 12;
-              year--;
-            }
-            String customDate = "$year-${month.toString().padLeft(2, '0')}";
-            fetchData(customDate);
-          },
+  Widget _buildBody() {
+    if (!_isOnline && _expenseModels.isEmpty && !_isLoading) {
+      return _buildOfflineMessage();
+    }
+    return Column(
+      children: [
+        _buildSummarySection(),
+        _buildMonthNavigator(),
+        Expanded(
           child: Container(
-            height: 40,
-            width: 40,
+            margin: const EdgeInsets.only(top: 5),
             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20), color: Colors.blue),
-            child: Center(
-                child: Icon(
-              Icons.arrow_left_sharp,
-              color: Colors.white,
-            )),
-          )),
-
-      SizedBox(
-        width: 20,
-      ),
-      Text(
-        '$year-$month',
-        style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'fancy'),
-      ),
-      //to next month
-      SizedBox(
-        width: 20,
-      ),
-      GestureDetector(
-          onTap: () {
-            month++;
-            if (month == 13) {
-              month = 1;
-              year++;
-            }
-            String customDate = "$year-${month.toString().padLeft(2, '0')}";
-            fetchData(customDate);
-          },
-          child: Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20), color: Colors.blue),
-            child: Center(
-                child: Icon(
-              Icons.arrow_right,
-              color: Colors.white,
-            )),
-          )),
-    ]);
+              color: Colors.white, // Changed list background to white
+              borderRadius:  BorderRadius.circular(35),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.15),
+                  spreadRadius: 0,
+                  blurRadius: 15,
+                  offset: const Offset(0, -5),
+                )
+              ]
+            ),
+            child: ClipRRect( // Ensure pull to refresh respects border radius
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(35), topRight: Radius.circular(35), bottomLeft: Radius.circular(35), bottomRight: Radius.circular(35)),
+                child: LiquidPullToRefresh(
+                color: theme.shiokuriBlue.withAlpha(180),
+                backgroundColor: Colors.white,
+                springAnimationDurationInMilliseconds: 350,
+                onRefresh: _refresh,
+                child: _isLoading
+                    ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(theme.shiokuriBlue)))
+                    : _doesExist
+                        ? _buildExpenseList()
+                        : _buildNoRecordsMessage(isEmpty: true), // Pass flag
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
-  Widget expenseTile(int index) {
-    int whichIndex = expenseInstances().icons.indexWhere((element) =>
-        element.itemName.toLowerCase() ==
-        expenseModels[index].category!.toLowerCase());
-    return ListTile(
-      leading: expenseInstances().icons[whichIndex].itemIcon,
-      title: Text(
-        "RM ${expenseModels[index].amount}",
-        style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: const Color.fromARGB(255, 50, 50, 50)),
+  Widget _buildOfflineMessage() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(25.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 90, color: Colors.grey[400]),
+            const SizedBox(height: 25),
+            Text('You Are Offline', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+            const SizedBox(height: 12),
+            Text('Please check your internet connection to sync and view the latest data.', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey[500])),
+            const SizedBox(height: 35),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry Connection'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.shiokuriBlue, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)
+              ),
+              onPressed: () {
+                 if(_isOnline) fetchData(_formattedDate); // Re-fetch if connection is now on
+              },
+            )
+          ],
+        ),
       ),
-      subtitle: Text("${expenseModels[index].description}",
-          maxLines: 1,
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: const Color.fromARGB(255, 81, 81, 81))),
-      onTap: () {
-        showModalBottomSheet(
-            context: context,
-            builder: (context) {
-              return DraggableScrollableSheet(
-                expand: false,
-                initialChildSize: 0.6,
-                minChildSize: 0.1,
-                maxChildSize: 0.7,
-                builder: (context, scrollController) {
-                  return SizedBox(
-                      height: 200,
-                      child: SingleChildScrollView(
-                          child: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                            Padding(
-                              padding: EdgeInsets.all(10),
-                              child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 100,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(3),
-                                        color: const Color.fromARGB(
-                                            255, 104, 104, 104),
-                                      ),
-                                    )
-                                  ]),
-                            ),
-                            ListTile(
-                              title: Text(
-                                "Amount: RM${expenseModels[index].amount}",
-                                style: TextStyle(
-                                    fontSize: 30, fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text(
-                                "Description: ${expenseModels[index].description}",
-                                style: TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        const Color.fromARGB(255, 86, 86, 86)),
-                              ),
-                            ),
-                            SizedBox(
-                              height: 20,
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                GestureDetector(
-                                  child: Container(
-                                      height: 40,
-                                      width: 40,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        color: Colors.red,
-                                      ),
-                                      child: Icon(
-                                        Icons.delete,
-                                        color: Colors.white,
-                                      )),
-                                  onTap: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection("expenses")
-                                        .doc(userId.uid)
-                                        .collection(formattedDate)
-                                        .doc(expenseModels[index].id)
-                                        .delete();
-                                    refresh();
-                                    Navigator.pop(context);
-                                  },
-                                ),
-                                GestureDetector(
-                                  child: Container(
-                                      height: 40,
-                                      width: 40,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        color: Colors.green,
-                                      ),
-                                      child: Icon(Icons.edit,
-                                          color: Colors.white)),
-                                  onTap: () {
-                                    sheetSize = 0.7;
-                                    //================================edit the record ===============================
-                                    Navigator.pop(context);
-                                    //=====
-                                    EditedId = expenseModels[index].id;
-                                    amount =
-                                        expenseModels[index].amount.toString();
-                                    description =
-                                        expenseModels[index].description ?? '';
-                                    editingDate =
-                                        expenseModels[index].date.toString();
+    );
+  }
 
-                                    print('edited id is $EditedId');
-                                    print('amount is $amount');
-                                    print('description is $description');
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color iconColor, Color valueColor, {VoidCallback? onTap}) {
+    return InkWell( // Use InkWell for tap effect
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18.0),
+        child: Card(
+          elevation: 2.5,
+          shadowColor: Colors.grey.withOpacity(0.2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18.0)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 15.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: iconColor, size: 22),
+                    const SizedBox(width: 8),
+                    Text(title, style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text("RM $value", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: valueColor)),
+              ],
+            ),
+          ),
+        ),
+    );
+  }
 
-                                    showModalBottomSheet(
-                                      enableDrag: true,
-                                      isScrollControlled: true,
-                                      context: context,
-                                      builder: (context) {
-                                        return enterExpense(
-                                          context,
-                                          setState,
-                                        );
-                                      },
-                                    );
-                                  },
-                                )
-                              ],
-                            ),
-                          ])));
-                },
-              );
-            });
+  Widget _buildPaceCard() {
+     bool isSaving = _pace >= 0;
+     Color paceColor = isSaving ? Colors.green.shade600 : Colors.red.shade600;
+     IconData paceIcon = isSaving ? Icons.trending_up_rounded : Icons.trending_down_rounded;
+     String paceTitle = isSaving ? "On Track (Saving)" : "Overspent";
+
+     return _buildSummaryCard(paceTitle, _pace.abs().toString(), paceIcon, paceColor, paceColor);
+  }
+
+  Widget _buildSummarySection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12.0,12.0,12.0,8.0),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 120), // Limit height for horizontal list
+        child:ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildSummaryCard("Daily Budget", _budget.toString(), Icons.account_balance_wallet_outlined, theme.shiokuriBlue, Colors.black87, onTap: _openBudgetDialog),
+              const SizedBox(width: 10),
+              _buildSummaryCard("Avg / Day", _avg.toString(), Icons.data_usage_rounded, Colors.orangeAccent.shade700, Colors.black87),
+              const SizedBox(width: 10),
+              _buildSummaryCard('total expense', _total.toString(), Icons.monetization_on, Colors.blue, Colors.black),
+              const SizedBox(width: 10),
+              _buildPaceCard(),
+            ],
+          ))
+    );
+  }
+
+  Widget _buildMonthNavigator() {
+    String monthName = DateFormat('MMMM yyyy').format(DateTime(_year, _month)); // Full month name and year
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: theme.foregroundColor, size: 20),
+            onPressed: () {
+              setState(() {
+                _month--;
+                if (_month == 0) { _month = 12; _year--; }
+              });
+              fetchData("$_year-${_month.toString().padLeft(2, '0')}");
+            },
+          ),
+          Text(monthName, style: theme.normal),
+          IconButton(
+            icon: Icon(Icons.arrow_forward_ios_rounded, color: theme.foregroundColor, size: 20),
+            onPressed: () {
+              setState(() {
+                _month++;
+                if (_month == 13) { _month = 1; _year++; }
+              });
+              fetchData("$_year-${_month.toString().padLeft(2, '0')}");
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpenseList() {
+    Map<int, List<expenseModel>> groupedExpenses = {};
+    for (var expense in _expenseModels) {
+      (groupedExpenses[expense.date] ??= []).add(expense);
+    }
+    var sortedDays = groupedExpenses.keys.toList()..sort((a, b) => b.compareTo(a)); // Days sorted descending
+
+    return ListView.separated(
+      padding: const EdgeInsets.only(left:10, right:10, top: 5, bottom: 85), // Adjusted padding
+      itemCount: sortedDays.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 0), // No separator, card margins will handle
+      itemBuilder: (context, dayIndex) {
+        int day = sortedDays[dayIndex];
+        List<expenseModel> dayExpenses = groupedExpenses[day]!;
+        String daySuffix = "th";
+        if (day == 1 || day == 21 || day == 31) {daySuffix = "st";}
+        else if (day == 2 || day == 22) {daySuffix = "nd";}
+        else if (day == 3 || day == 23) {daySuffix = "rd";}
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 18.0, top: 10.0, bottom: 6.0),
+                child: Text(
+                  "$day$daySuffix ${DateFormat('MMM').format(DateTime(_year, _month, day))}", // e.g., 1st May
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
+                ),
+              ),
+              ...dayExpenses.map((expense) => _buildExpenseTile(expense)).toList(),
+            ],
+          ),
+        );
       },
     );
   }
 
-  Widget enterExpense(
-    BuildContext context,
-    StateSetter
-        setStateParent, // setState from the widget that calls showModalBottomSheet
-  ) {
-    print('enter expense was called');
+ Widget _buildExpenseTile(expenseModel expense) {
+    final categoryIconData = _categoryIcons.firstWhere(
+        (iconData) => iconData.itemName.toLowerCase() == (expense.category?.toLowerCase() ?? ''),
+        orElse: () => CategoryIcon(itemName: "Others", itemIcon: Icon(Icons.label_outline_rounded, color: theme.shiokuriBlue))
+    );
 
-    // Variables local to this invocation of enterExpense, managed by StatefulBuilder's setState
-    String errTxt = ""; // Used for DraggableScrollableSheet's 'expand' property
+    return Card(
+      elevation: 1.0, // Subtle elevation
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: categoryIconData.itemIcon.color?.withOpacity(0.12) ?? theme.shiokuriBlue.withOpacity(0.12),
+          child: IconTheme(data: IconThemeData(color: categoryIconData.itemIcon.color ?? theme.shiokuriBlue, size: 22), child: categoryIconData.itemIcon),
+        ),
+        title: Text(
+          expense.description != null && expense.description!.isNotEmpty ? expense.description! : (expense.category ?? "Expense"),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15.5, color: Colors.black87),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+            "RM ${expense.amount.toStringAsFixed(2)}",
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 14, fontWeight: FontWeight.w500)
+        ),
+        trailing: Icon(Icons.chevron_right_rounded, size: 22, color: Colors.grey[400]),
+        onTap: () => _showExpenseOptionsSheet(expense),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      ),
+    );
+  }
+  
+  Future<void> signOut(BuildContext context) async {
+  try {
+    // Show a loading indicator if you prefer, e.g., a dialog
+    // showDialog(context: context, builder: (context) => Center(child: CircularProgressIndicator()));
 
-    // Pre-fill controllers when the sheet is first built.
-    // These lines run once per call to enterExpense.
-    _budgetController.text = amount;
-    _descriptionController.text = description;
+    await FirebaseAuth.instance.signOut();
+    
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => UserAuthScreen()), // Replace AuthScreen() with your actual screen widget
+      (Route<dynamic> route) => false,
+    );
+    // Optionally, show a success message (though navigating away might be enough)
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('Signed out successfully.'),
+    //     backgroundColor: Colors.green,
+    //   ),
+    // );
 
-    return StatefulBuilder(builder: (context, StateSetter setState) {
-      // 'setState' here is local to this StatefulBuilder.
-      // It will rebuild the DraggableScrollableSheet and its contents.
-      return DraggableScrollableSheet(
-        initialChildSize: sheetSize,
-        controller: draggableController,
-        minChildSize: 0.4,
-        maxChildSize: 1.0, // Explicitly defining max size
-        expand: false, // If true, sheet tries to expand to maxChildSize
-        builder: (sheetContext, scrollController) {
-          // Renamed context to sheetContext
-          return Container(
-            decoration: BoxDecoration(
-                color: Theme.of(sheetContext)
-                    .canvasColor, // Background for the sheet
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
+  } on FirebaseAuthException catch (e) {
+    // If there was a loading indicator, pop it
+    // if (Navigator.canPop(context)) {
+    //   Navigator.pop(context); // Pop loading dialog
+    // }
+    
+    print('Failed to sign out: ${e.message}'); // Log the error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to sign out: ${e.message ?? "Unknown error"}'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  } catch (e) {
+    // If there was a loading indicator, pop it
+    // if (Navigator.canPop(context)) {
+    //   Navigator.pop(context); // Pop loading dialog
+    // }
+
+    print('An unexpected error occurred during sign out: $e'); // Log the error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('An unexpected error occurred. Please try again.'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
+}
+
+  void _showExpenseOptionsSheet(expenseModel expense) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent, // For custom shape
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+             color: Colors.white,
+             borderRadius: const BorderRadius.only(topLeft: Radius.circular(22), topRight: Radius.circular(22)),
+             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)]
+          ),
+          padding: const EdgeInsets.symmetric(vertical:15, horizontal: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container( width: 45, height: 5, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal:10.0),
+                child: Text(
+                  expense.description != null && expense.description!.isNotEmpty ? expense.description! : "Expense Details",
+                  style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: Colors.black87),
+                  textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
                 ),
-                boxShadow: [
-                  // Optional: Add a subtle shadow
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    spreadRadius: 0,
-                  ),
-                ]),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              padding: EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  SizedBox(height: 12), // Space for drag handle
-                  Container(
-                    // Drag handle
-                    width: 40,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    'Expense Detail',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(255, 73, 73, 73),
-                      fontSize: 17,
-                    ),
-                  ),
-                  SizedBox(height: 15),
-
-                  // Budget field
-                  TextField(
-                    onTap: () {
-                      print("scrolling up ");
-                      setState(() {
-                        sheetSize = 1.0;
-                      });
-                    },
-                    onChanged: (value) {
-                      amount =
-                          value; // Update parent-level variable (ensure parent handles state)
-                    },
-                    onSubmitted: (value) {
-                      print('onsubmit called for budget: $value');
-                      // Potentially move focus or trigger validation
-                    },
-                    keyboardType:
-                        TextInputType.numberWithOptions(decimal: true),
-                    controller: _budgetController,
-                    decoration: InputDecoration(
-                      icon: Icon(Icons.monetization_on, color: Colors.black54),
-                      hintText: "Enter amount",
-                      border: UnderlineInputBorder(),
-                    ),
-                  ),
-
-                  SizedBox(height: 10),
-
-                  // Description field
-                  TextField(
-                    onTap: () {
-                      setState(() {
-                        sheetSize = 1.0;
-                      });
-                      // If you also want to set the 'expand' property directly:
-                      // setState(() {
-                      //   isExapanded = true;
-                      // });
-                    },
-                    onChanged: (value) {
-                      print('description value is $value');
-                      description = value; // Update parent-level variable
-                    },
-                    onSubmitted: (value) {
-                      print('onsubmit called for description: $value');
-                    },
-                    controller: _descriptionController,
-                    decoration: InputDecoration(
-                      icon: Icon(Icons.edit, color: Colors.black54),
-                      hintText: "Description (optional)",
-                      border: UnderlineInputBorder(),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          'Category : $category', // Display current category
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color.fromARGB(255, 90, 90, 90),
-                              fontSize: 18), // Adjusted size
-                        ),
-                      )
-                    ],
-                  ),
-                  Container(
-                      height: 200, // Fixed height for GridView container
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(
-                            255, 240, 240, 240), // Lighter background
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: GridView.builder(
-                          // Removed PrimaryScrollController wrapper
-                          controller:
-                              scrollController, // Use the sheet's scrollController
-                          padding: EdgeInsets.all(15),
-                          itemCount: expenseInstances().icons.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 4,
-                            crossAxisSpacing: 15.0, // Adjusted spacing
-                            mainAxisSpacing: 15.0, // Adjusted spacing
-                          ),
-                          itemBuilder: (BuildContext context, int index) {
-                            final item = expenseInstances().icons[index];
-                            bool isSelected = category == item.itemName;
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  // This updates the UI within the StatefulBuilder
-                                  category = item.itemName;
-                                });
-                              },
-                              child: Container(
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? theme.shiokuriBlue.withOpacity(0.3)
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: isSelected
-                                        ? Border.all(
-                                            color: theme.shiokuriBlue, width: 2)
-                                        : null,
-                                  ),
-                                  child: Tooltip(
-                                    message: item.itemName,
-                                    child: Column(
-                                      // To show icon and optionally text
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        item.itemIcon,
-                                        // Text(item.itemName, style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis) // Optional: show name
-                                      ],
-                                    ),
-                                  )),
-                            );
-                          },
-                        ),
-                      )),
-                  SizedBox(height: 15),
-                  if (errTxt
-                      .isNotEmpty) // Only show error text if it's not empty
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        errTxt,
-                        style: TextStyle(color: Colors.red, fontSize: 14),
-                      ),
-                    ),
-                  GestureDetector(
-                    onTap: () async {
-                      // Basic validation
-                      if (amount.trim().isEmpty ||
-                          double.tryParse(amount.trim()) == null) {
-                        setState(() {
-                          errTxt = "Please enter a valid amount.";
-                        });
-                        return;
-                      }
-                      if (category.isEmpty) {
-                        setState(() {
-                          errTxt = "Please select a category.";
-                        });
-                        return;
-                      }
-                      setState(() {
-                        // Clear error on successful validation start
-                        errTxt = "";
-                      });
-
-                      double? enteredExpense = double.tryParse(amount.trim());
-
-                      if (enteredExpense != null) {
-                        // Should always be true due to above check
-                        try {
-                          Uuid uuid = Uuid();
-                          String id = uuid.v4(); // Generate new ID
-                          DateTime now = DateTime.now();
-                          int? parsedDate =
-                              int.tryParse(editingDate); // Day of the month
-
-                          // Construct the date for the expense
-                          // Assuming formattedDate is "YYYY-MM" and parsedDate is "DD"
-                          // More robust date handling might be needed
-                          // For simplicity, using now.day if editingDate is invalid
-
-                          await FirebaseFirestore.instance
-                              .collection("expenses")
-                              .doc(userId.uid) // User's specific expenses
-                              .collection(
-                                  formattedDate) // Collection per month (e.g., "2024-05")
-                              .doc(EditedId.isEmpty
-                                  ? id
-                                  : EditedId) // Use new ID or existing ID
-                              .set({
-                            "category": category,
-                            "amount": enteredExpense,
-                            "description": description.trim(),
-                            "date": parsedDate ??
-                                now.day, // Storing day of the month
-                            "timestamp":
-                                FieldValue.serverTimestamp(), // For ordering
-                            "monthYear":
-                                formattedDate, // Store YYYY-MM for easier querying
-                            "expenseId": EditedId.isEmpty
-                                ? id
-                                : EditedId, // Store the ID itself
-                          });
-
-                          if (sheetContext.mounted) {
-                            // Use sheetContext
-                            // Reset parent-level variables (ensure parent handles this state change)
-                            amount = '0.0';
-                            description = '';
-                            EditedId = '';
-                            _budgetController.clear();
-                            _descriptionController.clear();
-                            editingDate = '';
-                            // category = "Food"; // Optionally reset category
-
-                            Navigator.pop(sheetContext); // Use sheetContext
-                            sheetSize = 0.7;
-                            refresh(); // Call parent's refresh
-                          }
-                        } catch (e) {
-                          sheetSize = 0.7;
-                          print("Error saving data: $e");
-                        }
-                      }
-                      // No 'else' needed here for enteredExpense == null because of earlier validation
-                    },
-                    child: Container(
-                      width: double.infinity, // Make button wider
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      decoration: BoxDecoration(
-                        color: theme.shiokuriBlue,
-                        borderRadius: BorderRadius.circular(30), // More rounded
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          EditedId.isEmpty ? 'Save Expense' : 'Update Expense',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontSize: 16),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                      height: MediaQuery.of(sheetContext).padding.bottom +
-                          20), // Ensure content is above navigation bar
-                ],
               ),
-            ),
-          );
-        },
-      );
-    });
+              const SizedBox(height: 4),
+               Text(
+                "RM ${expense.amount.toStringAsFixed(2)}  •  Category: ${expense.category ?? 'N/A'}",
+                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 18),
+              Divider(height: 1, color: Colors.grey[200]),
+              ListTile(
+                leading: Icon(Icons.edit_note_rounded, color: theme.shiokuriBlue, size: 26),
+                title: const Text('Edit Expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showAddEditExpenseSheet(expenseToEdit: expense);
+                },
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+              ),
+              ListTile(
+                leading: Icon(Icons.delete_sweep_outlined, color: Colors.redAccent, size: 26),
+                title: const Text('Delete Expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  _confirmDeleteExpense(expense);
+                },
+                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+              ),
+              const SizedBox(height: 10), // Bottom padding
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  Future<void> sheetScroller() async {
-    await Future.delayed(Duration(milliseconds: 100));
-    draggableController.animateTo(
-      1.0, // Target max size
-      duration: Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+  void _confirmDeleteExpense(expenseModel expense) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Confirm Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Text('Are you sure you want to delete "${expense.description != null && expense.description!.isNotEmpty ? expense.description : "this expense"}"? This action cannot be undone.'),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actionsPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel', style: TextStyle(fontSize: 16)),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+              child: const Text('Delete', style: TextStyle(fontSize: 16, fontWeight:FontWeight.bold)),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                try {
+                  await FirebaseFirestore.instance.collection("expenses").doc(userId.uid).collection(_formattedDate).doc(expense.id).delete();
+                  if(mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Expense deleted successfully.'), backgroundColor: Colors.green),
+                    );
+                    fetchData(_formattedDate);
+                  }
+                } catch (e) {
+                   if(mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to delete expense: $e'), backgroundColor: Colors.redAccent),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  // Add this method inside your _DashboardState class
+
+Widget _buildDrawerItem({
+  required BuildContext context, // Added context
+  required IconData icon,
+  required String text,
+  required GestureTapCallback onTap,
+  required Color accentColor,
+}) {
+  return ListTile(
+    leading: Icon(icon, color: theme.foregroundColor, size: 24),
+    title: Text(
+      text,
+      style: TextStyle(
+        fontSize: 15.5, // Slightly adjusted size
+        color: Colors.white.withOpacity(0.87),
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+    onTap: onTap,
+    horizontalTitleGap: 12.0, // Gap between leading icon and title
+    contentPadding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 8.0), // Adjusted padding
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Subtle shape for tap feedback area
+    hoverColor: Colors.white.withOpacity(0.05),
+    splashColor: accentColor.withOpacity(0.1),
+  );
+}
+
+  Widget _buildNoRecordsMessage({bool isEmpty = false}) {
+    String message = isEmpty
+        ? 'No expenses recorded for ${DateFormat('MMMM yyyy').format(DateTime(_year, _month))}.'
+        : 'Pull down to refresh or try again later.';
+    String subMessage = isEmpty
+        ? "Tap '+' to add a new expense and get started!"
+        : 'Could not load records at this time.';
+
+    return LayoutBuilder( // Ensures ListView can work with LiquidPullToRefresh when content is small
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // Make it scrollable for pull-to-refresh
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight), // Take full height
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(25.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(isEmpty ? Icons.inbox_outlined : Icons.cloud_off_outlined, size: 80, color: Colors.grey[300]),
+                    const SizedBox(height: 20),
+                    Text(message, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 10),
+                    Text(subMessage, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, color: Colors.grey[500])),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    );
+  }
+
+
+  Widget _buildAddEditExpenseSheetContent({required bool isEditing}) {
+    String localErrorText = ""; // Local error text for the sheet, managed by StatefulBuilder
+
+    return StatefulBuilder(
+      builder: (BuildContext sheetContext, StateSetter setSheetState) {
+        void _selectCategoryInSheet(String newCategory) {
+          setSheetState(() {
+            _category = newCategory; // Update the _DashboardState's _category
+          });
+        }
+
+        return DraggableScrollableSheet(
+          key: ValueKey(isEditing ? _editedId : "new"), // Helps rebuild if toggling edit/new rapidly
+          controller: _draggableController,
+          initialChildSize: 0.8, // Good starting point
+          minChildSize: 0.5,
+          maxChildSize: 0.92, // Leave some space at top
+          expand: false,
+          builder: (modalContext, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, spreadRadius: 1)],
+              ),
+              padding: EdgeInsets.only(
+                left: 22, right: 22, top: 12,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 20 // Keyboard awareness
+              ),
+              child: ListView(
+                controller: scrollController,
+                children: <Widget>[
+                   Center(child: Container(width: 45, height: 5, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)))),
+                  Text(isEditing ? 'Edit Expense' : 'Add New Expense', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: theme.shiokuriBlue)),
+                  const SizedBox(height: 25),
+                  TextField(
+                    controller: _expenseAmountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+                    decoration: InputDecoration(
+                      labelText: 'Amount (RM)',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      prefixIcon: Icon(Icons.monetization_on_outlined, color: theme.shiokuriBlue, size: 22),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: theme.shiokuriBlue, width: 2), borderRadius: BorderRadius.circular(14)),
+                      filled: true, fillColor: Colors.grey[50],
+                    ),
+                    onTap: () => _draggableController.animateTo(0.92, duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                  ),
+                  const SizedBox(height: 18),
+                  TextField(
+                    controller: _expenseDescriptionController,
+                    textInputAction: TextInputAction.done,
+                    style: const TextStyle(fontSize: 17),
+                    decoration: InputDecoration(
+                      labelText: 'Description (Optional)',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      prefixIcon: Icon(Icons.description_outlined, color: theme.shiokuriBlue, size: 22),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: theme.shiokuriBlue, width: 2), borderRadius: BorderRadius.circular(14)),
+                      filled: true, fillColor: Colors.grey[50],
+                    ),
+                     onTap: () => _draggableController.animateTo(0.92, duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                  ),
+                  const SizedBox(height: 22),
+                  Text('Selected Category: $_category', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54)),
+                  const SizedBox(height: 12),
+                  Container(
+                    height: 160, // Adjusted height
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(14)),
+                    child: GridView.builder(
+                      physics: const ClampingScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4, crossAxisSpacing: 10.0, mainAxisSpacing: 10.0, childAspectRatio: 0.95,
+                      ),
+                      itemCount: _categoryIcons.length,
+                      itemBuilder: (context, index) {
+                        final item = _categoryIcons[index];
+                        bool isSelected = _category == item.itemName;
+                        return GestureDetector(
+                          onTap: () => _selectCategoryInSheet(item.itemName),
+                          child: Tooltip(
+                            message: item.itemName,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? theme.shiokuriBlue.withOpacity(0.15) : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: isSelected ? theme.shiokuriBlue : Colors.grey[300]!, width: isSelected ? 1.8 : 1.2),
+                                    boxShadow: isSelected ? [BoxShadow(color: theme.shiokuriBlue.withOpacity(0.2), blurRadius: 5, spreadRadius: 1)] : [],
+                                  ),
+                                  child: IconTheme(data: IconThemeData(color: isSelected ? theme.shiokuriBlue : Colors.grey[700], size: 26), child: item.itemIcon),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(item.itemName, style: TextStyle(fontSize:10.5, color: isSelected ? theme.shiokuriBlue : Colors.grey[700], fontWeight: isSelected ? FontWeight.w600: FontWeight.normal), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,)
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (localErrorText.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0, bottom: 6.0),
+                      child: Text(localErrorText, style: const TextStyle(color: Colors.redAccent, fontSize: 14.5, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
+                    ),
+                  const SizedBox(height: 25),
+                  ElevatedButton.icon(
+                    icon: Icon(isEditing ? Icons.check_circle_outline_rounded : Icons.add_circle_outline_rounded, size: 22),
+                    label: Text(isEditing ? 'Update Expense' : 'Save Expense', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.shiokuriBlue, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 3,
+                    ),
+                    onPressed: () async {
+                      final String amountStr = _expenseAmountController.text.trim();
+                      final String descriptionStr = _expenseDescriptionController.text.trim();
+                      final double? enteredAmount = double.tryParse(amountStr);
+
+                      if (enteredAmount == null || enteredAmount <= 0) {
+                        setSheetState(() => localErrorText = "Please enter a valid positive amount."); return;
+                      }
+                      if (_category.isEmpty) {
+                        setSheetState(() => localErrorText = "Please select a category."); return;
+                      }
+                      setSheetState(() => localErrorText = ""); // Clear error
+
+                      try {
+                        String docId = isEditing ? _editedId : const Uuid().v4();
+                        int expenseDay;
+                        if (isEditing && _editingDateNum.isNotEmpty) {
+                            expenseDay = int.tryParse(_editingDateNum) ?? DateTime.now().day;
+                        } else {
+                            expenseDay = DateTime.now().day;
+                        }
+                        // Validate day for the current _year and _month
+                        try { DateTime(_year, _month, expenseDay); }
+                        catch (e) { setSheetState(() => localErrorText = "Invalid day for selected month/year."); return; }
+
+                        await FirebaseFirestore.instance.collection("expenses").doc(userId.uid).collection(_formattedDate).doc(docId)
+                            .set({
+                          "category": _category, "amount": enteredAmount, "description": descriptionStr,
+                          "date": expenseDay, "monthYear": _formattedDate, "expenseId": docId,
+                          // Optional: add a server timestamp if you need exact creation/update time for other purposes
+                          // "lastModified": FieldValue.serverTimestamp(),
+                        });
+                        Navigator.pop(modalContext); // Use modalContext from builder
+                        fetchData(_formattedDate);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Expense ${isEditing ? "updated" : "saved"} successfully!'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
+                        );
+                      } catch (e) {
+                        if (mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed to save expense: $e'), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
+  @override
+  void dispose() {
+    _budgetInputController.dispose();
+    _expenseAmountController.dispose();
+    _expenseDescriptionController.dispose();
+    _draggableController.dispose();
+    super.dispose();
   }
 }

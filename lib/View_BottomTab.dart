@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:moneymanager/BuyList.dart';
 import 'package:moneymanager/DashBoard.dart';
+import 'package:moneymanager/analysisView.dart';
+import 'package:moneymanager/themeColor.dart';
 
 class BottomTab extends StatefulWidget {
   const BottomTab({super.key});
@@ -14,6 +16,7 @@ class _BottomTabState extends State<BottomTab> {
 
   final List<Widget> _pages = [
     Dashboard(),
+    AnalysisView(),
     BuyList(),
   ];
 
@@ -26,6 +29,7 @@ class _BottomTabState extends State<BottomTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: theme.backgroundColor,
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         height: 80,
@@ -60,6 +64,10 @@ class _BottomTabState extends State<BottomTab> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.money),
                 label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.analytics),
+                label: 'Analysis',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.list),

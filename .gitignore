@@ -16,6 +16,7 @@ android/keystore.properties
 android/app/google-services.json
 firebase.json
 android/app/key.jks
+storeListingPic
 
 
 # IntelliJ related
