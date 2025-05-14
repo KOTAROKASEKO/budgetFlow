@@ -2,7 +2,7 @@
 package="com.kotarokase.moneyTracker">
 <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="moneymanager"
+        android:label="BudgetFlow"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

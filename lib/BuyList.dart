@@ -13,8 +13,7 @@ class BuyList extends StatefulWidget {
 }
 
 class _BuyListState extends State<BuyList> {
-  final DraggableScrollableController draggableController =
-      DraggableScrollableController();
+  final DraggableScrollableController draggableController = DraggableScrollableController();
   final TextEditingController itemNameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
 
@@ -27,8 +26,7 @@ class _BuyListState extends State<BuyList> {
   }
 
   void _showAddItemSheet() {
-    // Reset sizes when opening the sheet
-    // draggableController.jumpTo(0.4); // Reset to initial size if needed, or let it remember.
+
     showModalBottomSheet(
       enableDrag: true,
       isScrollControlled: true,
@@ -39,8 +37,9 @@ class _BuyListState extends State<BuyList> {
           controller: draggableController,
           initialChildSize: 0.5, // Adjusted for better initial view
           minChildSize: 0.3,
-          maxChildSize: 0.9, // Slightly reduced to prevent full screen obscurity
+          maxChildSize: 0.9,
           expand: false,
+          
           builder: (context, scrollController) {
             return StatefulBuilder( // Needed to update sheet content if necessary
               builder: (context, StateSetter setStateModal) {
