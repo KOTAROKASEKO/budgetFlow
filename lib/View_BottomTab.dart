@@ -62,7 +62,7 @@ class _BottomTabState extends State<BottomTab> {
             showUnselectedLabels: false,
             items: const [
               BottomNavigationBarItem(
-                icon: Icon(Icons.money),
+                icon: Icon(Icons.monetization_on),
                 label: 'Home',
               ),
               BottomNavigationBarItem(

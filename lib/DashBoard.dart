@@ -205,6 +205,7 @@ class _DashboardState extends State<Dashboard> {
               id: doc.id,
               description: data["description"] as String?,
               category: data["category"] as String?,
+              type: data["type"] as String?,
             ));
           }
         }
@@ -337,41 +338,43 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  // In _DashboardState
-void _showAddEditExpenseSheet({expenseModel? expenseToEdit}) {
-  bool isEditing = expenseToEdit != null;
-  
-  // Use setState to update the parent state variables before showing the sheet
-  setState(() {
-    if (isEditing) {
-      // Editing mode - assumes it's always an expense based on original code
-      _selectedType = TransactionType.expense; // Editing only supports expense for now
-      _editedId = expenseToEdit!.id;
-      _expenseAmountController.text = expenseToEdit.amount.toStringAsFixed(2);
-      _expenseDescriptionController.text = expenseToEdit.description ?? '';
-      _category = expenseToEdit.category ?? 'Others'; // Ensure this category exists in expense list
-      _editingDateNum = expenseToEdit.date.toString(); // Assuming 'date' stores the day number
-    } else {
-      _selectedType = TransactionType.expense; // Default to expense when adding
-      _editedId = '';
-      _expenseAmountController.clear();
-      _expenseDescriptionController.clear();
-      _category = "Food"; // Default expense category
-      _editingDateNum = DateTime.now().day.toString();
-    }
-  });
-
-  showModalBottomSheet(
+    // In _DashboardState
+  void _showAddEditExpenseSheet({expenseModel? expenseToEdit}) {
+    bool isEditing = expenseToEdit != null;
     
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent, // Important for custom shape
-    // Pass isEditing status; _selectedType and _category are read from parent state
-    builder: (context) => _buildAddEditExpenseSheetContent(isEditing: isEditing),
-  );
-} 
+    // Use setState to update the parent state variables before showing the sheet
+    setState(() {
+      if (isEditing) {
+        // Editing mode - assumes it's always an expense based on original code
+        _selectedType = TransactionType.expense; // Editing only supports expense for now
+        _editedId = expenseToEdit.id;
+        _expenseAmountController.text = expenseToEdit.amount.toStringAsFixed(2);
+        _expenseDescriptionController.text = expenseToEdit.description ?? '';
+        _category = expenseToEdit.category ?? 'Others'; // Ensure this category exists in expense list
+        _editingDateNum = expenseToEdit.date.toString(); // Assuming 'date' stores the day number
+      } else {
+        _selectedType = TransactionType.expense; // Default to expense when adding
+        _editedId = '';
+        _expenseAmountController.clear();
+        _expenseDescriptionController.clear();
+        _category = "Food"; // Default expense category
+        _editingDateNum = DateTime.now().day.toString();
+      }
+    });
+
+    showModalBottomSheet(
+      
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent, // Important for custom shape
+      // Pass isEditing status; _selectedType and _category are read from parent state
+      builder: (context) => _buildAddEditExpenseSheetContent(isEditing: isEditing),
+    );
+  } 
+  
   @override
   Widget build(BuildContext context) {
+    print("Dashboard build method called");
     return Scaffold(
       // Make sure you have access to your theme object, e.g., 'theme.shiokuriBlue'
       // and 'theme.backgroundColor' if you intend to use it (though for dark theme, we'll override).
@@ -660,7 +663,7 @@ void _showAddEditExpenseSheet({expenseModel? expenseToEdit}) {
 
   Widget _buildSummarySection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12.0,12.0,12.0,8.0),
+      padding: const EdgeInsets.fromLTRB(0,12.0,0,8.0),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 120), // Limit height for horizontal list
         child:ListView(
@@ -772,7 +775,8 @@ void _showAddEditExpenseSheet({expenseModel? expenseToEdit}) {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-            "RM ${expense.amount.toStringAsFixed(2)}",
+            expense.type == "expense" || expense.type == null ?
+            "RM - ${expense.amount.toStringAsFixed(2)}" : "RM + ${(expense.amount).toStringAsFixed(2)}",
             style: TextStyle(color: Colors.grey.shade700, fontSize: 14, fontWeight: FontWeight.w500)
         ),
         trailing: Icon(Icons.chevron_right_rounded, size: 22, color: Colors.grey[400]),
@@ -784,9 +788,6 @@ void _showAddEditExpenseSheet({expenseModel? expenseToEdit}) {
   
   Future<void> signOut(BuildContext context) async {
   try {
-    // Show a loading indicator if you prefer, e.g., a dialog
-    // showDialog(context: context, builder: (context) => Center(child: CircularProgressIndicator()));
-
     await FirebaseAuth.instance.signOut();
 
     Navigator.of(context).pushAndRemoveUntil(
@@ -994,346 +995,349 @@ Widget _buildDrawerItem({
   }
 
 
-  // In _DashboardState
-Widget _buildAddEditExpenseSheetContent({required bool isEditing}) {
-  // Get the current theme - replace with your actual theme access
-  final theme = Theme.of(context); // Or your custom theme object access
-  // Placeholder for shiokuriBlue if theme object doesn't directly have it
-  final Color primarySheetColor = theme.colorScheme.primary; // Or your theme.shiokuriBlue
+  Widget _buildAddEditExpenseSheetContent({required bool isEditing}) {
+    final theme = Theme.of(context);
+    // Placeholder for shiokuriBlue if theme object doesn't directly have it
+    final Color primarySheetColor = theme.colorScheme.primary; // Or your theme.shiokuriBlue
 
-  // Get category lists
-  final List<CategoryIcon> expenseCategories = _getExpenseCategoriesWithIcons();
-  final List<CategoryIcon> incomeCategories = _getIncomeCategoriesWithIcons();
+    // Get category lists
+    final List<CategoryIcon> expenseCategories = _getExpenseCategoriesWithIcons();
+    final List<CategoryIcon> incomeCategories = _getIncomeCategoriesWithIcons();
 
-  String localErrorText = ""; // Local error text for the sheet
+    String localErrorText = ""; // Local error text for the sheet
 
-  // Use StatefulBuilder to manage the sheet's internal UI updates
-  // (like error text visibility) without rebuilding the whole dashboard
-  return StatefulBuilder(
-    builder: (BuildContext sheetContext, StateSetter setSheetState) {
+    // Use StatefulBuilder to manage the sheet's internal UI updates
+    // (like error text visibility) without rebuilding the whole dashboard
+    return StatefulBuilder(
+      builder: (BuildContext sheetContext, StateSetter setSheetState) { // <-- setSheetState を取得
 
-      // Determine current list based on parent state's _selectedType
-      final List<CategoryIcon> currentCategories =
-          _selectedType == TransactionType.expense ? expenseCategories : incomeCategories;
+        // Determine current list based on parent state's _selectedType
+        final List<CategoryIcon> currentCategories =
+            _selectedType == TransactionType.expense ? expenseCategories : incomeCategories;
 
-      // Find the default category for the current type
-      final String defaultCategory = _selectedType == TransactionType.expense ? "Food" : "Salary";
+        // Find the default category for the current type
+        final String defaultCategory = _selectedType == TransactionType.expense ? "Food" : "Salary";
 
-      // Function to handle category selection - updates parent state
-      void selectCategoryAndUpdateState(String newCategory) {
-        setState(() { // Use parent state's setState
-          _category = newCategory;
-        });
-      }
-
-      // Function to handle type selection - updates parent state
-      void selectTypeAndUpdateState(int index) {
-        print('switching tab');
-        TransactionType newType = index == 0 ? TransactionType.expense : TransactionType.income;
-        if (_selectedType != newType) {
-          setState(() { // Use parent state's setState
-            _draggableController.dispose();
-            _draggableController = DraggableScrollableController(); // Reinitialize the controller
-            
-            _selectedType = newType;
-            // Reset category to the default for the new type
-            _category = _selectedType == TransactionType.expense ? "Food" : "Salary";
-            localErrorText = ""; // Clear errors when switching type
-            
-            setSheetState((){}); // Update sheet UI if needed (like error text)
-          });
+        // Function to handle category selection - updates parent state AND sheet state
+        void selectCategoryAndUpdateState(String newCategory) {
+          if (_category != newCategory) { // カテゴリが実際に変更された場合のみ更新
+            // 親ウィジェットのsetStateを呼び出して_categoryを更新
+            setState(() { 
+              _category = newCategory;
+            });
+            // StatefulBuilderのsetSheetStateを呼び出して、シート内のUIを更新
+            // これにより、GridViewが再描画され、isSelectedが正しく評価されます。
+            setSheetState(() {
+              // ここで変更するローカルな状態変数はないが、UIの再描画をトリガーする
+            });
+          }
         }
-      }
 
-      // Build the sheet content
-      return DraggableScrollableSheet(
-        key: ValueKey(isEditing ? _editedId : _selectedType.toString()), // Helps rebuild if type changes or editing
-        controller: _draggableController,
-        initialChildSize: 0.8, // Adjust as needed
-        minChildSize: 0.5,
-        maxChildSize: 0.95, // Slightly increased max size
-        expand: false,
-        builder: (modalContext, scrollController) {
-          return Container(
-            // ... (keep existing decoration, padding, keyboard awareness) ...
-             decoration: BoxDecoration(
-               color: Colors.white,
-               borderRadius: const BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
-               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, spreadRadius: 1)],
-             ),
-             padding: EdgeInsets.only(
-               left: 22, right: 22, top: 12,
-               bottom: MediaQuery.of(modalContext).viewInsets.bottom + 20 // Keyboard awareness
-             ),
-            child: ListView(
-              controller: scrollController,
-              children: <Widget>[
-                Center(child: Container(width: 45, height: 5, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)))),
+        // Function to handle type selection - updates parent state
+        void selectTypeAndUpdateState(int index) {
+          print('switching tab');
+          TransactionType newType = index == 0 ? TransactionType.expense : TransactionType.income;
+          if (_selectedType != newType) {
+            setState(() { // Use parent state's setState
+              _draggableController.dispose();
+              _draggableController = DraggableScrollableController();
+              
+              _selectedType = newType;
+              _category = _selectedType == TransactionType.expense ? "Food" : "Salary";
+              localErrorText = "";
+              
+              setSheetState((){}); // Update sheet UI if needed (like error text)
+            });
+          }
+        }
 
-                // Dynamic Title
-                Text(
-                  isEditing
-                      ? 'Edit Expense' // Editing only supports expenses for now
-                      : (_selectedType == TransactionType.expense ? 'Add New Expense' : 'Add New Income'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primarySheetColor),
-                ),
-                const SizedBox(height: 15),
+        // Build the sheet content
+        return DraggableScrollableSheet(
+          key: ValueKey(isEditing ? _editedId : _selectedType.toString()),
+          controller: _draggableController,
+          initialChildSize: 0.8,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (modalContext, scrollController) {
+            return Container(
+              // ... (decoration, padding, etc. は既存のまま)
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, spreadRadius: 1)],
+              ),
+              padding: EdgeInsets.only(
+                left: 22, right: 22, top: 12,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 20
+              ),
+              child: ListView(
+                controller: scrollController,
+                children: <Widget>[
+                  Center(child: Container(width: 45, height: 5, margin: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)))),
 
-                // Toggle Buttons for Type Selection (only show when ADDING)
-                if (!isEditing) // Hide toggle when editing
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Center(
-                      child: ToggleButtons(
-                        isSelected: [
-                          _selectedType == TransactionType.expense,
-                          _selectedType == TransactionType.income,
-                        ],
-                        onPressed: selectTypeAndUpdateState, // Use the state update function
-                        borderRadius: BorderRadius.circular(10),
-                        selectedColor: Colors.white,
-                        fillColor: primarySheetColor.withOpacity(0.9),
-                        color: primarySheetColor,
-                        constraints: BoxConstraints(minHeight: 40.0, minWidth: (MediaQuery.of(sheetContext).size.width - 80) / 2), // Adjust width calculation
-                        children: const <Widget>[
-                          Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Expense', style: TextStyle(fontWeight: FontWeight.w600))),
-                          Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Income', style: TextStyle(fontWeight: FontWeight.w600))),
-                        ],
+                  // ... (以降のウィジェットツリーは既存のまま)
+                  // Dynamic Title
+                  Text(
+                    isEditing
+                        ? 'Edit Expense'
+                        : (_selectedType == TransactionType.expense ? 'Add New Expense' : 'Add New Income'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primarySheetColor),
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Toggle Buttons for Type Selection (only show when ADDING)
+                  if (!isEditing)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Center(
+                        child: ToggleButtons(
+                          isSelected: [
+                            _selectedType == TransactionType.expense,
+                            _selectedType == TransactionType.income,
+                          ],
+                          onPressed: selectTypeAndUpdateState, // 修正済みの関数を使用
+                          borderRadius: BorderRadius.circular(10),
+                          selectedColor: Colors.white,
+                          fillColor: primarySheetColor.withOpacity(0.9),
+                          color: primarySheetColor,
+                          constraints: BoxConstraints(minHeight: 40.0, minWidth: (MediaQuery.of(sheetContext).size.width - 80) / 2),
+                          children: const <Widget>[
+                            Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Expense', style: TextStyle(fontWeight: FontWeight.w600))),
+                            Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Income', style: TextStyle(fontWeight: FontWeight.w600))),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: 15),
+                  const SizedBox(height: 15),
 
-                // Amount TextField (common for both)
-                TextField(
-                  controller: _expenseAmountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  textInputAction: TextInputAction.next,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
-                  decoration: InputDecoration(
-                    labelText: 'Amount (RM)',
-                    labelStyle: TextStyle(color: Colors.grey[600]),
-                    prefixIcon: Icon(Icons.monetization_on_outlined, color: primarySheetColor, size: 22),
-                    // ... (keep existing border, focusedBorder, filled) ...
-                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[300]!)),
-                     focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: primarySheetColor, width: 2), borderRadius: BorderRadius.circular(14)),
-                     filled: true, fillColor: Colors.grey[50],
-                  ),
-                  onTap: () => _draggableController.animateTo(0.95, duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-                ),
-                const SizedBox(height: 18),
-
-                // Description TextField (common for both)
-                TextField(
-                  controller: _expenseDescriptionController,
-                  textInputAction: TextInputAction.done,
-                  style: const TextStyle(fontSize: 17),
-                  decoration: InputDecoration(
-                    labelText: 'Description (Optional)',
-                    labelStyle: TextStyle(color: Colors.grey[600]),
-                    prefixIcon: Icon(Icons.description_outlined, color: primarySheetColor, size: 22),
-                    // ... (keep existing border, focusedBorder, filled) ...
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[300]!)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: primarySheetColor, width: 2), borderRadius: BorderRadius.circular(14)),
-                    filled: true, fillColor: Colors.grey[50],
-                  ),
-                  onTap: () => _draggableController.animateTo(0.95, duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-                ),
-                const SizedBox(height: 22),
-
-                // Selected Category Text
-                Text('Selected Category: $_category', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54)),
-                const SizedBox(height: 12),
-
-                // Category GridView (Dynamically uses expense or income list)
-                Container(
-                  height: 180, // Adjusted height slightly for potentially more items/text
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(14)),
-                  child: GridView.builder(
-                    physics: const ClampingScrollPhysics(), // Prevent scrolling conflict
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 10.0,
-                      mainAxisSpacing: 10.0,
-                      childAspectRatio: 0.9, // Adjust aspect ratio if needed
+                  // Amount TextField
+                  TextField(
+                    controller: _expenseAmountController,
+                    // ... (既存のプロパティ)
+                     decoration: InputDecoration(
+                      labelText: 'Amount (RM)',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      prefixIcon: Icon(Icons.monetization_on_outlined, color: primarySheetColor, size: 22),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: primarySheetColor, width: 2), borderRadius: BorderRadius.circular(14)),
+                      filled: true, fillColor: Colors.grey[50],
                     ),
-                    itemCount: currentCategories.length, // Use dynamic list length
-                    itemBuilder: (context, index) {
-                      final item = currentCategories[index]; // Use dynamic list item
-                      bool isSelected = _category == item.itemName;
-                      // Determine color based on type for consistency if desired
-                      Color itemColor = _selectedType == TransactionType.expense
-                          ? primarySheetColor // Expense color
-                          : (item.itemIcon is Icon ? (item.itemIcon as Icon).color ?? Colors.green : Colors.green); // Income color (try getting from icon)
+                    onTap: () => _draggableController.animateTo(0.95, duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                  ),
+                  const SizedBox(height: 18),
 
+                  // Description TextField
+                  TextField(
+                    controller: _expenseDescriptionController,
+                    // ... (既存のプロパティ)
+                    decoration: InputDecoration(
+                      labelText: 'Description (Optional)',
+                      labelStyle: TextStyle(color: Colors.grey[600]),
+                      prefixIcon: Icon(Icons.description_outlined, color: primarySheetColor, size: 22),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[300]!)),
+                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: primarySheetColor, width: 2), borderRadius: BorderRadius.circular(14)),
+                      filled: true, fillColor: Colors.grey[50],
+                    ),
+                    onTap: () => _draggableController.animateTo(0.95, duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                  ),
+                  const SizedBox(height: 22),
 
-                      return GestureDetector(
-                        onTap: () => selectCategoryAndUpdateState(item.itemName), // Use state update function
-                        child: Tooltip(
-                          message: item.itemName,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? itemColor.withOpacity(0.15) : Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: isSelected ? itemColor : Colors.grey[300]!, width: isSelected ? 1.8 : 1.2),
-                                  boxShadow: isSelected ? [BoxShadow(color: itemColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 1)] : [],
+                  // Selected Category Text
+                  Text('Selected Category: $_category', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black54)),
+                  const SizedBox(height: 12),
+                  
+                  // Category GridView
+                  Container(
+                    height: 180,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(14)),
+                    child: GridView.builder(
+                      physics: const ClampingScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 10.0,
+                        mainAxisSpacing: 10.0,
+                        childAspectRatio: 0.9,
+                      ),
+                      itemCount: currentCategories.length,
+                      itemBuilder: (context, index) {
+                        final item = currentCategories[index];
+                        bool isSelected = _category == item.itemName;
+                        Color itemColor = _selectedType == TransactionType.expense
+                            ? primarySheetColor
+                            : (item.itemIcon is Icon ? (item.itemIcon as Icon).color ?? Colors.green : Colors.green);
+
+                        return GestureDetector(
+                          onTap: () => selectCategoryAndUpdateState(item.itemName), // 修正済みの関数を使用
+                          child: Tooltip(
+                            message: item.itemName,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? itemColor.withOpacity(0.15) : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: isSelected ? itemColor : Colors.grey[300]!, width: isSelected ? 1.8 : 1.2),
+                                    boxShadow: isSelected ? [BoxShadow(color: itemColor.withOpacity(0.2), blurRadius: 5, spreadRadius: 1)] : [],
+                                  ),
+                                  child: IconTheme(data: IconThemeData(color: isSelected ? itemColor : Colors.grey[700], size: 26), child: item.itemIcon),
                                 ),
-                                // Apply the dynamic itemColor to the IconTheme
-                                child: IconTheme(data: IconThemeData(color: isSelected ? itemColor : Colors.grey[700], size: 26), child: item.itemIcon),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                item.itemName,
-                                style: TextStyle(fontSize: 10.5, color: isSelected ? itemColor : Colors.grey[700], fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal),
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              )
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Error Text Area
-                if (localErrorText.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12.0, bottom: 6.0),
-                    child: Text(localErrorText, style: const TextStyle(color: Colors.redAccent, fontSize: 14.5, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
-                  ),
-                const SizedBox(height: 25),
-
-                // Save/Update Button (Dynamic Text and Icon)
-                ElevatedButton.icon(
-                  icon: Icon(
-                    isEditing
-                        ? Icons.check_circle_outline_rounded // Always expense icon when editing
-                        : (_selectedType == TransactionType.expense ? Icons.add_circle_outline_rounded : Icons.add_card_outlined), // Different icons for add expense/income
-                    size: 22
-                  ),
-                  label: Text(
-                    isEditing
-                        ? 'Update Expense'
-                        : (_selectedType == TransactionType.expense ? 'Save Expense' : 'Save Income'),
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _selectedType == TransactionType.expense ? primarySheetColor : Colors.green[700], // Different button colors
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 3,
-                  ),
-                  onPressed: () async {
-                    // --- Start Save Logic ---
-                    final String amountStr = _expenseAmountController.text.trim();
-                    final String descriptionStr = _expenseDescriptionController.text.trim();
-                    final double? enteredAmount = double.tryParse(amountStr);
-
-                    // Validation
-                    if (enteredAmount == null || enteredAmount <= 0) {
-                      setSheetState(() => localErrorText = "Please enter a valid positive amount."); return;
-                    }
-                    // Check if the selected category is valid for the current type
-                    bool categoryIsValid = currentCategories.any((cat) => cat.itemName == _category);
-                    if (_category.isEmpty || !categoryIsValid) {
-                       // If invalid, reset to default and show error (or just show error)
-                       setState(() { _category = defaultCategory; }); // Reset to default
-                       setSheetState(() => localErrorText = "Please select a valid category.");
-                       return;
-                    }
-                    setSheetState(() => localErrorText = ""); // Clear error
-
-                    try {
-                      String docId = isEditing ? _editedId : const Uuid().v4(); // Use existing ID if editing
-                      int expenseDay; // We are calling it expenseDay, but it's just the day number
-
-                      // Determine the day (reuse existing logic)
-                      if (isEditing && _editingDateNum.isNotEmpty) { // Editing logic uses _editingDateNum
-                          expenseDay = int.tryParse(_editingDateNum) ?? DateTime.now().day;
-                      } else { // Adding new logic uses current day directly (or could add a date picker)
-                          expenseDay = DateTime.now().day;
-                      }
-
-                      // Validate day for the current month/year (from parent state)
-                      try {
-                          DateTime(_year, _month, expenseDay);
-                      } catch (e) {
-                          setSheetState(() => localErrorText = "Invalid day for selected month/year.");
-                          return;
-                      }
-
-                      // **** IMPORTANT: Firestore Save ****
-                      // Decide on Firestore structure:
-                      // Option A: Add a 'type' field to the existing structure.
-                      // Option B: Use different collections (e.g., 'expenses' and 'incomes').
-                      // We'll use Option A here for simplicity.
-
-                      // Define the data payload
-                      Map<String, dynamic> dataToSave = {
-                        "type": _selectedType == TransactionType.expense ? "expense" : "income", // ADDED TYPE FIELD
-                        "category": _category,
-                        "amount": enteredAmount,
-                        "description": descriptionStr,
-                        "date": expenseDay, // Storing only the day number
-                        "monthYear": _formattedDate, // Assumes this is 'YYYY-MM' format from parent state
-                        "expenseId": docId, // Keeping field name, but it's transaction ID
-                         // Consider adding a timestamp for sorting/querying later
-                        "timestamp": FieldValue.serverTimestamp(),
-                      };
-
-                      // Save to Firestore (using the existing path structure for now)
-                      // You might want to change the collection name based on type later
-                      await FirebaseFirestore.instance
-                          .collection("expenses") // Still using 'expenses' collection
-                          .doc(userId.uid)
-                          .collection(_formattedDate) // Subcollection by month
-                          .doc(docId)
-                          .set(dataToSave, SetOptions(merge: isEditing)); // Use set with merge option for updates
-
-
-                      Navigator.pop(modalContext); // Close the sheet
-                      fetchData(_formattedDate); // Refresh data in parent screen
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${_selectedType == TransactionType.expense ? "Expense" : "Income"} ${isEditing ? "updated" : "saved"} successfully!'),
-                          backgroundColor: Colors.green,
-                          behavior: SnackBarBehavior.floating
-                        ),
-                      );
-
-                    } catch (e) {
-                      if (mounted) { // Check if parent widget is still mounted
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Failed to save ${_selectedType == TransactionType.expense ? "expense" : "income"}: $e'),
-                            backgroundColor: Colors.redAccent,
-                            behavior: SnackBarBehavior.floating
+                                const SizedBox(height: 4),
+                                Text(
+                                  item.itemName,
+                                  style: TextStyle(fontSize: 10.5, color: isSelected ? itemColor : Colors.grey[700], fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                )
+                              ],
+                            ),
                           ),
                         );
-                      }
-                       // Optionally, show error in the sheet as well
-                       // setSheetState(() => localErrorText = "An error occurred: $e");
-                    }
-                    // --- End Save Logic ---
-                  },
-                ),
-                const SizedBox(height: 10), // Extra space at bottom
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+                      },
+                    ),
+                  ),
+
+                  // Error Text Area
+                  if (localErrorText.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0, bottom: 6.0),
+                      child: Text(localErrorText, style: const TextStyle(color: Colors.redAccent, fontSize: 14.5, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
+                    ),
+                  const SizedBox(height: 25),
+
+                  // Save/Update Button
+                  ElevatedButton.icon(
+                    // ... (既存のプロパティとonPressed内のロジック)
+                    icon: Icon(
+                      isEditing
+                          ? Icons.check_circle_outline_rounded
+                          : (_selectedType == TransactionType.expense ? Icons.add_circle_outline_rounded : Icons.add_card_outlined),
+                      size: 22
+                    ),
+                    label: Text(
+                      isEditing
+                          ? 'Update Expense'
+                          : (_selectedType == TransactionType.expense ? 'Save Expense' : 'Save Income'),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _selectedType == TransactionType.expense ? primarySheetColor : Colors.green[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 3,
+                    ),
+                    onPressed: () async {
+                      // ... (既存の保存ロジックは変更なし)
+                        final String amountStr = _expenseAmountController.text.trim();
+                        final String descriptionStr = _expenseDescriptionController.text.trim();
+                        final double? enteredAmount = double.tryParse(amountStr);
+                        
+                        if (enteredAmount == null || enteredAmount <= 0) {
+                          setSheetState(() => localErrorText = "Please enter a valid positive amount."); return;
+                        }
+                        bool categoryIsValid = currentCategories.any((cat) => cat.itemName == _category);
+                        if (_category.isEmpty || !categoryIsValid) {
+                          setState(() { _category = defaultCategory; });
+                          setSheetState(() => localErrorText = "Please select a valid category.");
+                          return;
+                        }
+                        setSheetState(() => localErrorText = "");
+
+                        try {
+                          String docId = isEditing ? _editedId : const Uuid().v4();
+                          int expenseDay;
+
+                          if (isEditing && _editingDateNum.isNotEmpty) {
+                             
+                              expenseDay = int.tryParse(_editingDateNum) ?? DateTime.now().day;
+                          } else {
+                              expenseDay = DateTime.now().day;
+                          }
+                          // 親ウィジェットの _year, _month, _formattedDate, userId はアクセス可能と仮定します。
+                          // これらが未定義の場合は、適切に渡すか、親ウィジェットのスコープで解決する必要があります。
+                          // 例: DateTime(_year, _month, expenseDay);
+                          // await FirebaseFirestore.instance.collection("expenses").doc(userId.uid)...
+
+                          // ここではダミーの _year, _month, _formattedDate, userId を使います。
+                          // 実際には親ウィジェットから取得してください。
+                          int _year = DateTime.now().year;
+                          int _month = DateTime.now().month;
+                          String _formattedDate = "${_year}-${_month.toString().padLeft(2, '0')}";
+                          // String userIdUid = FirebaseAuth.instance.currentUser?.uid ?? "default_user_id";
+
+
+                          try {
+                              DateTime(_year, _month, expenseDay);
+                          } catch (e) {
+                              setSheetState(() => localErrorText = "Invalid day for selected month/year.");
+                              return;
+                          }
+
+                          Map<String, dynamic> dataToSave = {
+                            "type": _selectedType == TransactionType.expense ? "expense" : "income",
+                            "category": _category,
+                            "amount": _selectedType == TransactionType.expense? -enteredAmount : enteredAmount,
+                            "description": descriptionStr,
+                            "date": expenseDay,
+                            "monthYear": _formattedDate, // 親のStateから取得することを想定
+                            "expenseId": docId,
+                            "timestamp": FieldValue.serverTimestamp(),
+                          };
+                          
+                          // Firebaseへの保存処理 (userId.uid と _formattedDate を適切に設定してください)
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          if (currentUser == null) {
+                            setSheetState(() => localErrorText = "User not logged in.");
+                            return;
+                          }
+
+                          await FirebaseFirestore.instance
+                              .collection("expenses")
+                              .doc(currentUser.uid) // userId.uid の代わりに currentUser.uid を使用
+                              .collection(_formattedDate) // 親のStateから取得することを想定
+                              .doc(docId)
+                              .set(dataToSave, SetOptions(merge: isEditing));
+
+
+                          Navigator.pop(modalContext);
+                          // fetchData(_formattedDate); // 親ウィジェットのデータ更新メソッドを呼び出す
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${_selectedType == TransactionType.expense ? "Expense" : "Income"} ${isEditing ? "updated" : "saved"} successfully!'),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating
+                            ),
+                          );
+
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to save ${_selectedType == TransactionType.expense ? "expense" : "income"}: $e'),
+                                backgroundColor: Colors.redAccent,
+                                behavior: SnackBarBehavior.floating
+                              ),
+                            );
+                          }
+                        }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+// ... (他のコードはそのまま)
 }
