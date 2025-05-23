@@ -209,7 +209,7 @@ class _BuyListState extends State<BuyList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: theme.backgroundColor ?? Colors.grey[100], // Fallback background color
+      backgroundColor: theme.backgroundColor, // Fallback background color
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddItemSheet,
         backgroundColor: theme.shiokuriBlue,
@@ -232,8 +232,7 @@ class _BuyListState extends State<BuyList> {
         ),
         title: Text(
           "Shopping List",
-          style: theme.normal?.copyWith(color: Colors.white, fontWeight: FontWeight.bold) ?? 
-                 TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+          style: theme.normal.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),

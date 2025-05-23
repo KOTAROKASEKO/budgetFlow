@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:moneymanager/BuyList.dart';
 import 'package:moneymanager/DashBoard.dart';
 import 'package:moneymanager/analysisView.dart';
+import 'package:moneymanager/showUpdate.dart';
 import 'package:moneymanager/themeColor.dart';
 
 class BottomTab extends StatefulWidget {
@@ -12,13 +13,67 @@ class BottomTab extends StatefulWidget {
 }
 
 class _BottomTabState extends State<BottomTab> {
+  final ShowUpdate _updateChecker = ShowUpdate();
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
     Dashboard(),
-    AnalysisView(),
+    AnalysisScreen(),
     BuyList(),
   ];
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _performUpdateCheck();
+  }
+  void _performUpdateCheck() {
+    _updateChecker.checkUpdate(context, (currentVersion, newVersion) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20.0)),
+              title: const Text("Update Available",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              content: Text(
+                  "A newer version ($newVersion) is available.\nCurrent Version: $currentVersion"),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
+              actionsPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
+              actions: <Widget>[
+                TextButton(
+                  style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10)),
+                  child: const Text("Later"),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.shiokuriBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0))),
+                  child: const Text("Update Now"),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _updateChecker.launchAppStore();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    });
+  }
 
   void _onItemTapped(int index) {
     setState(() {

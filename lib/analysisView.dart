@@ -1,275 +1,344 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:moneymanager/themeColor.dart' as appTheme; // themeColor.dart が存在すると仮定
+import 'package:moneymanager/apptheme.dart';
+import 'package:moneymanager/model/expenseModel.dart';
+import 'package:moneymanager/themeColor.dart';
+import 'package:moneymanager/uid/uid.dart'; // Assuming you use Firebase Auth
 
-// ダミーデータ構造 (実際のFirestoreのデータ構造に合わせてください)
-class ExpenseData {
-  final String category;
-  final double amount;
+// Your expenseModel from the previous prompt
 
-  ExpenseData({required this.category, required this.amount});
-}
-
-class AnalysisView extends StatefulWidget {
-  const AnalysisView({Key? key}) : super(key: key);
+class AnalysisScreen extends StatefulWidget {
+  const AnalysisScreen({super.key});
 
   @override
-  _AnalysisViewState createState() => _AnalysisViewState();
+  State<AnalysisScreen> createState() => _AnalysisScreenState();
 }
 
-class _AnalysisViewState extends State<AnalysisView> {
-  DateTime _selectedMonth = DateTime.now();
-  Map<String, double> _categoryExpenses = {};
+class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStateMixin {
+  late DateTime _currentMonth;
   bool _isLoading = true;
-  int? _touchedIndex; // 円グラフのタッチされたセクションのインデックス
+  List<expenseModel> _monthlyExpenses = [];
+  double _totalExpenses = 0.0;
+  Map<String, double> _categoryTotals = {}; // For pie chart data
+  List<FlSpot> _dailyExpenseSpots = []; // For line chart data
 
-  // 新しいグラフ用の状態変数
-  double _initialSavingAmount = 0.0;
-  List<FlSpot> _savingHistorySpots = [];
-  double? _minTimestampX;
-  double? _maxTimestampX;
+  late TabController _tabController;
 
-  final List<Color> _categoryColors = [
-    Colors.deepPurple[400]!,
-    Colors.amberAccent[700]!,
-    Colors.lightBlue[300]!,
-    Colors.pink[300]!,
-    Colors.green[400]!,
-    Colors.orange[400]!,
-    Colors.teal[300]!,
-    Colors.red[300]!,
-  ];
+
 
   @override
   void initState() {
     super.initState();
-    _fetchDataForMonth(_selectedMonth); 
+    _currentMonth = DateTime.now();
+    _tabController = TabController(length: 2, vsync: this);
+    _fetchExpensesForMonth();
   }
 
-  Future<void> _fetchDataForMonth(DateTime month) async {
+  Future<void> _fetchExpensesForMonth() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
-      _categoryExpenses = {};
-      _savingHistorySpots = []; // 新しいグラフ用データをリセット
-      _initialSavingAmount = 0.0;
-      _minTimestampX = null;
-      _maxTimestampX = null;
+      _monthlyExpenses = [];
+      _totalExpenses = 0.0;
+      _categoryTotals = {};
+      _dailyExpenseSpots = [];
     });
 
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() {
-        _isLoading = false;
-      });
-      print("user didn t login");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You need to log in to get data')),
-        );
-      }
-      return;
-    }
-
-    final String monthYear = DateFormat('yyyy-MM').format(month);
-    print('Fetching data for: userId=${user.uid}, monthYear=$monthYear');
-
     try {
-      // 1. Fetch initial saving amount
-      // 'users' コレクション名は実際の Firestore の構造に合わせてください
-      final DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('saving').doc(user.uid).get();
-      if (userDoc.exists && userDoc.data() != null) {
-        final userData = userDoc.data() as Map<String, dynamic>;
-        _initialSavingAmount = (userData['saving'] as num?)?.toDouble() ?? 0.0;
-        print("Initial saving amount: $_initialSavingAmount");
-      } else {
-        _initialSavingAmount = 0.0;
-        print("Saving data not found for user ${user.uid}. Defaulting to 0.");
-      }
+      final yearMonth = DateFormat('yyyy-MM').format(_currentMonth);
+      final expensesCollection = FirebaseFirestore.instance
+          .collection('expenses')
+          .doc(userId.uid) // User specific document
+          .collection(yearMonth); // Subcollection for the month
 
-      // 2. Fetch expenses for the month, sorted by timestamp
-      final QuerySnapshot expenseSnapshot = await FirebaseFirestore.instance
-          .collection("expenses")
-          .doc(user.uid)
-          .collection(monthYear)
-          .orderBy("timestamp", descending: false) // timestampで昇順ソート
+      final snapshot = await expensesCollection
+          .where('type', isEqualTo: 'expense')
           .get();
 
-      if (expenseSnapshot.docs.isEmpty) {
-        print("No expense data found for $monthYear");
-      } else {
-        print("${expenseSnapshot.docs.length} expense documents found for $monthYear");
+      if (snapshot.docs.isEmpty) {
+         if (!mounted) return;
+        setState(() => _isLoading = false); // No data, stop loading
+        return;
       }
 
-      Map<String, double> tempCategoryExpenses = {};
-      List<Map<String, dynamic>> monthlyExpenses = [];
+      List<expenseModel> fetchedExpenses = snapshot.docs
+          .map((doc) => expenseModel.fromFirestore(doc))
+          .toList();
 
-      for (var doc in expenseSnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final String category = data['category'] as String? ?? '不明';
-        final double amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-        final String type = data['type'] as String? ?? 'expense'; // typeフィールドを取得
-
-        // カテゴリ別集計 (支出のみ)
-        if (type == 'expense') {
-          tempCategoryExpenses.update(category, (value) => value + amount, ifAbsent: () => amount);
-        }
-        
-        // 貯金推移計算用の支出リスト (支出のみ)
-        if (type == 'expense' && data.containsKey('timestamp')) {
-           final Timestamp timestamp = data['timestamp'] as Timestamp;
-           monthlyExpenses.add({'amount': amount, 'timestamp': timestamp});
-        } else if (type == 'expense' && !data.containsKey('timestamp')) {
-            print("Warning: Expense document ${doc.id} is missing timestamp.");
-        }
-      }
-      _categoryExpenses = tempCategoryExpenses;
-
-      // 3. Calculate saving history
-      _calculateSavingHistory(monthlyExpenses, month);
+      _processFetchedData(fetchedExpenses);
 
     } catch (e) {
-      print("Error fetching data: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('データの取得中にエラーが発生しました: $e')),
-        );
-      }
+      // ignore: avoid_print
+      print("Error fetching expenses: $e");
+      // You might want to show a user-friendly error message here
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+       if (!mounted) return;
+      setState(() => _isLoading = false);
     }
   }
-  
-  void _calculateSavingHistory(List<Map<String, dynamic>> expenses, DateTime selectedMonth) {
+
+  void _processFetchedData(List<expenseModel> expenses) {
+    _monthlyExpenses = expenses;
+    _totalExpenses = expenses.fold(0.0, (sum, item) => sum + item.amount);
+
+    // Process for Pie Chart
+    Map<String, double> categoryMap = {};
+    for (var expense in expenses) {
+      final category = expense.category ?? "Others";
+      categoryMap[category] = (categoryMap[category] ?? 0) + expense.amount;
+    }
+    _categoryTotals = categoryMap;
+
+    // Process for Line Chart
+    Map<int, double> dailyTotalsMap = {};
+    for (var expense in expenses) {
+      // Ensure 'date' from model is day of month, or derive from timestamp
+      int day = expense.date; // Assuming 'date' is correctly the day of month
+      // Or, if 'date' isn't reliable for day:
+      // int day = DateTime.fromMillisecondsSinceEpoch(expense.timestamp.millisecondsSinceEpoch).day;
+      dailyTotalsMap[day] = (dailyTotalsMap[day] ?? 0) + expense.amount;
+    }
+
     List<FlSpot> spots = [];
-    double currentSaving = _initialSavingAmount;
-
-    // 月の初めのタイムスタンプ
-    final firstDayOfMonthTimestamp = DateTime(selectedMonth.year, selectedMonth.month, 1).millisecondsSinceEpoch.toDouble();
-    // 月の終わりのタイムスタンプ (最終日の23:59:59)
-    final lastDayOfMonth = DateTime(selectedMonth.year, selectedMonth.month + 1, 0, 23, 59, 59);
-    final lastDayOfMonthTimestamp = lastDayOfMonth.millisecondsSinceEpoch.toDouble();
-
-    // X軸の範囲をまず月の範囲で設定
-    _minTimestampX = firstDayOfMonthTimestamp;
-    _maxTimestampX = lastDayOfMonthTimestamp;
-
-    // グラフの開始点として、月の初めの初期貯金額をプロット
-    spots.add(FlSpot(firstDayOfMonthTimestamp, currentSaving));
-
-    if (expenses.isNotEmpty) {
-        for (var expense in expenses) {
-            currentSaving -= expense['amount'] as double;
-            Timestamp ts = expense['timestamp'] as Timestamp;
-            double expenseTimestamp = ts.millisecondsSinceEpoch.toDouble();
-            
-            // タイムスタンプが月の範囲内にあるか確認（念のため）
-            // if (expenseTimestamp >= firstDayOfMonthTimestamp && expenseTimestamp <= lastDayOfMonthTimestamp) {
-            spots.add(FlSpot(expenseTimestamp, currentSaving));
-            // }
-        }
-        // 支出がある場合、X軸の範囲を実際の支出の範囲も考慮して調整する
-        // ただし、月の範囲より狭くはしない
-        // _minTimestampX = spots.first.x < firstDayOfMonthTimestamp ? spots.first.x : firstDayOfMonthTimestamp;
-        // _maxTimestampX = spots.last.x > lastDayOfMonthTimestamp ? spots.last.x : lastDayOfMonthTimestamp;
-    } else {
-      // 支出がない場合でも、月の終わりにも同じ貯金額の点を打つことで、グラフに線が表示されるようにする
-      // spots.add(FlSpot(lastDayOfMonthTimestamp, currentSaving)); // これだと常に水平線になるので、開始点だけでよいかも
+    int daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
+    for (int i = 1; i <= daysInMonth; i++) {
+      spots.add(FlSpot(i.toDouble(), dailyTotalsMap[i] ?? 0.0));
     }
-
-
-    _savingHistorySpots = spots;
-
-    // デバッグログ
-    // print("Calculated Saving History Spots: ${_savingHistorySpots.length} points");
-    // _savingHistorySpots.forEach((spot) => print("Spot: x=${DateTime.fromMillisecondsSinceEpoch(spot.x.toInt())}, y=${spot.y}"));
-    // print("MinX: ${DateTime.fromMillisecondsSinceEpoch(_minTimestampX!.toInt())}, MaxX: ${DateTime.fromMillisecondsSinceEpoch(_maxTimestampX!.toInt())}");
+    _dailyExpenseSpots = spots;
   }
-
 
   void _changeMonth(int monthDelta) {
     setState(() {
-      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + monthDelta, 1);
-      _fetchDataForMonth(_selectedMonth); // 修正したメソッドを呼び出す
+      _currentMonth = DateTime(
+        _currentMonth.year,
+        _currentMonth.month + monthDelta,
+        _currentMonth.day, // Keep the day, though month logic will handle it
+      );
     });
+    _fetchExpensesForMonth();
   }
 
-  List<PieChartSectionData> _generatePieChartSections() {
-    // ... (既存のコード、変更なし)
-    if (_categoryExpenses.isEmpty) {
-      return [];
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: theme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        
+        title: Text('Expense Analysis', style: AppTheme.darkTheme.textTheme.headlineMedium),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildMonthNavigator(),
+              const SizedBox(height: 20),
+              _buildTotalExpensesCard(),
+              const SizedBox(height: 20),
+              _buildChartTabs(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildPieChartSection(),
+                    _buildLineChartSection(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthNavigator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded, size: 32, color: AppTheme.shiokuriBlue),
+          onPressed: () => _changeMonth(-1),
+        ),
+        Text(
+          DateFormat('MMMM yyyy').format(_currentMonth),
+          style: AppTheme.darkTheme.textTheme.headlineMedium?.copyWith(fontSize: 18),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded, size: 32, color: AppTheme.shiokuriBlue),
+          onPressed: () => _changeMonth(1),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTotalExpensesCard() {
+    return Card(
+      color: AppTheme.cardBackground,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Total Expenses (${DateFormat('MMMM').format(_currentMonth)})',
+              style: AppTheme.darkTheme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            _isLoading
+                ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.shiokuriBlue)))
+                : Text(
+                    NumberFormat.currency(locale: 'en_US', symbol: '\$').format(_totalExpenses), // Adjust locale & symbol
+                    style: AppTheme.darkTheme.textTheme.displayLarge?.copyWith(color: AppTheme.primaryText),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartTabs() {
+    return TabBar(
+      unselectedLabelColor: AppTheme.primaryText,
+      controller: _tabController,
+      tabs: const [
+        Tab(text: 'BY CATEGORY'),
+        Tab(text: 'DAILY TREND'),
+      ],
+    );
+  }
+
+  Widget _buildPieChartSection() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.shiokuriBlue));
+    }
+    if (_categoryTotals.isEmpty && !_isLoading) {
+      return Center(
+        child: Text('No expense data for this month.', style: AppTheme.darkTheme.textTheme.bodyMedium),
+      );
     }
 
     final List<PieChartSectionData> sections = [];
-    double totalAmount = _categoryExpenses.values.fold(0, (sum, item) => sum + item);
     int colorIndex = 0;
+    double totalForPercentage = _categoryTotals.values.fold(0.0, (sum, item) => sum + item);
 
-    _categoryExpenses.forEach((category, amount) {
-      final isTouched = sections.length == _touchedIndex;
-      final fontSize = isTouched ? 18.0 : 14.0;
-      final radius = isTouched ? 100.0 : 80.0;
-      final double percentage = totalAmount > 0 ? (amount / totalAmount) * 100 : 0;
+    // Sort categories by value descending
+    final sortedEntries = _categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
-      sections.add(
-        PieChartSectionData(
-          color: _categoryColors[colorIndex % _categoryColors.length],
-          value: amount,
-          title: '${percentage.toStringAsFixed(1)}%',
-          radius: radius,
-          titleStyle: TextStyle(
-            fontSize: fontSize,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            shadows: [ const Shadow(color: Colors.black26, blurRadius: 2)],
-          ),
+    for (var entry in sortedEntries) {
+      final isTouched = false; // Placeholder for touch interaction
+      final fontSize = isTouched ? 14.0 : 12.0;
+      final radius = isTouched ? 60.0 : 50.0;
+      final percentage = totalForPercentage > 0 ? (entry.value / totalForPercentage * 100) : 0.0;
+
+      sections.add(PieChartSectionData(
+        color: AppTheme.chartColors[colorIndex % AppTheme.chartColors.length],
+        value: entry.value,
+        title: '${percentage.toStringAsFixed(1)}%', // Show percentage on slice
+        radius: radius,
+        titleStyle: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.primaryText.withOpacity(0.9),
+          shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
         ),
-      );
+        // badgeWidget: Text(entry.key, style: TextStyle(fontSize: 10, color: AppTheme.primaryText)), // Optional: category name as badge
+        // badgePositionPercentageOffset: .98,
+      ));
       colorIndex++;
-    });
-    return sections;
+    }
+
+    return SingleChildScrollView( // Make the section scrollable if content overflows
+      padding: const EdgeInsets.only(top: 16.0),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 200, // Adjust height as needed
+            child: PieChart(
+              PieChartData(
+                pieTouchData: PieTouchData(
+                  touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                    // setState(() { // For interactivity, update selected slice
+                    //   if (!event.isInterestedForInteractions ||
+                    //       pieTouchResponse == null ||
+                    //       pieTouchResponse.touchedSection == null) {
+                    //     touchedIndex = -1;
+                    //     return;
+                    //   }
+                    //   touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                    // });
+                  },
+                ),
+                borderData: FlBorderData(show: false),
+                sectionsSpace: 2, // Space between slices
+                centerSpaceRadius: 50, // For Donut chart style
+                sections: sections,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildPieChartLegend(),
+        ],
+      ),
+    );
   }
 
-  Widget _buildLegend() {
-    // ... (既存のコード、変更なし)
-    if (_categoryExpenses.isEmpty) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildPieChartLegend() {
+    if (_categoryTotals.isEmpty) return const SizedBox.shrink();
     int colorIndex = 0;
+
+    // Sort categories for the legend, matching pie chart if possible
+     List<MapEntry<String, double>> sortedCategories = _categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: _categoryExpenses.entries.map((entry) {
-        final color = _categoryColors[colorIndex % _categoryColors.length];
+      children: sortedCategories.map((entry) {
+        final color = AppTheme.chartColors[colorIndex % AppTheme.chartColors.length];
         colorIndex++;
+        final percentage = _totalExpenses > 0 ? (entry.value / _totalExpenses * 100) : 0.0;
+
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          padding: const EdgeInsets.symmetric(vertical: 6.0),
           child: Row(
             children: [
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.rectangle,
-                  borderRadius: BorderRadius.circular(4),
-                ),
+              Container(width: 16, height: 16, color: color),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: getIconForCategory(entry.key), // Using helper to get icon
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   entry.key,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: AppTheme.darkTheme.textTheme.bodyLarge?.copyWith(fontSize: 14),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
-                'RM ${entry.value.toStringAsFixed(0)}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                '${percentage.toStringAsFixed(1)}%',
+                style: AppTheme.darkTheme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                 NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2).format(entry.value),
+                style: AppTheme.darkTheme.textTheme.bodyLarge?.copyWith(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -278,301 +347,182 @@ class _AnalysisViewState extends State<AnalysisView> {
     );
   }
 
-  // 新しい折れ線グラフのウィジェット
-  Widget _buildSavingHistoryChart() {
-    if (_isLoading) { // ローディング中は何もしない（全体のローディングインジケータに任せる）
-      return const SizedBox.shrink();
+
+  Widget _buildLineChartSection() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppTheme.shiokuriBlue));
     }
-    // 貯金データはあるが、グラフ化するほどの支出履歴がない場合
-    if (_savingHistorySpots.length <= 1 && _initialSavingAmount > 0) {
-        return SizedBox(
-            height: 200,
-            child: Center(
-                child: Text(
-                'Initial Saving: RM ${_initialSavingAmount.toStringAsFixed(0)}\nNo sufficient expense data this month to show trend.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
-                ),
-            ),
-        );
-    }
-    // 貯金データも履歴もない場合
-    if (_savingHistorySpots.isEmpty || _savingHistorySpots.length <= 1) { // 1点以下では線が引けない
-        return SizedBox(
-            height: 200,
-            child: Center(
-                child: Text(
-                'No saving trend data available for this month.',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
-                ),
-            ),
-        );
+    if (_dailyExpenseSpots.every((spot) => spot.y == 0) && !_isLoading) {
+       return Center(
+        child: Text('No daily spending data for this month.', style: AppTheme.darkTheme.textTheme.bodyMedium),
+      );
     }
 
-    return SizedBox(
-      height: 300,
+    double maxYValue = _dailyExpenseSpots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
+    if (maxYValue == 0) maxYValue = 100; // Default max Y if all values are 0 to show the grid
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24.0, right: 16, bottom: 12),
       child: LineChart(
-        _generateSavingHistoryChartData(),
-        duration: const Duration(milliseconds: 250),
-      ),
-    );
-  }
-
-  // 新しい折れ線グラフのデータ生成
-  LineChartData _generateSavingHistoryChartData() {
-    final theme = Theme.of(context);
-    
-    double minYValue = _initialSavingAmount;
-    double maxYValue = _initialSavingAmount;
-
-    if (_savingHistorySpots.isNotEmpty) {
-        minYValue = _savingHistorySpots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
-        maxYValue = _savingHistorySpots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-    }
-
-    double yRange = maxYValue - minYValue;
-    if (yRange == 0) {
-        minYValue -= 50; 
-        maxYValue += 50; 
-    } else {
-        minYValue -= yRange * 0.1;
-        maxYValue += yRange * 0.1;
-    }
-    if (minYValue == maxYValue) {
-        minYValue = minYValue -1; maxYValue = maxYValue +1;
-    }
-
-    double currentMinX = _minTimestampX ?? DateTime.now().millisecondsSinceEpoch.toDouble();
-    double currentMaxX = _maxTimestampX ?? (currentMinX + Duration(days: 1).inMilliseconds.toDouble());
-    if (currentMinX >= currentMaxX) {
-        currentMaxX = currentMinX + Duration(days: 1).inMilliseconds.toDouble();
-    }
-    
-    return LineChartData(
-      minX: currentMinX,
-      maxX: currentMaxX,
-      minY: minYValue,
-      maxY: maxYValue,
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: true,
-        getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.withOpacity(0.2), strokeWidth: 1),
-        getDrawingVerticalLine: (value) => FlLine(color: Colors.grey.withOpacity(0.2), strokeWidth: 1),
-      ),
-      titlesData: FlTitlesData(
-        show: true,
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 32,
-            interval: (currentMaxX - currentMinX) > 0 ? (currentMaxX - currentMinX) / 4 : Duration(days:1).inMilliseconds.toDouble(), // 0除算を避ける
-            getTitlesWidget: (value, meta) {
-              DateTime date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-              return SideTitleWidget(
-                // axisSide: meta.axisSide, // <-- この行を削除
-                meta: meta, // metaを渡す (必須引数)
-                space: 8.0,
-                child: Text(DateFormat('MM/dd').format(date), style: TextStyle(color: appTheme.theme.foregroundColor, fontSize: 10)),
-              );
+        LineChartData(
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: true,
+            horizontalInterval: maxYValue / 5, // Adjust interval dynamically
+            verticalInterval: 5, // Show a line every 5 days
+            getDrawingHorizontalLine: (value) {
+              return FlLine(color: AppTheme.secondaryText.withOpacity(0.2), strokeWidth: 0.8);
+            },
+            getDrawingVerticalLine: (value) {
+              return FlLine(color: AppTheme.secondaryText.withOpacity(0.2), strokeWidth: 0.8);
             },
           ),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 45,
-            getTitlesWidget: (value, meta) {
-              return SideTitleWidget(
-                // axisSide: meta.axisSide, // <-- この行を削除
-                meta: meta, // metaを渡す (必須引数)
-                space: 8.0, // spaceの値を適切に設定（例として8.0）
-                child: Text('RM${value.toInt()}', style: TextStyle(color: appTheme.theme.foregroundColor, fontSize: 10), textAlign: TextAlign.left),
-              );
-            },
-            // interval: (maxYValue - minYValue) > 0 ? (maxYValue - minYValue) / 4 : 10, // Y軸のラベル間隔も調整可能, 0除算を避ける
-          ),
-        ),
-      ),
-      borderData: FlBorderData(show: true, border: Border.all(color: Colors.grey.withOpacity(0.4), width: 1)),
-      lineBarsData: [
-        LineChartBarData(
-          spots: _savingHistorySpots,
-          isCurved: true,
-          color: appTheme.theme.shiokuriBlue,
-          barWidth: 3,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(show: true),
-          belowBarData: BarAreaData(show: true, color: appTheme.theme.shiokuriBlue.withOpacity(0.2)),
-        ),
-      ],
-      lineTouchData: LineTouchData(
-        touchTooltipData: LineTouchTooltipData(
-          getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-            return touchedBarSpots.map((barSpot) {
-              final flSpot = barSpot;
-              DateTime date = DateTime.fromMillisecondsSinceEpoch(flSpot.x.toInt());
-              return LineTooltipItem(
-                '${DateFormat('MM/dd HH:mm').format(date)}\n',
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                children: <TextSpan>[
-                  TextSpan(
-                    text: 'RM ${flSpot.y.toStringAsFixed(0)}',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11),
-                  ),
-                ],
-                textAlign: TextAlign.center,
-              );
-            }).toList();
-          },
-        ),
-      ),
-    );
-  }
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final totalExpenseAmount = _categoryExpenses.values.fold(0.0, (sum, item) => sum + item);
-
-    return Scaffold(
-      backgroundColor: appTheme.theme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            color: appTheme.theme.shiokuriBlue,
-            borderRadius: BorderRadius.only(
-                bottomRight: Radius.circular(30),
-                bottomLeft: Radius.circular(30)
-            )
-          ),
-        ),
-        title: Text(
-          "Analysis",
-          style: appTheme.theme.normal.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal:16.0),
-        child: ListView( // 全体をスクロール可能にする
-          children: <Widget>[
-            // --- 月選択UI ---
-            Row(
-              children:[
-                Icon(Icons.pie_chart, color: Colors.orange, size: 30),
-                Text(' Total Expenses: RM ${totalExpenseAmount.toStringAsFixed(0)}',
-                  style: appTheme.theme.title,
-                ),
-              ]
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                IconButton(
-                  icon: Icon(Icons.chevron_left, color: appTheme.theme.foregroundColor, size: 30),
-                  onPressed: () => _changeMonth(-1),
-                ),
-                Text(
-                  DateFormat('yyyy-M').format(_selectedMonth),
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: appTheme.theme.foregroundColor,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.chevron_right, color: appTheme.theme.foregroundColor, size: 30),
-                  onPressed: () => _changeMonth(1),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // --- ローディング表示 ---
-            if (_isLoading)
-              const Center(child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 50.0),
-                child: CircularProgressIndicator(),
-              ))
-            else ...[ // ローディングが終わったら以下のコンテンツを表示
-              // --- 円グラフセクション ---
-              if (_categoryExpenses.isNotEmpty) ...[
-                SizedBox(
-                  height: 250,
-                  child: PieChart(
-                    PieChartData(
-                      pieTouchData: PieTouchData(
-                        touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                          setState(() {
-                            if (!event.isInterestedForInteractions ||
-                                pieTouchResponse == null ||
-                                pieTouchResponse.touchedSection == null) {
-                              _touchedIndex = -1;
-                              return;
-                            }
-                            _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-                          });
-                        },
-                      ),
-                      borderData: FlBorderData(show: false),
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 60,
-                      sections: _generatePieChartSections(),
-                    ),
-                    swapAnimationDuration: const Duration(milliseconds: 250),
-                    swapAnimationCurve: Curves.easeInOut,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children:[
-                    Text(
-                      "Category Breakdown",
-                      textAlign: TextAlign.start,
-                      style: appTheme.theme.subtitle,
-                    ),
-                  ]
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  elevation: 2,
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildLegend(),
-                  ),
-                ),
-              ] else if (!_isLoading) ...[ // カテゴリ支出がない場合（ローディング後）
-                  SizedBox(
-                      height: 100,
-                      child: Center(child: Text("No expense category data for this month.", style: theme.textTheme.titleMedium?.copyWith(color: Colors.grey[600]))),
-                  )
-              ],
-
-              const SizedBox(height: 30), // セクション間の区切り
-
-              // --- 貯金推移グラフセクション ---
-              Row(
-                children:[
-                  Icon(Icons.trending_down, color: appTheme.theme.shiokuriBlue, size: 28),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Saving Trend',
-                    style: appTheme.theme.title.copyWith(color: appTheme.theme.foregroundColor),
-                  ),
-                ]
+          titlesData: FlTitlesData(
+            show: true,
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                interval: 5, // Show label every 5 days
+                getTitlesWidget: (value, meta) {
+                  if (value.toInt() % 5 == 0 || value.toInt() == 1 || value.toInt() == DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day) {
+                     return SideTitleWidget(
+                      meta: meta,
+                      space: 8.0,
+                      child: Text(value.toInt().toString(), style: AppTheme.darkTheme.textTheme.bodyMedium?.copyWith(fontSize: 10)),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
-              const SizedBox(height: 16),
-              _buildSavingHistoryChart(), // 新しい折れ線グラフウィジェット
-            ],
-            const SizedBox(height: 20), // 最下部の余白
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40, // Adjust based on label size
+                interval: maxYValue / 5 > 0 ? (maxYValue / 5).ceilToDouble() : 20, // Dynamic interval
+                getTitlesWidget: (value, meta) {
+                  // Basic formatting, can be improved (e.g., K for thousands)
+                  return Text(NumberFormat.compact().format(value), style: AppTheme.darkTheme.textTheme.bodyMedium?.copyWith(fontSize: 10));
+                },
+              ),
+            ),
+          ),
+          borderData: FlBorderData(
+            show: true,
+            border: Border.all(color: AppTheme.secondaryText.withOpacity(0.3), width: 1),
+          ),
+          minX: 1,
+          maxX: DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day.toDouble(), // Days in month
+          minY: 0,
+          maxY: maxYValue * 1.1, // Add some padding to max Y
+          lineBarsData: [
+            LineChartBarData(
+              spots: _dailyExpenseSpots,
+              isCurved: true,
+              gradient: LinearGradient(
+                colors: [AppTheme.shiokuriBlue.withOpacity(0.8), AppTheme.shiokuriBlue.withOpacity(0.3)],
+              ),
+              barWidth: 4,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true, // Show dots on points
+                getDotPainter: (spot, percent, barData, index) =>
+                    FlDotCirclePainter(radius: 3, color: AppTheme.primaryText, strokeWidth: 1, strokeColor: AppTheme.shiokuriBlue),
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  colors: [AppTheme.shiokuriBlue.withOpacity(0.3), AppTheme.shiokuriBlue.withOpacity(0.05)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
           ],
+          lineTouchData: LineTouchData( // Tooltip customization
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                return touchedBarSpots.map((barSpot) {
+                  final flSpot = barSpot;
+                  return LineTooltipItem(
+                    'Day ${flSpot.x.toInt()}: \$${flSpot.y.toStringAsFixed(2)}\n',
+                    AppTheme.darkTheme.textTheme.bodyMedium!.copyWith(color: AppTheme.primaryText, fontSize: 12),
+                    children: [
+                      // TextSpan(text: 'More details here if needed'),
+                    ],
+                  );
+                }).toList();
+              },
+            ),
+          ),
         ),
       ),
     );
   }
 }
+
+
+class CategoryIcon {
+  final String itemName;
+  final Icon itemIcon;
+  // Add a color field if you want each category to have a pre-defined unique color
+  // final Color color;
+
+  CategoryIcon({
+    required this.itemName,
+    required this.itemIcon,
+    // this.color = AppTheme.shiokuriBlue, // Default color
+  });
+}
+
+// Helper function to get master list of categories and their icons
+// This helps in matching icons to categories from Firestore
+List<CategoryIcon> getMasterExpenseCategoriesWithIcons() {
+  return [
+    CategoryIcon(
+        itemName: "Food",
+        itemIcon: const Icon(Icons.food_bank, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Restaurant", // Ensure Firestore 'category' matches "Restaurant"
+        itemIcon: const Icon(Icons.fastfood_outlined, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Transport",
+        itemIcon: const Icon(Icons.directions_car_filled_outlined, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Shopping",
+        itemIcon: const Icon(Icons.shopping_bag_outlined, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Bills",
+        itemIcon: const Icon(Icons.receipt_long_outlined, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Entertainment",
+        itemIcon: const Icon(Icons.movie_filter_outlined, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Health",
+        itemIcon: const Icon(Icons.healing_outlined, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Education",
+        itemIcon: const Icon(Icons.school_outlined, color: AppTheme.shiokuriBlue)),
+    CategoryIcon(
+        itemName: "Others",
+        itemIcon: const Icon(Icons.category_outlined, color: AppTheme.shiokuriBlue)),
+    // Add other categories as needed
+  ];
+}
+
+// Function to find an icon for a given category name
+Icon getIconForCategory(String categoryName) {
+  final categories = getMasterExpenseCategoriesWithIcons();
+  final category = categories.firstWhere(
+    (c) => c.itemName.toLowerCase() == categoryName.toLowerCase(),
+    orElse: () => CategoryIcon( // Default icon if not found
+        itemName: "Others",
+        itemIcon: const Icon(Icons.category_outlined, color: AppTheme.secondaryText)),
+  );
+  return category.itemIcon;
+}
+
+
