@@ -7,7 +7,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:moneymanager/View_BottomTab.dart';
+import 'package:moneymanager/analysis/ViewModel.dart';
 import 'package:moneymanager/uid/uid.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart'; // FlutterFire CLIによって生成されるべきファイル
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -17,14 +19,18 @@ Future<void> main() async {
   // Hide navigation bar, but allow it to show on user interaction
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  
-
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AnalysisViewModel>(create: (_) => AnalysisViewModel()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

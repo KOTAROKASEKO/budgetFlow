@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:moneymanager/BuyList.dart';
 import 'package:moneymanager/DashBoard.dart';
-import 'package:moneymanager/analysisView.dart';
+import 'package:moneymanager/analysis/View.dart';
 import 'package:moneymanager/showUpdate.dart';
 import 'package:moneymanager/themeColor.dart';
 
