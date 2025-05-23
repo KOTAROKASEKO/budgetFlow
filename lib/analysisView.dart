@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:moneymanager/apptheme.dart';
 import 'package:moneymanager/model/expenseModel.dart';
 import 'package:moneymanager/themeColor.dart';
@@ -20,7 +19,6 @@ class AnalysisScreen extends StatefulWidget {
 class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStateMixin {
   late DateTime _currentMonth;
   bool _isLoading = true;
-  List<expenseModel> _monthlyExpenses = [];
   double _totalExpenses = 0.0;
   Map<String, double> _categoryTotals = {}; // For pie chart data
   List<FlSpot> _dailyExpenseSpots = []; // For line chart data
@@ -41,7 +39,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
     if (!mounted) return;
     setState(() {
       _isLoading = true;
-      _monthlyExpenses = [];
       _totalExpenses = 0.0;
       _categoryTotals = {};
       _dailyExpenseSpots = [];
@@ -52,19 +49,23 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
       final expensesCollection = FirebaseFirestore.instance
           .collection('expenses')
           .doc(userId.uid) // User specific document
-          .collection(yearMonth); // Subcollection for the month
+          .collection(yearMonth);
 
-      final snapshot = await expensesCollection
+      final expenseSnapshot = await expensesCollection
           .where('type', isEqualTo: 'expense')
           .get();
 
-      if (snapshot.docs.isEmpty) {
+      // final incomeSnapshot = await expensesCollection
+      //     .where('type', isEqualTo: 'income')
+      //     .get(); 
+
+      if (expenseSnapshot.docs.isEmpty) {
          if (!mounted) return;
         setState(() => _isLoading = false); // No data, stop loading
         return;
       }
 
-      List<expenseModel> fetchedExpenses = snapshot.docs
+      List<expenseModel> fetchedExpenses = expenseSnapshot.docs
           .map((doc) => expenseModel.fromFirestore(doc))
           .toList();
 
@@ -81,7 +82,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
   }
 
   void _processFetchedData(List<expenseModel> expenses) {
-    _monthlyExpenses = expenses;
     _totalExpenses = expenses.fold(0.0, (sum, item) => sum + item.amount);
 
     // Process for Pie Chart
@@ -239,9 +239,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
       ..sort((a, b) => b.value.compareTo(a.value));
 
     for (var entry in sortedEntries) {
-      final isTouched = false; // Placeholder for touch interaction
-      final fontSize = isTouched ? 14.0 : 12.0;
-      final radius = isTouched ? 60.0 : 50.0;
+      final fontSize = 12.0;
+      final radius = 50.0;
       final percentage = totalForPercentage > 0 ? (entry.value / totalForPercentage * 100) : 0.0;
 
       sections.add(PieChartSectionData(
