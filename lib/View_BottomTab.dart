@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:moneymanager/BuyList.dart';
 import 'package:moneymanager/DashBoard.dart';
 import 'package:moneymanager/aisupport/AIfinanceView.dart';
 import 'package:moneymanager/analysis/View.dart';
