@@ -17,8 +17,9 @@ android/app/google-services.json
 firebase.json
 android/app/key.jks
 storeListingPic
-
-
+util.txt
+リリースの前に！.txt
+.env
 # IntelliJ related
 *.iml
 *.ipr

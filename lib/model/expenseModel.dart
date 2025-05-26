@@ -22,8 +22,6 @@ class expenseModel {
     Map data = doc.data() as Map<String, dynamic>;
     return expenseModel(
       amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
-      // Use the 'date' field from Firestore if it's just the day of the month
-      // Otherwise, derive from 'timestamp'
       date: (data['date'] as num?)?.toInt() ?? DateTime.fromMillisecondsSinceEpoch((data['timestamp'] as Timestamp).millisecondsSinceEpoch).day,
       id: doc.id,
       description: data['description'] as String?,

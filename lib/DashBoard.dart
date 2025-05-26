@@ -508,7 +508,7 @@ class _DashboardState extends State<Dashboard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "Version 1.6.0", // Replace with dynamic version later if needed
+                        "Version 1.6.1", // Replace with dynamic version later if needed
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.6),
                           fontSize: 13,
@@ -574,7 +574,7 @@ class _DashboardState extends State<Dashboard> {
                               context: context,
                               builder: (context) => AboutDialog(
                                     applicationName: 'Finance Planner',
-                                    applicationVersion: '1.6.0',
+                                    applicationVersion: '1.6.1',
                                     applicationIcon: CircleAvatar(
                                       radius: 20,
                                       backgroundColor: theme.shiokuriBlue,
