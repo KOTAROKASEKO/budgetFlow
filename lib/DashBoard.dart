@@ -233,9 +233,9 @@ class _DashboardState extends State<Dashboard> {
 
     if (_expenseModels.isEmpty) {
       setState(() {
-        _total = 0; // Total actual spending is 0
-        _avg = 0;   // Average spending is 0
-        _income = 0; // Total income is 0
+        _total = 0;
+        _avg = 0;
+        _income = 0;
 
         int daysForIdealCalc;
         if (_year == today.year && _month == today.month) {

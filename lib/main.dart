@@ -1,10 +1,10 @@
-
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/services.dart';
+// import 'package:flutter/services.dart';
+// import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:moneymanager/View_BottomTab.dart';
 import 'package:moneymanager/analysis/ViewModel.dart';
@@ -16,8 +16,18 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // MobileAds.instance.initialize();
+
+  // BannerAd myBanner = BannerAd(
+  //   adUnitId: 'ca-app-pub-1761598891234951/7527486247',
+  //   size: AdSize.banner,
+  //   request: AdRequest(),
+  //   listener: BannerAdListener(),
+  // );
+  // myBanner.load();
+
   // Hide navigation bar, but allow it to show on user interaction
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -26,7 +36,8 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider<AnalysisViewModel>(create: (_) => AnalysisViewModel()),
+        ChangeNotifierProvider<AnalysisViewModel>(
+            create: (_) => AnalysisViewModel()),
       ],
       child: const MyApp(),
     ),
@@ -38,10 +49,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     return MaterialApp(
-
-      
       title: 'Flutter Firebase Auth',
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -145,12 +153,15 @@ class UserAuthScreen extends StatefulWidget {
   State<UserAuthScreen> createState() => _UserAuthScreenState();
 }
 
-class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProviderStateMixin { // AnimationControllerのために追加
+class _UserAuthScreenState extends State<UserAuthScreen>
+    with SingleTickerProviderStateMixin {
+  // AnimationControllerのために追加
   bool isLogin = true;
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController(); // サインアップ用に確認パスワードフィールドを追加
+  final _confirmPasswordController =
+      TextEditingController(); // サインアップ用に確認パスワードフィールドを追加
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true; // 確認パスワード用
 
@@ -222,19 +233,21 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
           content: Text(message, style: GoogleFonts.poppins()),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating, // モダンなフローティングスタイル
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           margin: const EdgeInsets.all(10),
         ),
       );
     }
   }
 
-  enteringAccount(){
+  enteringAccount() {
     userId.initUid();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const BottomTab()),
     );
   }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -255,7 +268,7 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
           password: _passwordController.text.trim(),
         );
         enteringAccount();
-        
+
         // オプション: メール確認を送信R
         // User? user = FirebaseAuth.instance.currentUser;
         // await user?.sendEmailVerification();
@@ -263,7 +276,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
       }
       // AuthWrapperがナビゲーションを処理
     } on FirebaseAuthException catch (e) {
-      _showErrorSnackbar(e.message ?? "An unknown authentication error occurred.");
+      _showErrorSnackbar(
+          e.message ?? "An unknown authentication error occurred.");
     } catch (e) {
       _showErrorSnackbar("An unexpected error occurred. Please try again.");
     } finally {
@@ -281,7 +295,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
         _isGoogleLoading.value = false;
         return; // ユーザーがキャンセル
       }
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -314,7 +329,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
         //   redirectUri: Uri.parse('https://YOUR_PROJECT_[ID.firebaseapp.com/__/auth/handler](https://ID.firebaseapp.com/__/auth/handler)'),
         // ),
       );
-      final OAuthCredential oAuthCredential = OAuthProvider("apple.com").credential(
+      final OAuthCredential oAuthCredential =
+          OAuthProvider("apple.com").credential(
         idToken: credential.identityToken,
         accessToken: credential.authorizationCode,
       );
@@ -322,7 +338,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
     } on FirebaseAuthException catch (e) {
       _showErrorSnackbar(e.message ?? "Apple Sign-In failed.");
     } catch (e) {
-      _showErrorSnackbar("An unexpected error with Apple Sign-In: ${e.toString()}");
+      _showErrorSnackbar(
+          "An unexpected error with Apple Sign-In: ${e.toString()}");
     } finally {
       if (mounted) {
         _isAppleLoading.value = false;
@@ -332,15 +349,14 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
 
   // Facebookサインインのプレースホルダー (必要に応じて実装)
 
-
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      body: AnimatedContainer( // 背景グラデーションのアニメーション用
+      body: AnimatedContainer(
+        // 背景グラデーションのアニメーション用
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           gradient: isDark
@@ -413,18 +429,20 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: isDark
-                                      ? Colors.deepPurple.shade800
-                                      : Colors.deepPurple.shade200,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: isDark ? Colors.black.withOpacity(0.3) : Colors.deepPurple.withOpacity(0.2),
-                                      blurRadius: 10,
-                                      spreadRadius: 2,
-                                    )
-                                  ]
-                                ),
+                                    color: isDark
+                                        ? Colors.deepPurple.shade800
+                                        : Colors.deepPurple.shade200,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: isDark
+                                            ? Colors.black.withOpacity(0.3)
+                                            : Colors.deepPurple
+                                                .withOpacity(0.2),
+                                        blurRadius: 10,
+                                        spreadRadius: 2,
+                                      )
+                                    ]),
                                 child: Icon(
                                   Icons.lock_outline_rounded, // よりモダンなアイコン
                                   size: 40,
@@ -448,9 +466,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                     : 'Join us to get started',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
-                                  color: isDark
-                                      ? Colors.white70
-                                      : Colors.black54,
+                                  color:
+                                      isDark ? Colors.white70 : Colors.black54,
                                 ),
                               ),
                             ],
@@ -467,25 +484,39 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                 TextFormField(
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
-                                  style: GoogleFonts.poppins(color: isDark ? Colors.white : Colors.black87),
+                                  style: GoogleFonts.poppins(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87),
                                   decoration: InputDecoration(
                                     labelText: 'Email',
-                                    labelStyle: GoogleFonts.poppins(color: isDark ? Colors.white70 : Colors.black54),
-                                    prefixIcon: Icon(Icons.email_outlined, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                                    labelStyle: GoogleFonts.poppins(
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black54),
+                                    prefixIcon: Icon(Icons.email_outlined,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade600),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none, // テーマで設定済みだが、明確化
+                                      borderSide:
+                                          BorderSide.none, // テーマで設定済みだが、明確化
                                     ),
                                     filled: true,
                                     fillColor: isDark
-                                        ? Colors.white.withOpacity(0.1) // ダークモードでの入力フィールド背景
-                                        : Colors.black.withOpacity(0.05), // ライトモードでの入力フィールド背景
+                                        ? Colors.white.withOpacity(
+                                            0.1) // ダークモードでの入力フィールド背景
+                                        : Colors.black.withOpacity(
+                                            0.05), // ライトモードでの入力フィールド背景
                                   ),
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
                                       return 'Please enter your email';
                                     }
-                                    if (!value.contains('@') || !value.contains('.')) { // 簡単なドットチェック追加
+                                    if (!value.contains('@') ||
+                                        !value.contains('.')) {
+                                      // 簡単なドットチェック追加
                                       return 'Please enter a valid email';
                                     }
                                     return null;
@@ -496,18 +527,28 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                 TextFormField(
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
-                                  style: GoogleFonts.poppins(color: isDark ? Colors.white : Colors.black87),
+                                  style: GoogleFonts.poppins(
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87),
                                   decoration: InputDecoration(
                                     labelText: 'Password',
-                                    labelStyle: GoogleFonts.poppins(color: isDark ? Colors.white70 : Colors.black54),
-                                    prefixIcon: Icon(Icons.lock_outline, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                                    labelStyle: GoogleFonts.poppins(
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black54),
+                                    prefixIcon: Icon(Icons.lock_outline,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade600),
                                     suffixIcon: IconButton(
                                       icon: Icon(
-                                        _obscurePassword
-                                            ? Icons.visibility_outlined
-                                            : Icons.visibility_off_outlined,
-                                        color: isDark ? Colors.white70 : Colors.grey.shade600
-                                      ),
+                                          _obscurePassword
+                                              ? Icons.visibility_outlined
+                                              : Icons.visibility_off_outlined,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.grey.shade600),
                                       onPressed: () {
                                         setState(() {
                                           _obscurePassword = !_obscurePassword;
@@ -540,21 +581,33 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                   TextFormField(
                                     controller: _confirmPasswordController,
                                     obscureText: _obscureConfirmPassword,
-                                    style: GoogleFonts.poppins(color: isDark ? Colors.white : Colors.black87),
+                                    style: GoogleFonts.poppins(
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87),
                                     decoration: InputDecoration(
                                       labelText: 'Confirm Password',
-                                      labelStyle: GoogleFonts.poppins(color: isDark ? Colors.white70 : Colors.black54),
-                                      prefixIcon: Icon(Icons.lock_clock_outlined, color: isDark ? Colors.white70 : Colors.grey.shade600),
+                                      labelStyle: GoogleFonts.poppins(
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.black54),
+                                      prefixIcon: Icon(
+                                          Icons.lock_clock_outlined,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.grey.shade600),
                                       suffixIcon: IconButton(
                                         icon: Icon(
-                                          _obscureConfirmPassword
-                                              ? Icons.visibility_outlined
-                                              : Icons.visibility_off_outlined,
-                                          color: isDark ? Colors.white70 : Colors.grey.shade600
-                                        ),
+                                            _obscureConfirmPassword
+                                                ? Icons.visibility_outlined
+                                                : Icons.visibility_off_outlined,
+                                            color: isDark
+                                                ? Colors.white70
+                                                : Colors.grey.shade600),
                                         onPressed: () {
                                           setState(() {
-                                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                                            _obscureConfirmPassword =
+                                                !_obscureConfirmPassword;
                                           });
                                         },
                                       ),
@@ -568,7 +621,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                           : Colors.black.withOpacity(0.05),
                                     ),
                                     validator: (value) {
-                                      if (value == null || value.trim().isEmpty) {
+                                      if (value == null ||
+                                          value.trim().isEmpty) {
                                         return 'Please confirm your password';
                                       }
                                       if (value != _passwordController.text) {
@@ -586,13 +640,23 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                     child: TextButton(
                                       onPressed: () {
                                         // パスワード忘れ機能
-                                        if (_emailController.text.trim().isEmpty || !_emailController.text.contains('@')) {
-                                          _showErrorSnackbar("Please enter your email address to reset password.");
+                                        if (_emailController.text
+                                                .trim()
+                                                .isEmpty ||
+                                            !_emailController.text
+                                                .contains('@')) {
+                                          _showErrorSnackbar(
+                                              "Please enter your email address to reset password.");
                                           return;
                                         }
-                                        FirebaseAuth.instance.sendPasswordResetEmail(email: _emailController.text.trim())
-                                          .then((_) => _showErrorSnackbar("Password reset email sent to ${_emailController.text.trim()}."))
-                                          .catchError((e) => _showErrorSnackbar("Failed to send reset email: ${e.message}"));
+                                        FirebaseAuth.instance
+                                            .sendPasswordResetEmail(
+                                                email: _emailController.text
+                                                    .trim())
+                                            .then((_) => _showErrorSnackbar(
+                                                "Password reset email sent to ${_emailController.text.trim()}."))
+                                            .catchError((e) => _showErrorSnackbar(
+                                                "Failed to send reset email: ${e.message}"));
                                       },
                                       child: Text(
                                         'Forgot Password?',
@@ -608,37 +672,49 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                 const SizedBox(height: 24),
                                 // Submit button
                                 ValueListenableBuilder<bool>(
-                                  valueListenable: _isLoading,
-                                  builder: (context, isLoading, child) {
-                                    return isLoading
-                                      ? CircularProgressIndicator(
-                                          valueColor: AlwaysStoppedAnimation<Color>(isDark ? Colors.white : Colors.deepPurple),
-                                        )
-                                      : ElevatedButton(
-                                          onPressed: _submit,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: isDark ? Colors.deepPurple : Colors.indigo,
-                                            foregroundColor: Colors.white,
-                                            minimumSize: const Size(double.infinity, 50), // 幅いっぱいに広げる
-                                            padding: const EdgeInsets.symmetric(vertical: 16),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            elevation: 4,
-                                            shadowColor: isDark
-                                                ? Colors.deepPurple.shade400.withOpacity(0.5)
-                                                : Colors.indigo.shade200.withOpacity(0.5),
-                                          ),
-                                          child: Text(
-                                            isLogin ? 'Sign In' : 'Sign Up',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        );
-                                  }
-                                ),
+                                    valueListenable: _isLoading,
+                                    builder: (context, isLoading, child) {
+                                      return isLoading
+                                          ? CircularProgressIndicator(
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      isDark
+                                                          ? Colors.white
+                                                          : Colors.deepPurple),
+                                            )
+                                          : ElevatedButton(
+                                              onPressed: _submit,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: isDark
+                                                    ? Colors.deepPurple
+                                                    : Colors.indigo,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(
+                                                    double.infinity,
+                                                    50), // 幅いっぱいに広げる
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 16),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                elevation: 4,
+                                                shadowColor: isDark
+                                                    ? Colors.deepPurple.shade400
+                                                        .withOpacity(0.5)
+                                                    : Colors.indigo.shade200
+                                                        .withOpacity(0.5),
+                                              ),
+                                              child: Text(
+                                                isLogin ? 'Sign In' : 'Sign Up',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            );
+                                    }),
                               ],
                             ),
                           ),
@@ -649,23 +725,28 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                             children: [
                               Expanded(
                                 child: Divider(
-                                  color: isDark ? Colors.white24 : Colors.black12,
+                                  color:
+                                      isDark ? Colors.white24 : Colors.black12,
                                   thickness: 1,
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 child: Text(
                                   'or continue with',
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
-                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    color: isDark
+                                        ? Colors.white60
+                                        : Colors.black54,
                                   ),
                                 ),
                               ),
                               Expanded(
                                 child: Divider(
-                                  color: isDark ? Colors.white24 : Colors.black12,
+                                  color:
+                                      isDark ? Colors.white24 : Colors.black12,
                                   thickness: 1,
                                 ),
                               ),
@@ -680,12 +761,14 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                 ValueListenableBuilder<bool>(
                                   valueListenable: _isGoogleLoading,
                                   builder: (context, isLoading, _) => isLoading
-                                    ? const CircularProgressIndicator(strokeWidth: 2)
-                                    : _SocialButton(
-                                      // TODO: 'assets/google.png' を実際のGoogleロゴアセットに置き換えてください
-                                      iconAsset: 'assets/google.png', // Googleロゴの画像アセット
-                                      onPressed: _signInWithGoogle,
-                                    ),
+                                      ? const CircularProgressIndicator(
+                                          strokeWidth: 2)
+                                      : _SocialButton(
+                                          // TODO: 'assets/google.png' を実際のGoogleロゴアセットに置き換えてください
+                                          iconAsset:
+                                              'assets/google.png', // Googleロゴの画像アセット
+                                          onPressed: _signInWithGoogle,
+                                        ),
                                 ),
                                 const SizedBox(width: 16),
                               ],
@@ -693,18 +776,20 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                 ValueListenableBuilder<bool>(
                                   valueListenable: _isAppleLoading,
                                   builder: (context, isLoading, _) => isLoading
-                                    ? const CircularProgressIndicator(strokeWidth: 2)
-                                    : _SocialButton(
-                                      // TODO: 'assets/apple.png' を実際のAppleロゴアセットに置き換えてください
-                                      iconAsset: 'assets/apple.png', // Appleロゴの画像アセット
-                                      onPressed: _signInWithApple,
-                                      isAppleIcon: true, // Appleアイコンは背景色を調整する場合があるため
-                                    ),
+                                      ? const CircularProgressIndicator(
+                                          strokeWidth: 2)
+                                      : _SocialButton(
+                                          // TODO: 'assets/apple.png' を実際のAppleロゴアセットに置き換えてください
+                                          iconAsset:
+                                              'assets/apple.png', // Appleロゴの画像アセット
+                                          onPressed: _signInWithApple,
+                                          isAppleIcon:
+                                              true, // Appleアイコンは背景色を調整する場合があるため
+                                        ),
                                 ),
                                 const SizedBox(width: 16),
                               ],
                               // Facebook (オプション)
-                              
                             ],
                           ),
 
@@ -718,7 +803,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                     ? "Don't have an account?"
                                     : 'Already have an account?',
                                 style: GoogleFonts.poppins(
-                                  color: isDark ? Colors.white70 : Colors.black54,
+                                  color:
+                                      isDark ? Colors.white70 : Colors.black54,
                                 ),
                               ),
                               TextButton(
@@ -731,13 +817,15 @@ class _UserAuthScreenState extends State<UserAuthScreen> with SingleTickerProvid
                                         ? Colors.deepPurple.shade200
                                         : Colors.deepPurple.shade800,
                                     decoration: TextDecoration.underline,
-                                    decorationColor: isDark ? Colors.deepPurple.shade200 : Colors.deepPurple.shade800,
+                                    decorationColor: isDark
+                                        ? Colors.deepPurple.shade200
+                                        : Colors.deepPurple.shade800,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                           const SizedBox(height: 20), // 下部の余白
+                          const SizedBox(height: 20), // 下部の余白
                         ],
                       ),
                     ),
@@ -774,20 +862,24 @@ class _SocialButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
-          // border: Border.all(
-          //   color: isDark ? Colors.white24 : Colors.black12,
-          // ),
-          borderRadius: BorderRadius.circular(24), // より丸みのある形
-          boxShadow: [
-            BoxShadow(
-              color: isDark ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
-              blurRadius: 5,
-              offset: const Offset(0,2),
-            )
-          ]
-        ),
-        child: Image.asset( // アセット画像を使用
+            color: isDark
+                ? Colors.white.withOpacity(0.1)
+                : Colors.black.withOpacity(0.05),
+            // border: Border.all(
+            //   color: isDark ? Colors.white24 : Colors.black12,
+            // ),
+            borderRadius: BorderRadius.circular(24), // より丸みのある形
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withOpacity(0.2)
+                    : Colors.grey.withOpacity(0.2),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              )
+            ]),
+        child: Image.asset(
+          // アセット画像を使用
           iconAsset,
           width: 24,
           height: 24,
@@ -796,7 +888,11 @@ class _SocialButton extends StatelessWidget {
           errorBuilder: (context, error, stackTrace) {
             // アセットが見つからない場合のフォールバック
             return Icon(
-              isAppleIcon ? Icons.apple : (iconAsset.contains("google") ? Icons.android_sharp : Icons.facebook), // 仮のアイコン
+              isAppleIcon
+                  ? Icons.apple
+                  : (iconAsset.contains("google")
+                      ? Icons.android_sharp
+                      : Icons.facebook), // 仮のアイコン
               size: 24,
               color: isDark ? Colors.white70 : Colors.black54,
             );
@@ -808,5 +904,3 @@ class _SocialButton extends StatelessWidget {
 }
 
 // --- Authentication Screen (Login/Sign Up Toggle) ---
-
-

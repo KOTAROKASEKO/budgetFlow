@@ -6,7 +6,6 @@ plugins {
 }
 
 android {
-    
     signingConfigs {
         release {
             def keystorePropertiesFile = rootProject.file("keystore.properties")
