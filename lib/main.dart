@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 // import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:moneymanager/View_BottomTab.dart';
+import 'package:moneymanager/aisupport/Database/localDatabase.dart';
 import 'package:moneymanager/analysis/ViewModel.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +15,7 @@ import 'firebase_options.dart'; // FlutterFire CLIによって生成されるべ
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+final LocalDatabaseService localDbService = LocalDatabaseService();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // MobileAds.instance.initialize();
@@ -28,7 +30,7 @@ Future<void> main() async {
 
   // Hide navigation bar, but allow it to show on user interaction
   // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
+  await localDbService.init();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

@@ -1,11 +1,74 @@
-///wanna show the latest progress of the tasks in the app in the view
-///in order to reognise the profress of the tasks, the local database need to be able to make a flag
-///The approach here is to make the database schema like
-///{
-///  "taskId": "unique_task_id",
-///  "taskName": "Task Name",
-///}
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
+import 'package:moneymanager/aisupport/models/phase_hive.dart';
+import 'package:moneymanager/aisupport/models/monthly_task_hive.dart';
+import 'package:moneymanager/aisupport/models/weekly_task_hive.dart';
+import 'package:moneymanager/aisupport/models/daily_task_hive.dart';
 
-class DataManager{
-  
+class LocalDatabaseService {
+  static const String userPlansBoxName = 'userFinancialPlans';
+
+  Future<void> init() async {
+    final appDocumentDir = await getApplicationDocumentsDirectory();
+    Hive.init(appDocumentDir.path);
+
+    // Register Adapters
+    if (!Hive.isAdapterRegistered(UserPlanHiveAdapter().typeId)) {
+      Hive.registerAdapter(UserPlanHiveAdapter());
+    }
+    if (!Hive.isAdapterRegistered(PhaseHiveAdapter().typeId)) {
+      Hive.registerAdapter(PhaseHiveAdapter());
+    }
+    if (!Hive.isAdapterRegistered(MonthlyTaskHiveAdapter().typeId)) {
+      Hive.registerAdapter(MonthlyTaskHiveAdapter());
+    }
+    if (!Hive.isAdapterRegistered(WeeklyTaskHiveAdapter().typeId)) {
+      Hive.registerAdapter(WeeklyTaskHiveAdapter());
+    }
+    if (!Hive.isAdapterRegistered(DailyTaskHiveAdapter().typeId)) {
+      Hive.registerAdapter(DailyTaskHiveAdapter());
+    }
+    await Hive.openBox<UserPlanHive>(userPlansBoxName);
+  }
+
+  Box<UserPlanHive> get _userPlansBox => Hive.box<UserPlanHive>(userPlansBoxName);
+
+  // Save or Update a UserPlan
+  Future<void> saveUserPlan(UserPlanHive plan) async {
+    // Hive uses the key to store objects. If you use `put(key, value)`,
+    // the `goalName` can be the key.
+    await _userPlansBox.put(plan.goalName, plan);
+    print("Plan '${plan.goalName}' saved to Hive.");
+  }
+
+  // Get a UserPlan by goalName
+  UserPlanHive? getUserPlan(String goalName) {
+    return _userPlansBox.get(goalName);
+  }
+
+  // Get all UserPlan names (similar to goalCollectionNames)
+  List<String> getAllGoalNames() {
+    return _userPlansBox.keys.cast<String>().toList();
+  }
+
+  // Get all UserPlans
+  List<UserPlanHive> getAllUserPlans() {
+    return _userPlansBox.values.toList();
+  }
+
+
+  // Delete a UserPlan
+  Future<void> deleteUserPlan(String goalName) async {
+    await _userPlansBox.delete(goalName);
+  }
+
+  // Check if a plan exists
+  bool checkPlanExists(String goalName) {
+    return _userPlansBox.containsKey(goalName);
+  }
+
+  Future<void> close() async {
+    await Hive.close();
+  }
 }

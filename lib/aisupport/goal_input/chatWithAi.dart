@@ -3,8 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:moneymanager/aisupport/Database/localDatabase.dart';
+import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
+import 'package:moneymanager/aisupport/models/daily_task_hive.dart';
+import 'package:moneymanager/aisupport/models/monthly_task_hive.dart';
+import 'package:moneymanager/aisupport/models/phase_hive.dart';
+import 'package:moneymanager/aisupport/models/weekly_task_hive.dart';
 import 'package:moneymanager/apptheme.dart';
-import 'package:moneymanager/uid/uid.dart'; // Ensure this path and userId are correctly set up
+import 'package:moneymanager/uid/uid.dart';
+import 'package:uuid/uuid.dart'; // Ensure this path and userId are correctly set up
 
 class ChatWithAIScreen extends StatefulWidget {
   final String earnThisYear;
@@ -30,6 +37,9 @@ class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
   List<Map<String, dynamic>> _phases = []; // Top-level phases
   List<List<Map<String, dynamic>>> _wholeTasks = []; // Current drill-down path displayed
 
+  final LocalDatabaseService _localDbService = LocalDatabaseService(); // Or get from provider/locator
+  var uuid = Uuid();
+
   final TextEditingController _regenerationTextController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -47,6 +57,177 @@ class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
     super.initState();
     _fetchAIPlan(1, isInitialLoad: true); // Initial load for phases
   }
+
+  DailyTaskHive _mapToDailyTaskHive(Map<String, dynamic> taskData, int order, DateTime startDate) {
+  // This is a simplified mapping. You'll need to parse duration and calculate exact due dates.
+  // For simplicity, let's assume daily tasks have a duration of 1 day.
+  return DailyTaskHive(
+    id: taskData['id'] ?? uuid.v4(), // Ensure AI provides or generate one
+    title: taskData['title'] ?? 'Untitled Task',
+    purpose: taskData['purpose'],
+    estimatedDuration: taskData['estimated_duration'],
+    dueDate: startDate, // You'll need more sophisticated date calculation
+    status: 'pending',
+    order: order,
+  );
+}
+
+// Helper to convert AI response map to WeeklyTaskHive
+WeeklyTaskHive _mapToWeeklyTaskHive(Map<String, dynamic> taskData, int order, DateTime phaseStartDate) {
+  List<DailyTaskHive> dailyTasks = [];
+  if (taskData['daily_tasks'] is List) { // Assuming AI might return nested daily tasks
+    int dailyOrder = 0;
+    DateTime weeklyStartDate = phaseStartDate; // Calculate based on weekly task order
+    (taskData['daily_tasks'] as List).forEach((daily) {
+      // You'll need a robust way to determine start dates for each daily task
+      dailyTasks.add(_mapToDailyTaskHive(daily, dailyOrder++, weeklyStartDate));
+       weeklyStartDate = weeklyStartDate.add(Duration(days: 1)); // Increment for next daily task
+    });
+  }
+  return WeeklyTaskHive(
+    id: taskData['id'] ?? uuid.v4(),
+    title: taskData['title'] ?? 'Untitled Weekly Task',
+    estimatedDuration: taskData['estimated_duration'] ?? '1 week',
+    purpose: taskData['purpose'] ?? '',
+    order: order,
+    dailyTasks: dailyTasks,
+  );
+}
+
+// Helper to convert AI response map to MonthlyTaskHive
+MonthlyTaskHive _mapToMonthlyTaskHive(Map<String, dynamic> taskData, int order, DateTime phaseStartDate) {
+  List<WeeklyTaskHive> weeklyTasks = [];
+  // Assuming the AI response for weekly tasks is in _childrenTasksCache
+  // Key for weekly tasks: "level1_${taskData['title']}" if breakdownLevelApi was 3
+  // Key for daily tasks from weekly: "level2_${weeklyTaskData['title']}" if breakdownLevelApi was 4
+  // This part requires careful handling of how you retrieve and structure sub-tasks from _childrenTasksCache
+
+  String weeklyTasksCacheKey = "level1_${taskData['title']}"; // From your existing logic
+  List<Map<String, dynamic>>? cachedWeeklyTasks = _childrenTasksCache[weeklyTasksCacheKey]; //
+
+  if (cachedWeeklyTasks != null) {
+    int weeklyOrder = 0;
+    DateTime monthlyStartDate = phaseStartDate; // Calculate based on monthly task order
+    for (var weeklyMap in cachedWeeklyTasks) {
+       // For daily tasks under this weekly task:
+      List<DailyTaskHive> dailySubTasks = [];
+      String dailyTasksCacheKey = "level2_${weeklyMap['title']}"; // As per your prompt structure
+      List<Map<String, dynamic>>? cachedDailyTasks = _childrenTasksCache[dailyTasksCacheKey];
+      if(cachedDailyTasks != null){
+        int dailyOrder = 0;
+        DateTime weeklyTaskStartDate = monthlyStartDate; // Needs to be accurate
+        for(var dailyMap in cachedDailyTasks){
+          dailySubTasks.add(_mapToDailyTaskHive(dailyMap, dailyOrder++, weeklyTaskStartDate));
+          weeklyTaskStartDate = weeklyTaskStartDate.add(Duration(days: 1)); // Approximation
+        }
+      }
+      weeklyTasks.add(WeeklyTaskHive(
+          id: weeklyMap['id'] ?? uuid.v4(),
+          title: weeklyMap['title'] ?? 'Untitled Weekly Task',
+          estimatedDuration: weeklyMap['estimated_duration'] ?? '1 week',
+          purpose: weeklyMap['purpose'] ?? '',
+          order: weeklyOrder++,
+          dailyTasks: dailySubTasks
+      ));
+      // monthlyStartDate = monthlyStartDate.add(Duration(days: 7)); // Approximation for next week
+    }
+  }
+
+
+  return MonthlyTaskHive(
+    id: taskData['id'] ?? uuid.v4(),
+    title: taskData['title'] ?? 'Untitled Monthly Task',
+    estimatedDuration: taskData['estimated_duration'] ?? '1 month',
+    purpose: taskData['purpose'] ?? '',
+    order: order,
+    weeklyTasks: weeklyTasks,
+  );
+}
+
+
+PhaseHive _mapToPhaseHive(Map<String, dynamic> phaseData, int order, DateTime goalStartDate) {
+  List<MonthlyTaskHive> monthlyTasks = [];
+  // Assuming the AI response for monthly tasks is in _childrenTasksCache
+  // Key for monthly tasks: "level0_${phaseData['title']}"
+  String monthlyTasksCacheKey = "level0_${phaseData['title']}"; // From your existing logic
+  List<Map<String, dynamic>>? cachedMonthlyTasks = _childrenTasksCache[monthlyTasksCacheKey]; //
+
+  if (cachedMonthlyTasks != null) {
+    int monthlyOrder = 0;
+    DateTime phaseStartDate = goalStartDate; // Calculate start date based on phase order
+    for (var monthlyMap in cachedMonthlyTasks) {
+      monthlyTasks.add(_mapToMonthlyTaskHive(monthlyMap, monthlyOrder++, phaseStartDate));
+      // phaseStartDate = phaseStartDate.add(Duration(days: 30)); // Approximation for next month
+    }
+  }
+
+  return PhaseHive(
+    id: phaseData['id'] ?? uuid.v4(), // Ensure AI provides an ID or generate one
+    title: phaseData['title'] ?? 'Untitled Phase',
+    estimatedDuration: phaseData['estimated_duration'] ?? 'N/A',
+    purpose: phaseData['purpose'] ?? '',
+    order: order,
+    monthlyTasks: monthlyTasks,
+  );
+}
+
+
+Future<void> _savePlanToLocalDB() async { // Renamed from _saveToFirestore
+  if (_phases.isEmpty) { //
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No phases to save.")));
+    }
+    return;
+  }
+  if (goalName.isEmpty) { //
+     if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please set a goal name before saving.")));
+    }
+    return;
+  }
+
+  setState(() { _isLoading = true; }); //
+
+  try {
+    List<PhaseHive> hivePhases = [];
+    int phaseOrder = 0;
+    DateTime currentStartDate = DateTime.now(); // Base start date for the whole plan
+
+    for (var phaseData in _phases) { //
+      hivePhases.add(_mapToPhaseHive(phaseData, phaseOrder++, currentStartDate));
+      // TODO: Accurately increment currentStartDate based on phaseData['estimated_duration']
+    }
+
+    final userPlan = UserPlanHive(
+      goalName: goalName, //
+      earnThisYear: widget.earnThisYear, //
+      currentSkill: widget.currentSkill, //
+      preferToEarnMoney: widget.preferToEarnMoney, //
+      note: widget.note, //
+      phases: hivePhases,
+      createdAt: DateTime.now(),
+    );
+
+    await _localDbService.saveUserPlan(userPlan);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Plan saved locally successfully!")));
+    }
+  } catch (e) {
+    print("Error saving plan to Local DB: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error saving plan locally: $e")));
+    }
+  } finally {
+    if (mounted) {
+      setState(() { _isLoading = false; }); //
+    }
+  }
+}
 
   String _generateCacheKey(Map<String, dynamic> parentTask, int parentLevel) {
     return "level${parentLevel}_${parentTask['title']}";
@@ -74,7 +255,7 @@ class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
       cacheKey = _generateCacheKey(parentTaskToBreakdown, parentLevelDisplay);
 
       if (_childrenTasksCache.containsKey(cacheKey)) {
-        
+
         List<Map<String, dynamic>> cachedTasks = _childrenTasksCache[cacheKey]!;
 
         print('Level $breakdownLevelApi tasks loaded from cache for ${parentTaskToBreakdown['title']}');
@@ -712,6 +893,7 @@ Ensure No markdown and the resopnse is valid JSON.
                                 });
                                 Navigator.of(context).pop();
                                 _saveToFirestore();
+                                _savePlanToLocalDB();
                               }
                               },
                               child: Text("Save the plan"),

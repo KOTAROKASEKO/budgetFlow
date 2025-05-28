@@ -1,7 +1,9 @@
 
 import 'package:flutter/material.dart';
+import 'package:moneymanager/aisupport/Database/localDatabase.dart';
+import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
 import 'package:moneymanager/aisupport/goal_input/goalInput.dart';
-import 'package:moneymanager/aisupport/goal_input/planManager.dart';
+import 'package:moneymanager/aisupport/goal_input/ProgressManagerScreen.dart';
 import 'package:moneymanager/aisupport/taskModel.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -18,26 +20,54 @@ class _financialGoalState extends State<financialGoal> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
 
   // Dummy Task Data - In a real app, this would come from a state management solution or backend
-  final Map<DateTime, List<Task>> _tasks = {
-    // Example tasks for current date (May 26, 2025)
-    DateTime.utc(2025, 5, 26): [
-      Task(taskId: 'T001', taskName: 'Finalize Q2 financial report', dueDate: DateTime.utc(2025, 5, 26)),
-      Task(taskId: 'T002', taskName: 'Plan content for June', dueDate: DateTime.utc(2025, 5, 26)),
-    ],
-    DateTime.utc(2025, 6, 10): [
-      Task(taskId: 'T003', taskName: 'Launch new marketing campaign', dueDate: DateTime.utc(2025, 6, 10)),
-    ],
-    DateTime.utc(2025, 6, 15): [
-      Task(taskId: 'T004', taskName: 'Review investment portfolio', dueDate: DateTime.utc(2025, 6, 15)),
-      Task(taskId: 'T005', taskName: 'Research new side hustle ideas', dueDate: DateTime.utc(2025, 6, 15)),
-    ],
-  };
+final LocalDatabaseService _localDbService = LocalDatabaseService();
+Map<DateTime, List<Task>> _tasks = {}; // Keep this, but populate from Hive
+String _currentGoalName = "Default Goal"; // You'll need a way to select/set the current goal
 
   @override
   void initState() {
     super.initState();
-    _selectedDay = _focusedDay; // Initialize selected day to today
+    _selectedDay = _focusedDay; //
+    _loadTasksForCurrentGoal();
   }
+
+  void _loadTasksForCurrentGoal() {
+    // Assuming you have a way to set/get the active _currentGoalName
+    UserPlanHive? plan = _localDbService.getUserPlan(_currentGoalName);
+    Map<DateTime, List<Task>> loadedTasks = {};
+
+    if (plan != null) {
+      for (var phase in plan.phases) {
+        for (var mTask in phase.monthlyTasks) {
+          for (var wTask in mTask.weeklyTasks) {
+            for (var dTask in wTask.dailyTasks) {
+              // Convert DailyTaskHive to the Task model required by TableCalendar's eventLoader
+              final taskForCalendar = Task(
+                taskId: dTask.id, //
+                taskName: dTask.title, //
+                dueDate: dTask.dueDate, //
+                status: dTask.status, //
+              );
+              final dateKey = DateTime.utc(dTask.dueDate.year, dTask.dueDate.month, dTask.dueDate.day);
+              if (loadedTasks[dateKey] == null) {
+                loadedTasks[dateKey] = [];
+              }
+              loadedTasks[dateKey]!.add(taskForCalendar);
+            }
+          }
+        }
+      }
+    } else {
+      print("Plan '$_currentGoalName' not found in local DB for calendar view.");
+      // Optionally, implement Firestore fallback here as well
+    }
+
+    setState(() {
+      _tasks = loadedTasks; //
+      // Update currentGoalStatus based on whether tasks were loaded
+    });
+  }
+
 
   // Helper function to get tasks for a given day
   List<Task> _getTasksForDay(DateTime day) {
@@ -50,10 +80,6 @@ class _financialGoalState extends State<financialGoal> {
   @override
   Widget build(BuildContext context) {
     // Determine the current goal status (replace with actual logic)
-    String currentGoalStatus = _tasks.isEmpty
-        ? "You have not set your goal yet"
-        : "Your next steps are planned!"; // Or show actual goal name
-
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
