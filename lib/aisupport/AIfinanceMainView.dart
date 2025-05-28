@@ -43,6 +43,7 @@ String _currentGoalName = "Default Goal"; // You'll need a way to select/set the
             for (var dTask in wTask.dailyTasks) {
               // Convert DailyTaskHive to the Task model required by TableCalendar's eventLoader
               final taskForCalendar = Task(
+
                 taskId: dTask.id, //
                 taskName: dTask.title, //
                 dueDate: dTask.dueDate, //
@@ -76,6 +77,7 @@ String _currentGoalName = "Default Goal"; // You'll need a way to select/set the
     DateTime normalizedDay = DateTime.utc(day.year, day.month, day.day);
     return _tasks[normalizedDay] ?? [];
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +126,7 @@ String _currentGoalName = "Default Goal"; // You'll need a way to select/set the
                     color: Colors.black, // Darker block for calendar
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Column(
+                  child: ListView(
                     children: [
                       TableCalendar(
                         firstDay: DateTime.utc(2020, 1, 1),
@@ -276,34 +278,154 @@ String _currentGoalName = "Default Goal"; // You'll need a way to select/set the
       ),
     );
   }
+  // In _financialGoalState class within aisupport/AIfinanceMainView.dart
 
-  Widget getTasksForThisWeek(){
-    return ConstrainedBox(constraints: const BoxConstraints(maxHeight: 100),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _tasks.length,
-        itemBuilder: (context, index) {
-          DateTime date = _tasks.keys.elementAt(index);
-          List<Task> tasksForDate = _tasks[date] ?? [];
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${date.day}/${date.month}',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                ...tasksForDate.map((task) => Text(
-                  task.taskName,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                )).toList(),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+Widget getTasksForThisWeek() {
+  List<Task> allDailyTasks = [];
+  // Ensure _localDbService is initialized and accessible
+  final allPlans = _localDbService.getAllUserPlans(); 
+
+  for (var plan in allPlans) {
+    for (var phase in plan.phases) {
+      for (var mTask in phase.monthlyTasks) {
+        for (var wTask in mTask.weeklyTasks) {
+          for (var dTask in wTask.dailyTasks) {
+            allDailyTasks.add(Task(
+              taskId: dTask.id,
+              taskName: dTask.title,
+              dueDate: dTask.dueDate,
+              status: dTask.status,
+            ));
+          }
+        }
+      }
+    }
   }
+
+  // Sort directly without setState
+  allDailyTasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+  // OPTIONAL: Filter for tasks actually in "this week"
+  // DateTime now = DateTime.now();
+  // DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+  // DateTime endOfWeek = startOfWeek.add(Duration(days: 6));
+  // List<Task> tasksThisWeek = allDailyTasks.where((task) {
+  //   return task.dueDate.isAfter(startOfWeek.subtract(Duration(days: 1))) &&
+  //          task.dueDate.isBefore(endOfWeek.add(Duration(days: 1)));
+  // }).toList();
+  // Replace allDailyTasks.length and allDailyTasks[index] with tasksThisWeek below if you implement this.
+
+
+  // If there are no tasks to display, you might want to return an empty container 
+  // or a message, instead of a 100px high empty box.
+  if (allDailyTasks.isEmpty) { // Or tasksThisWeek.isEmpty if using the filter
+    return SizedBox(height: 100, child: Center(child: Text("No tasks for this week.", style: TextStyle(color: Colors.white54))));
+  }
+
+  return ConstrainedBox(
+    constraints: const BoxConstraints(maxHeight: 134), // This widget takes 100px vertically
+    child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: allDailyTasks.length, // Or tasksThisWeek.length
+      itemBuilder: (context, index) {
+        final task = allDailyTasks[index]; // Or tasksThisWeek[index]
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // Added some padding
+          child: GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: const Color(0xFF23233A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: Text(
+                    "Task Details",
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.taskName,
+                        style: const TextStyle(color: Colors.white70, fontSize: 16),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "Due: ${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year}",
+                        style: const TextStyle(color: Colors.white54, fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Status: ${task.status}",
+                        style: const TextStyle(color: Colors.white54, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      child: const Text("Close", style: TextStyle(color: Colors.blueAccent)),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              );
+            },
+            child: Container(
+              width: 120,
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D2D44),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.3), width: 1),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurpleAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${task.dueDate.day}/${task.dueDate.month}',
+                        style: const TextStyle(
+                          color: Colors.deepPurpleAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      task.taskName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ));
+      },
+    ),
+  );
+}
 }

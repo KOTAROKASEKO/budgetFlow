@@ -1,23 +1,28 @@
-import 'dart:convert'; // for jsonDecode and jsonEncode
+import 'dart:convert'; 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart'; // Already imported if needed
+import 'package:moneymanager/aisupport/Database/localDatabase.dart'; //
+import 'package:moneymanager/aisupport/Database/user_plan_hive.dart'; //
+import 'package:moneymanager/aisupport/models/daily_task_hive.dart'; //
+import 'package:moneymanager/aisupport/models/monthly_task_hive.dart'; //
+import 'package:moneymanager/aisupport/models/phase_hive.dart'; //
+import 'package:moneymanager/aisupport/models/weekly_task_hive.dart'; //
+import 'package:moneymanager/apptheme.dart'; //
+import 'package:moneymanager/uid/uid.dart'; //
+import 'package:uuid/uuid.dart'; //
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:moneymanager/aisupport/Database/localDatabase.dart';
-import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
-import 'package:moneymanager/aisupport/models/daily_task_hive.dart';
-import 'package:moneymanager/aisupport/models/monthly_task_hive.dart';
-import 'package:moneymanager/aisupport/models/phase_hive.dart';
-import 'package:moneymanager/aisupport/models/weekly_task_hive.dart';
-import 'package:moneymanager/apptheme.dart';
-import 'package:moneymanager/uid/uid.dart';
-import 'package:uuid/uuid.dart'; // Ensure this path and userId are correctly set up
+
 
 class ChatWithAIScreen extends StatefulWidget {
   final String earnThisYear;
   final String currentSkill;
   final String preferToEarnMoney;
   final String note;
+  final UserPlanHive? existingPlanForRefinement; // New parameter
+  // final String? focusItemType; // Optional: To indicate which part of the plan to focus on
+  // final String? focusItemId;   // Optional: ID of the item to focus on
 
   const ChatWithAIScreen({
     super.key,
@@ -25,6 +30,9 @@ class ChatWithAIScreen extends StatefulWidget {
     required this.currentSkill,
     required this.preferToEarnMoney,
     required this.note,
+    this.existingPlanForRefinement, // Initialize new parameter
+    // this.focusItemType,
+    // this.focusItemId,
   });
 
   @override
@@ -34,10 +42,10 @@ class ChatWithAIScreen extends StatefulWidget {
 class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  List<Map<String, dynamic>> _phases = []; // Top-level phases
-  List<List<Map<String, dynamic>>> _wholeTasks = []; // Current drill-down path displayed
+  List<Map<String, dynamic>> _phases = [];
+  List<List<Map<String, dynamic>>> _wholeTasks = [];
 
-  final LocalDatabaseService _localDbService = LocalDatabaseService(); // Or get from provider/locator
+  final LocalDatabaseService _localDbService = LocalDatabaseService();
   var uuid = Uuid();
 
   final TextEditingController _regenerationTextController = TextEditingController();
@@ -45,257 +53,341 @@ class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
 
   Map<String, dynamic>? selectedPhase;
   Map<String, dynamic>? _selectedMonthlyTask;
+  Map<String, dynamic>? _selectedWeeklyTask; // Added for consistency if you plan to drill down to daily
 
-  // Cache for child tasks: Key is like "level0_ParentTaskTitle"
   final Map<String, List<Map<String, dynamic>>> _childrenTasksCache = {};
   
-  List<String> goalNameList = [];
-  String goalName = '';
+  List<String> goalNameList = []; //
+  String goalName = ''; //
 
   @override
   void initState() {
     super.initState();
-    _fetchAIPlan(1, isInitialLoad: true); // Initial load for phases
+    if (widget.existingPlanForRefinement != null) {
+      _loadDataFromExistingPlan(widget.existingPlanForRefinement!);
+      // Set goalName if it's an existing plan being refined
+      goalName = widget.existingPlanForRefinement!.goalName; //
+    } else {
+      _fetchAIPlan(1, isInitialLoad: true); // Initial load for phases if not refining
+    }
   }
 
-  DailyTaskHive _mapToDailyTaskHive(Map<String, dynamic> taskData, int order, DateTime startDate) {
-  // This is a simplified mapping. You'll need to parse duration and calculate exact due dates.
-  // For simplicity, let's assume daily tasks have a duration of 1 day.
-  return DailyTaskHive(
-    id: taskData['id'] ?? uuid.v4(), // Ensure AI provides or generate one
-    title: taskData['title'] ?? 'Untitled Task',
-    purpose: taskData['purpose'],
-    estimatedDuration: taskData['estimated_duration'],
-    dueDate: startDate, // You'll need more sophisticated date calculation
-    status: 'pending',
-    order: order,
-  );
-}
-
-// Helper to convert AI response map to WeeklyTaskHive
-WeeklyTaskHive _mapToWeeklyTaskHive(Map<String, dynamic> taskData, int order, DateTime phaseStartDate) {
-  List<DailyTaskHive> dailyTasks = [];
-  if (taskData['daily_tasks'] is List) { // Assuming AI might return nested daily tasks
-    int dailyOrder = 0;
-    DateTime weeklyStartDate = phaseStartDate; // Calculate based on weekly task order
-    (taskData['daily_tasks'] as List).forEach((daily) {
-      // You'll need a robust way to determine start dates for each daily task
-      dailyTasks.add(_mapToDailyTaskHive(daily, dailyOrder++, weeklyStartDate));
-       weeklyStartDate = weeklyStartDate.add(Duration(days: 1)); // Increment for next daily task
+  // New method to populate state from an existing plan
+  void _loadDataFromExistingPlan(UserPlanHive plan) {
+    setState(() {
+      _isLoading = true; // Start loading state
     });
-  }
-  return WeeklyTaskHive(
-    id: taskData['id'] ?? uuid.v4(),
-    title: taskData['title'] ?? 'Untitled Weekly Task',
-    estimatedDuration: taskData['estimated_duration'] ?? '1 week',
-    purpose: taskData['purpose'] ?? '',
-    order: order,
-    dailyTasks: dailyTasks,
-  );
-}
+    // Convert Hive objects back to Map<String, dynamic> for UI consistency
+    // and populate _childrenTasksCache if needed for further AI interaction.
 
-// Helper to convert AI response map to MonthlyTaskHive
-MonthlyTaskHive _mapToMonthlyTaskHive(Map<String, dynamic> taskData, int order, DateTime phaseStartDate) {
-  List<WeeklyTaskHive> weeklyTasks = [];
-  // Assuming the AI response for weekly tasks is in _childrenTasksCache
-  // Key for weekly tasks: "level1_${taskData['title']}" if breakdownLevelApi was 3
-  // Key for daily tasks from weekly: "level2_${weeklyTaskData['title']}" if breakdownLevelApi was 4
-  // This part requires careful handling of how you retrieve and structure sub-tasks from _childrenTasksCache
+    _phases = plan.phases.map((p) { //
+      final phaseMap = {
+        'id': p.id, //
+        'title': p.title, //
+        'estimated_duration': p.estimatedDuration, //
+        'purpose': p.purpose, //
+        // 'order': p.order (if needed by UI)
+      };
+      // Populate cache for its children (monthly tasks)
+      String monthlyTasksCacheKey = "level0_${p.title}"; //
+      _childrenTasksCache[monthlyTasksCacheKey] = p.monthlyTasks.map((m) { //
+        final monthlyMap = {
+          'id': m.id, //
+          'title': m.title, //
+          'estimated_duration': m.estimatedDuration, //
+          'purpose': m.purpose, //
+        };
+        // Populate cache for its children (weekly tasks)
+        String weeklyTasksCacheKey = "level1_${m.title}"; //
+        _childrenTasksCache[weeklyTasksCacheKey] = m.weeklyTasks.map((w) { //
+          final weeklyMap = {
+            'id': w.id, //
+            'title': w.title, //
+            'estimated_duration': w.estimatedDuration, //
+            'purpose': w.purpose, //
+          };
+          // Populate cache for daily tasks if they exist and are needed for AI interaction
+           String dailyTasksCacheKey = "level2_${w.title}"; // Key for daily tasks, adapted from your existing logic
+           _childrenTasksCache[dailyTasksCacheKey] = w.dailyTasks.map((d) => { //
+                'id': d.id, //
+                'title': d.title, //
+                'estimated_duration': d.estimatedDuration, //
+                'purpose': d.purpose, //
+                // 'dueDate': d.dueDate, (if AI needs this level of detail for refinement)
+                // 'status': d.status,
+           }).toList();
+          return weeklyMap;
+        }).toList();
+        return monthlyMap;
+      }).toList();
+      return phaseMap;
+    }).toList();
 
-  String weeklyTasksCacheKey = "level1_${taskData['title']}"; // From your existing logic
-  List<Map<String, dynamic>>? cachedWeeklyTasks = _childrenTasksCache[weeklyTasksCacheKey]; //
-
-  if (cachedWeeklyTasks != null) {
-    int weeklyOrder = 0;
-    DateTime monthlyStartDate = phaseStartDate; // Calculate based on monthly task order
-    for (var weeklyMap in cachedWeeklyTasks) {
-       // For daily tasks under this weekly task:
-      List<DailyTaskHive> dailySubTasks = [];
-      String dailyTasksCacheKey = "level2_${weeklyMap['title']}"; // As per your prompt structure
-      List<Map<String, dynamic>>? cachedDailyTasks = _childrenTasksCache[dailyTasksCacheKey];
-      if(cachedDailyTasks != null){
-        int dailyOrder = 0;
-        DateTime weeklyTaskStartDate = monthlyStartDate; // Needs to be accurate
-        for(var dailyMap in cachedDailyTasks){
-          dailySubTasks.add(_mapToDailyTaskHive(dailyMap, dailyOrder++, weeklyTaskStartDate));
-          weeklyTaskStartDate = weeklyTaskStartDate.add(Duration(days: 1)); // Approximation
-        }
-      }
-      weeklyTasks.add(WeeklyTaskHive(
-          id: weeklyMap['id'] ?? uuid.v4(),
-          title: weeklyMap['title'] ?? 'Untitled Weekly Task',
-          estimatedDuration: weeklyMap['estimated_duration'] ?? '1 week',
-          purpose: weeklyMap['purpose'] ?? '',
-          order: weeklyOrder++,
-          dailyTasks: dailySubTasks
-      ));
-      // monthlyStartDate = monthlyStartDate.add(Duration(days: 7)); // Approximation for next week
-    }
-  }
-
-
-  return MonthlyTaskHive(
-    id: taskData['id'] ?? uuid.v4(),
-    title: taskData['title'] ?? 'Untitled Monthly Task',
-    estimatedDuration: taskData['estimated_duration'] ?? '1 month',
-    purpose: taskData['purpose'] ?? '',
-    order: order,
-    weeklyTasks: weeklyTasks,
-  );
-}
-
-
-PhaseHive _mapToPhaseHive(Map<String, dynamic> phaseData, int order, DateTime goalStartDate) {
-  List<MonthlyTaskHive> monthlyTasks = [];
-  // Assuming the AI response for monthly tasks is in _childrenTasksCache
-  // Key for monthly tasks: "level0_${phaseData['title']}"
-  String monthlyTasksCacheKey = "level0_${phaseData['title']}"; // From your existing logic
-  List<Map<String, dynamic>>? cachedMonthlyTasks = _childrenTasksCache[monthlyTasksCacheKey]; //
-
-  if (cachedMonthlyTasks != null) {
-    int monthlyOrder = 0;
-    DateTime phaseStartDate = goalStartDate; // Calculate start date based on phase order
-    for (var monthlyMap in cachedMonthlyTasks) {
-      monthlyTasks.add(_mapToMonthlyTaskHive(monthlyMap, monthlyOrder++, phaseStartDate));
-      // phaseStartDate = phaseStartDate.add(Duration(days: 30)); // Approximation for next month
-    }
-  }
-
-  return PhaseHive(
-    id: phaseData['id'] ?? uuid.v4(), // Ensure AI provides an ID or generate one
-    title: phaseData['title'] ?? 'Untitled Phase',
-    estimatedDuration: phaseData['estimated_duration'] ?? 'N/A',
-    purpose: phaseData['purpose'] ?? '',
-    order: order,
-    monthlyTasks: monthlyTasks,
-  );
-}
-
-
-Future<void> _savePlanToLocalDB() async { // Renamed from _saveToFirestore
-  if (_phases.isEmpty) { //
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No phases to save.")));
-    }
-    return;
-  }
-  if (goalName.isEmpty) { //
-     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please set a goal name before saving.")));
-    }
-    return;
-  }
-
-  setState(() { _isLoading = true; }); //
-
-  try {
-    List<PhaseHive> hivePhases = [];
-    int phaseOrder = 0;
-    DateTime currentStartDate = DateTime.now(); // Base start date for the whole plan
-
-    for (var phaseData in _phases) { //
-      hivePhases.add(_mapToPhaseHive(phaseData, phaseOrder++, currentStartDate));
-      // TODO: Accurately increment currentStartDate based on phaseData['estimated_duration']
+    _wholeTasks.clear();
+    _wholeTasks.add(_phases); // Add top-level phases to display initially
+    
+    // Optionally, automatically select the first phase or the focused item
+    if (_phases.isNotEmpty) {
+        selectedPhase = _phases[0];
+        // If a focusItem was provided, try to navigate _wholeTasks to it.
+        // This part can be complex depending on how deep the focus can be.
+        // For now, just loading the phases.
     }
 
-    final userPlan = UserPlanHive(
-      goalName: goalName, //
-      earnThisYear: widget.earnThisYear, //
-      currentSkill: widget.currentSkill, //
-      preferToEarnMoney: widget.preferToEarnMoney, //
-      note: widget.note, //
-      phases: hivePhases,
-      createdAt: DateTime.now(),
+    setState(() {
+      _isLoading = false; // Done loading
+      _errorMessage = null;
+    });
+
+    // You might want to show a message or slightly alter the AI prompt if it's for refinement.
+    // e.g., "The user wants to refine or continue working on the following plan/phase:"
+    print("Loaded data from existing plan: ${plan.goalName}");
+  }
+
+
+  DailyTaskHive _mapToDailyTaskHive(Map<String, dynamic> dailyTaskData, int order, DateTime dailyTaskStartDate) { //
+    return DailyTaskHive( //
+      id: dailyTaskData['id'] as String? ?? uuid.v4(), //
+      title: dailyTaskData['title'] as String? ?? 'Untitled Daily Task', //
+      purpose: dailyTaskData['purpose'] as String?, //
+      estimatedDuration: dailyTaskData['estimated_duration'] as String?, //
+      dueDate: dailyTaskStartDate, //
+      status: 'pending', //
+      order: order, //
     );
+  }
 
-    await _localDbService.saveUserPlan(userPlan);
+  WeeklyTaskHive _mapToWeeklyTaskHive(Map<String, dynamic> weeklyTaskData, int order, DateTime weeklyTaskStartDate) { //
+    List<DailyTaskHive> dailyTasks = []; //
+    String dailyTasksCacheKey = "level2_${weeklyTaskData['title']}"; //
+    List<Map<String, dynamic>>? cachedDailyTasks = _childrenTasksCache[dailyTasksCacheKey]; //
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Plan saved locally successfully!")));
+    if (cachedDailyTasks != null) { //
+      int dailyOrder = 0; //
+      DateTime currentDailyDate = weeklyTaskStartDate; //
+      for (var dailyMap in cachedDailyTasks) { //
+        dailyTasks.add(_mapToDailyTaskHive(dailyMap, dailyOrder++, currentDailyDate)); //
+        currentDailyDate = currentDailyDate.add(Duration(days: 1));  //
+      }
     }
-  } catch (e) {
-    print("Error saving plan to Local DB: $e");
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error saving plan locally: $e")));
+
+    return WeeklyTaskHive( //
+      id: weeklyTaskData['id'] as String? ?? uuid.v4(), //
+      title: weeklyTaskData['title'] as String? ?? 'Untitled Weekly Task', //
+      estimatedDuration: weeklyTaskData['estimated_duration'] as String, //
+      purpose: weeklyTaskData['purpose'] as String, //
+      order: order, //
+      dailyTasks: dailyTasks, //
+    );
+  }
+
+  MonthlyTaskHive _mapToMonthlyTaskHive(Map<String, dynamic> monthlyTaskData, int order, DateTime monthlyTaskStartDate) { //
+    List<WeeklyTaskHive> weeklyTasks = []; //
+    String weeklyTasksCacheKey = "level1_${monthlyTaskData['title']}"; //
+    List<Map<String, dynamic>>? cachedWeeklyTasks = _childrenTasksCache[weeklyTasksCacheKey]; //
+
+    if (cachedWeeklyTasks != null) { //
+      int weeklyOrder = 0; //
+      DateTime currentWeeklyDate = monthlyTaskStartDate; //
+      for (var weeklyMap in cachedWeeklyTasks) { //
+        weeklyTasks.add(_mapToWeeklyTaskHive(weeklyMap, weeklyOrder++, currentWeeklyDate)); //
+        currentWeeklyDate = currentWeeklyDate.add(Duration(days: 7));  //
+      }
     }
-  } finally {
-    if (mounted) {
-      setState(() { _isLoading = false; }); //
+
+    return MonthlyTaskHive( //
+      id: monthlyTaskData['id'] as String? ?? uuid.v4(), //
+      title: monthlyTaskData['title'] as String? ?? 'Untitled Monthly Task', //
+      estimatedDuration: monthlyTaskData['estimated_duration'] as String, //
+      purpose: monthlyTaskData['purpose'] as String, //
+      order: order, //
+      weeklyTasks: weeklyTasks, //
+    );
+  }
+
+  PhaseHive _mapToPhaseHive(Map<String, dynamic> phaseData, int order, DateTime phaseStartDate) { //
+    List<MonthlyTaskHive> monthlyTasks = []; //
+    String monthlyTasksCacheKey = "level0_${phaseData['title']}"; //
+    List<Map<String, dynamic>>? cachedMonthlyTasks = _childrenTasksCache[monthlyTasksCacheKey]; //
+
+    if (cachedMonthlyTasks != null) { //
+      int monthlyOrder = 0; //
+      DateTime currentMonthlyDate = phaseStartDate; //
+      for (var monthlyMap in cachedMonthlyTasks) { //
+        monthlyTasks.add(_mapToMonthlyTaskHive(monthlyMap, monthlyOrder++, currentMonthlyDate)); //
+        currentMonthlyDate = currentMonthlyDate.add(Duration(days: 30));  //
+      }
+    }
+
+    return PhaseHive( //
+      id: phaseData['id'] as String? ?? uuid.v4(), //
+      title: phaseData['title'] as String? ?? 'Untitled Phase', //
+      estimatedDuration: phaseData['estimated_duration'] as String, //
+      purpose: phaseData['purpose'] as String, //
+      order: order, //
+      monthlyTasks: monthlyTasks, //
+    );
+  }
+
+  Future<void> _savePlanToLocalDB() async { //
+    if (_phases.isEmpty) { //
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar( //
+            const SnackBar(content: Text("No phases to save."))); //
+      }
+      return;
+    }
+    if (goalName.isEmpty) { //
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar( //
+            const SnackBar(content: Text("Please set a goal name before saving."))); //
+      }
+      return;
+    }
+
+    setState(() { _isLoading = true; }); //
+
+    try {
+      List<PhaseHive> hivePhases = []; //
+      int phaseOrder = 0; //
+      DateTime currentStartDate = DateTime.now(); //
+
+      for (var phaseData in _phases) { //
+        hivePhases.add(_mapToPhaseHive(phaseData, phaseOrder++, currentStartDate)); //
+      }
+
+      final userPlan = UserPlanHive( //
+        goalName: goalName, //
+        earnThisYear: widget.earnThisYear, //
+        currentSkill: widget.currentSkill, //
+        preferToEarnMoney: widget.preferToEarnMoney, //
+        note: widget.note, //
+        phases: hivePhases, //
+        createdAt: widget.existingPlanForRefinement?.createdAt ?? DateTime.now(), // Preserve original creation date if refining
+      );
+
+      await _localDbService.saveUserPlan(userPlan); //
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar( //
+            const SnackBar(content: Text("Plan saved locally successfully!")));
+      }
+    } catch (e) {
+      print("Error saving plan to Local DB: $e"); //
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar( //
+            SnackBar(content: Text("Error saving plan locally: $e"))); //
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isLoading = false; }); //
+      }
     }
   }
-}
 
-  String _generateCacheKey(Map<String, dynamic> parentTask, int parentLevel) {
-    return "level${parentLevel}_${parentTask['title']}";
+  String _generateCacheKey(Map<String, dynamic> parentTask, int parentLevel) { //
+    return "level${parentLevel}_${parentTask['title']}"; //
   }
 
   Future<void> _fetchAIPlan(int breakdownLevelApi, {
     String? additionalNote,
-    Map<String, dynamic>? parentTaskToBreakdown, // e.g., selectedPhase or _selectedMonthlyTask
+    Map<String, dynamic>? parentTaskToBreakdown,
     bool isInitialLoad = false,
   }) async {
     if (!isInitialLoad && parentTaskToBreakdown == null && breakdownLevelApi > 1) {
-      print("Error: Parent task is null for breakdown level $breakdownLevelApi.");
-      setState(() {
-        _errorMessage = "Cannot breakdown without a selected parent task.";
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Cannot breakdown without a selected parent task.";
+          _isLoading = false;
+        });
+      }
       return;
     }
 
     String? cacheKey;
-    int parentLevelDisplay = -1;
+    // parentLevelDisplay is the display level of the PARENT task being broken down
+    // e.g., if breaking down a Phase (level 0 in UI), its parentLevelDisplay is 0.
+    int parentLevelDisplay = -1; 
+    bool shouldProceedToAiCall = true; // Assume we'll call the AI by default
 
     if (parentTaskToBreakdown != null) {
-      parentLevelDisplay = (breakdownLevelApi == 2) ? 0 : 1; // Level of the parent task
+      // breakdownLevelApi: 1 (Phases), 2 (Monthly from Phase), 3 (Weekly from Monthly), 4 (Daily from Weekly)
+      // For breakdownLevelApi 2 (Monthly), parent is Phase (level 0).
+      // For breakdownLevelApi 3 (Weekly), parent is Monthly (level 1).
+      // For breakdownLevelApi 4 (Daily), parent is Weekly (level 2).
+      parentLevelDisplay = breakdownLevelApi - 2; 
       cacheKey = _generateCacheKey(parentTaskToBreakdown, parentLevelDisplay);
 
       if (_childrenTasksCache.containsKey(cacheKey)) {
-
         List<Map<String, dynamic>> cachedTasks = _childrenTasksCache[cacheKey]!;
+        if (cachedTasks.isNotEmpty) { // Only use cache if it's not empty
+          print('Level $breakdownLevelApi tasks loaded from non-empty cache for ${parentTaskToBreakdown['title']}');
+          if (mounted) {
+            setState(() {
+              int currentParentDisplayLevelInWholeTasks = parentLevelDisplay;
+              
+              if (_wholeTasks.length > currentParentDisplayLevelInWholeTasks + 1) {
+                _wholeTasks.removeRange(currentParentDisplayLevelInWholeTasks + 1, _wholeTasks.length);
+              }
 
-        print('Level $breakdownLevelApi tasks loaded from cache for ${parentTaskToBreakdown['title']}');
+              if (_wholeTasks.length == currentParentDisplayLevelInWholeTasks + 1) {
+                _wholeTasks.add(cachedTasks);
+              } else {
+                print("Warning: _wholeTasks length issue before adding cached children. Length: ${_wholeTasks.length}, Expected parent display level: $currentParentDisplayLevelInWholeTasks. Cached tasks not added.");
+              }
 
-        setState(() {
-          int targetWholeTasksIndex = parentLevelDisplay + 1; // Index for children in _wholeTasks
-          while (_wholeTasks.length > targetWholeTasksIndex) {
-            _wholeTasks.removeLast();
+              if (breakdownLevelApi == 2) { 
+                _selectedMonthlyTask = null; _selectedWeeklyTask = null; 
+              } else if (breakdownLevelApi == 3) { 
+                _selectedWeeklyTask = null; 
+              }
+              _isLoading = false; 
+              _errorMessage = null;
+            });
           }
-          if (_wholeTasks.length == targetWholeTasksIndex) {
-            _wholeTasks.add(cachedTasks);
-          } else if (_wholeTasks.length < targetWholeTasksIndex) {
-            // This case should ideally be managed by ensuring parent levels are present
-            // For now, let's assume _wholeTasks[parentLevelDisplay] exists
-            if(_wholeTasks.length == parentLevelDisplay) _wholeTasks.add(cachedTasks); // If only parent list exists
-          }
-
-
-          if (breakdownLevelApi == 2) _selectedMonthlyTask = null;
-          _isLoading = false;
-          _errorMessage = null;
-        });
-        return;
+          shouldProceedToAiCall = false; // Non-empty cache found and used
+        } else {
+          print("Cache for $cacheKey found but is empty. Will proceed to API call for level $breakdownLevelApi to generate tasks for ${parentTaskToBreakdown['title']}.");
+          // shouldProceedToAiCall remains true
+        }
       }
+      // If cache key doesn't exist, shouldProceedToAiCall also remains true
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (!shouldProceedToAiCall) {
+      return; // Exit if non-empty cache was successfully used
+    }
+
+    // --- Proceed with AI Call ---
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+        if (parentTaskToBreakdown != null) { // This is a breakdown action
+          // parentLevelDisplay is already calculated.
+          // Clear deeper levels in _wholeTasks before fetching new data.
+          int currentParentDisplayLevelInWholeTasks = parentLevelDisplay;
+          if (_wholeTasks.length > currentParentDisplayLevelInWholeTasks + 1) {
+            _wholeTasks.removeRange(currentParentDisplayLevelInWholeTasks + 1, _wholeTasks.length);
+          }
+        } else if (isInitialLoad && breakdownLevelApi == 1) {
+          // For initial load of phases, ensure _wholeTasks is clear if starting fresh.
+          _wholeTasks.clear();
+        }
+      });
+    }
 
     await dotenv.load(fileName: ".env");
     final apiKey = dotenv.env['GOOGLE_API_KEY'];
 
     if (apiKey == null) {
       print('Error: GOOGLE_API_KEY not found in .env file.');
-      setState(() {
-        _errorMessage = 'API key isn\'t set';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'API key isn\'t set';
+          _isLoading = false;
+        });
+      }
       return;
     }
 
@@ -304,55 +396,68 @@ Future<void> _savePlanToLocalDB() async { // Renamed from _saveToFirestore
     if (additionalNote != null && additionalNote.isNotEmpty) {
       combinedNote += "\nAdditional instruction: $additionalNote";
     }
+    
     String promptForBreakDown;
+    String refinementContext = "";
+
+    if (widget.existingPlanForRefinement != null && isInitialLoad && breakdownLevelApi == 1) {
+        refinementContext = "The user is refining an existing financial plan titled '${widget.existingPlanForRefinement!.goalName}'. Please review and enhance the phases, or generate them if they are missing, keeping the user's overall goal in mind.\n";
+    } else if (widget.existingPlanForRefinement != null && parentTaskToBreakdown != null) {
+        refinementContext = "The user is refining part of an existing financial plan ('${widget.existingPlanForRefinement!.goalName}'). Focus on breaking down the given task: '${parentTaskToBreakdown['title']}'.\n";
+    }
+
 
     switch (breakdownLevelApi) {
       case 1: // Fetching Phases
         promptForBreakDown = """
-You are an AI financial goal manager. Your task is to generate a JSON array of actionable financial tasks based on the user's goals, skills, and preferences.
-If the goal is "achieve financial freedom within 5 years," divide it into several broad phases (2–6), based on logical progression and the estimated time required for each phase.
-Each phase must include: title (string), estimated_duration (string), purpose (string).
-User's income goal for this year: ${widget.earnThisYear}
-User's current skills: ${widget.currentSkill}
-User's preferred way to earn money: ${widget.preferToEarnMoney}
-User's notes: $combinedNote
-Output only a JSON array. Do not include markdown formatting. Ensure valid JSON.
-""";
+  You are an AI financial goal manager. Your task is to generate a JSON array of actionable financial plan phases based on the user's goals, skills, and preferences.
+  $refinementContext
+  If the goal is "achieve financial freedom within 5 years," divide it into several broad phases (2–6), based on logical progression and the estimated time required for each phase.
+  Each phase must include: id (string, a unique uuid), title (string), estimated_duration (string), purpose (string).
+  User's income goal for this year: ${widget.earnThisYear}
+  User's current skills: ${widget.currentSkill}
+  User's preferred way to earn money: ${widget.preferToEarnMoney}
+  User's notes: $combinedNote
+  Output only a JSON array. Do not include markdown formatting. Ensure valid JSON. Example: [{"id": "generated-uuid-1", "title": "Phase 1: Foundation", "estimated_duration": "3 months", "purpose": "Build initial skills and resources."}]
+  """;
         break;
       case 2: // Fetching Monthly tasks for selectedPhase
-        if (selectedPhase == null) { /* Handled by initial check */ }
+        // parentTaskToBreakdown is selectedPhase here
         promptForBreakDown = """
-You are an AI financial goal manager. Break down the following phase into actionable 1-month tasks.
-For the given phase duration of "${selectedPhase!['estimated_duration'] ?? ''}", generate approximately 4-6 distinct 1-month tasks.
-Each task: title (string), estimated_duration (string, fixed to "1 month"), purpose (string).
-Phase details: Title: "${selectedPhase!['title'] ?? ''}", Purpose: "${selectedPhase!['purpose'] ?? ''}", Duration: "${selectedPhase!['estimated_duration'] ?? ''}"
-User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
-Return ONLY a JSON array of these tasks. Ensure each JSON object is complete and valid. No markdown.
-""";
+  You are an AI financial goal manager. Break down the following phase into actionable 1-month tasks.
+  $refinementContext
+  For the given phase duration of "${parentTaskToBreakdown!['estimated_duration'] ?? ''}", generate approximately 4-6 distinct 1-month tasks.
+  Each task: id (string, a unique uuid), title (string), estimated_duration (string, fixed to "1 month"), purpose (string).
+  Phase details: Title: "${parentTaskToBreakdown['title'] ?? ''}", Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}", Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
+  User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
+  Return ONLY a JSON array of these tasks. Ensure each JSON object is complete and valid. No markdown. Example: [{"id": "uuid-m1", "title": "Month 1 Task", "estimated_duration": "1 month", "purpose": "Achieve X."}]
+  """;
         break;
       case 3: // Fetching Weekly tasks for _selectedMonthlyTask
-        if (_selectedMonthlyTask == null) { /* Handled by initial check */ }
+        // parentTaskToBreakdown is _selectedMonthlyTask here
         promptForBreakDown = """
-You are an AI financial goal manager. Break down the following monthly task into around 4 actionable weekly sub-tasks.
-Each sub-task: title (string), estimated_duration (string, typically "1 week"), purpose (string).
-Monthly Task details: Title: "${_selectedMonthlyTask!['title'] ?? ''}", Purpose: "${_selectedMonthlyTask!['purpose'] ?? ''}", Duration: "${_selectedMonthlyTask!['estimated_duration'] ?? ''}"
-User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
-Output only a JSON array. Example: [{"title": "Weekly sub-task", "estimated_duration": "1 week", "purpose": "Purpose."}]
-No markdown. Ensure valid JSON.
-""";
+  You are an AI financial goal manager. Break down the following monthly task into around 4 actionable weekly sub-tasks.
+  $refinementContext
+  Each sub-task: id (string, a unique uuid), title (string), estimated_duration (string, typically "1 week"), purpose (string).
+  Monthly Task details: Title: "${parentTaskToBreakdown!['title'] ?? ''}", Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}", Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
+  User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
+  Output only a JSON array. Example: [{"id": "uuid-w1", "title": "Weekly sub-task 1", "estimated_duration": "1 week", "purpose": "Purpose."}]
+  No markdown. Ensure valid JSON.
+  """;
         break;
-      case 4: // Fetching Daily tasks for _selectedMonthlyTask
-        if (_selectedMonthlyTask == null) { /* Handled by initial check */ }
+      case 4: // Fetching Daily tasks for _selectedWeeklyTask
+        // parentTaskToBreakdown is _selectedWeeklyTask here
         promptForBreakDown = """
-You are an AI financial goal manager. Break down the following weekly task into around 6 actionable daily sub-tasks.
-Each sub-task: title (string), estimated_duration (string, typically "1 week"), purpose (string).
-Monthly Task details: Title: "${_selectedMonthlyTask!['title'] ?? ''}", Purpose: "${_selectedMonthlyTask!['purpose'] ?? ''}", Duration: "${_selectedMonthlyTask!['estimated_duration'] ?? ''}"
-User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
-OUT PUT ONLY A JASON ARRAY. Example: [{"title": "Weekly sub-task", "estimated_duration": "1 week", "purpose": "Purpose."}]
-Ensure No markdown and the resopnse is valid JSON.
-""";
+  You are an AI financial goal manager. Break down the following weekly task into around 5-7 actionable daily sub-tasks.
+  $refinementContext
+  Each sub-task: id (string, a unique uuid), title (string), estimated_duration (string, typically "1 day" or a few hours like "2-3 hours"), purpose (string).
+  Weekly Task details: Title: "${parentTaskToBreakdown!['title'] ?? ''}", Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}", Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
+  User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
+  Output ONLY a JSON array. Example: [{"id": "uuid-d1", "title": "Daily action for Monday", "estimated_duration": "1 day", "purpose": "Specific daily goal."}]
+  Ensure No markdown. Ensure the response is valid JSON.
+  """;
       default:
-        promptForBreakDown = "";
+        promptForBreakDown = ""; // Should not happen
     }
 
     final generationConfig = GenerationConfig(maxOutputTokens: 8192, temperature: 0.1);
@@ -362,16 +467,8 @@ Ensure No markdown and the resopnse is valid JSON.
           [Content.text(promptForBreakDown)],
           generationConfig: generationConfig);
 
-      // Enhanced Logging
-      if (response.candidates.isNotEmpty) {
-        print('Level $breakdownLevelApi - Finish Reason: ${response.candidates.first.finishReason}');
-      }
-      if (response.promptFeedback != null) {
-        print('Level $breakdownLevelApi - Prompt Feedback: ${response.promptFeedback?.blockReason}');
-        response.promptFeedback?.safetyRatings.forEach((rating) {
-          print('Level $breakdownLevelApi - Safety Rating: ${rating.category} - ${rating.probability}');
-        });
-      }
+      List<Map<String, dynamic>> newTasksFromAI = [];
+      String? currentErrorMessage;
 
       if (response.text != null) {
         print('AI response (Level $breakdownLevelApi) raw: ${response.text}');
@@ -386,237 +483,263 @@ Ensure No markdown and the resopnse is valid JSON.
 
         try {
           final decodedJson = jsonDecode(responseText);
-          if (decodedJson is List) {
-            List<Map<String, dynamic>> newTasks =
-                List<Map<String, dynamic>>.from(decodedJson.cast<Map<String, dynamic>>());
-
-            setState(() {
-              if (breakdownLevelApi == 1) {
-                _phases = newTasks;
-                _wholeTasks.clear();
-                _wholeTasks.add(_phases);
-                selectedPhase = _phases.isNotEmpty ? _phases[0] : null; // Auto-select first phase
-                _selectedMonthlyTask = null;
-              } else {
-                // Add to cache if fetched from API
-                if (cacheKey != null && newTasks.isNotEmpty) {
-                  _childrenTasksCache[cacheKey] = newTasks;
-                }
-                // Update _wholeTasks (similar to cache hit logic)
-                 int targetWholeTasksIndex = parentLevelDisplay + 1;
-                 while (_wholeTasks.length > targetWholeTasksIndex) {
-                   _wholeTasks.removeLast();
-                 }
-                 if (_wholeTasks.length == targetWholeTasksIndex) {
-                    _wholeTasks.add(newTasks);
-                 }
-
-
-                if (breakdownLevelApi == 2) _selectedMonthlyTask = null;
-              }
-              _isLoading = false;
-              _errorMessage = null;
-            });
-            print('Level $breakdownLevelApi tasks parsed successfully: (${newTasks.length} items)');
+          if (decodedJson is List && decodedJson.every((item) => item is Map)) {
+            newTasksFromAI = List<Map<String, dynamic>>.from(decodedJson.cast<Map<String, dynamic>>());
+            for (var task in newTasksFromAI) {
+              task.putIfAbsent('id', () => uuid.v4()); // Ensure ID exists
+            }
           } else {
-            throw FormatException("Expected JSON list but got ${decodedJson.runtimeType}");
+            throw FormatException("Expected JSON list of objects but got ${decodedJson.runtimeType}");
           }
         } catch (e) {
           print('JSON parsing error (Level $breakdownLevelApi): $e');
           print('AI raw data (failed parsing for L$breakdownLevelApi): $responseText');
-          setState(() {
-            _errorMessage = 'AI response format isn\'t valid for Level $breakdownLevelApi.';
-            _isLoading = false;
-          });
+          currentErrorMessage = 'AI response format isn\'t valid for Level $breakdownLevelApi.';
         }
       } else {
         print('Null response from Gemini (Level $breakdownLevelApi).');
+        if (response.promptFeedback != null) {
+            print('Level $breakdownLevelApi - Prompt Feedback: ${response.promptFeedback?.blockReason}');
+            response.promptFeedback?.safetyRatings.forEach((rating) {
+              print('Level $breakdownLevelApi - Safety Rating: ${rating.category} - ${rating.probability}');
+            });
+            if (response.promptFeedback?.blockReason != null) {
+              currentErrorMessage = 'AI request blocked: ${response.promptFeedback!.blockReason}';
+            } else {
+              currentErrorMessage = 'Could not get a response from AI for Level $breakdownLevelApi.';
+            }
+          } else {
+              currentErrorMessage = 'Could not get a response from AI for Level $breakdownLevelApi (null text and no feedback).';
+          }
+      }
+      
+      if (mounted) {
         setState(() {
-          _errorMessage = 'Could not get a response from AI for Level $breakdownLevelApi.';
+          if (currentErrorMessage != null) {
+              _errorMessage = currentErrorMessage;
+          } else {
+              _errorMessage = null; // Clear previous errors if this call was successful
+          }
+
+          if (newTasksFromAI.isNotEmpty || (newTasksFromAI.isEmpty && currentErrorMessage == null)) { // Process even if AI returns empty list (valid response)
+              if (breakdownLevelApi == 1) { // Initial load of Phases
+              _phases = newTasksFromAI;
+              // _wholeTasks was cleared before API call if initialLoad
+              _wholeTasks.add(_phases); // Add the new phases
+              selectedPhase = _phases.isNotEmpty ? _phases[0] : null;
+              _selectedMonthlyTask = null;
+              _selectedWeeklyTask = null;
+              } else { // For breakdowns (Phases -> Monthly, Monthly -> Weekly, etc.)
+                  if (cacheKey != null) { // cacheKey would be set if parentTaskToBreakdown was not null
+                      _childrenTasksCache[cacheKey] = newTasksFromAI; // Update cache with new AI data
+                  }
+                  
+                  // parentLevelDisplay would have been set earlier if parentTaskToBreakdown != null
+                  int currentParentDisplayLevelInWholeTasks = parentLevelDisplay; 
+                  
+                  // _wholeTasks should already be trimmed to the parent level (e.g. just [phases])
+                  // before the AI call, if it was a breakdown.
+                  if (_wholeTasks.length == currentParentDisplayLevelInWholeTasks + 1) {
+                      _wholeTasks.add(newTasksFromAI); // Add the newly fetched children
+                  } else {
+                      print("Error: _wholeTasks length discrepancy AFTER AI call for breakdown level $breakdownLevelApi. Length: ${_wholeTasks.length}, Expected parent level in _wholeTasks: $currentParentDisplayLevelInWholeTasks. New tasks might not display correctly.");
+                      // This situation means _wholeTasks was not in the expected state (e.g. [phases] when trying to add monthly tasks).
+                      // This could happen if the initial load (level 1) logic is complex or if _wholeTasks is modified unexpectedly.
+                      // For now, this will result in tasks not being added correctly if this state occurs.
+                  }
+
+                  // Reset selections for levels deeper than the one just loaded
+                  if (breakdownLevelApi == 2) { // Monthly tasks were loaded
+                      _selectedMonthlyTask = null;
+                      _selectedWeeklyTask = null;
+                  } else if (breakdownLevelApi == 3) { // Weekly tasks were loaded
+                      _selectedWeeklyTask = null;
+                  }
+              }
+          }
+          _isLoading = false; 
+        });
+      }
+
+    } catch (e) {
+      print('Gemini API call error or other exception (Level $breakdownLevelApi): $e');
+      if (e is GenerativeAIException) print('GenAI Exception details: ${e.message}');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error during AI communication for Level $breakdownLevelApi.';
           _isLoading = false;
         });
       }
-    } catch (e) {
-      print('Gemini API call error (Level $breakdownLevelApi): $e');
-      if (e is GenerativeAIException) print('GenAI Exception: ${e.message}');
-      setState(() {
-        _errorMessage = 'Error with AI communication for Level $breakdownLevelApi.';
-        _isLoading = false;
-      });
     }
   }
+  
+  // Inside aisupport/goal_input/chatWithAi.dart
+// Modify the _fetchAIPlan method
 
-  void _showRegenerateModal() {
-    _regenerationTextController.clear();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            top: 20, left: 20, right: 20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text("Add instruction (for initial phases):",
-              style: Theme.of(context).textTheme.titleMedium),
-          SizedBox(height: 10),
-          TextField(
-            controller: _regenerationTextController,
-            decoration: InputDecoration(
-                hintText: "e.g., focus on skill development first",
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.background),
-            minLines: 3, maxLines: 5,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+
+  void _showRegenerateModal() { //
+    // ... (keep existing _showRegenerateModal logic)
+    _regenerationTextController.clear(); //
+    showModalBottomSheet( //
+      context: context, //
+      isScrollControlled: true, //
+      backgroundColor: Theme.of(context).colorScheme.surface, //
+      builder: (context) => Padding( //
+        padding: EdgeInsets.only( //
+            bottom: MediaQuery.of(context).viewInsets.bottom, //
+            top: 20, left: 20, right: 20), //
+        child: Column(mainAxisSize: MainAxisSize.min, children: [ //
+          Text("Add instruction (for initial phases):", //
+              style: Theme.of(context).textTheme.titleMedium), //
+          SizedBox(height: 10), //
+          TextField( //
+            controller: _regenerationTextController, //
+            decoration: InputDecoration( //
+                hintText: "e.g., focus on skill development first", //
+                border: OutlineInputBorder(), //
+                filled: true, //
+                fillColor: Theme.of(context).colorScheme.background), //
+            minLines: 3, maxLines: 5, //
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface), //
           ),
-          SizedBox(height: 20),
-          ElevatedButton(
-              child: Text("Regenerate Phases"),
-              onPressed: () {
-                Navigator.pop(context);
-                // Clear cache related to old phases if necessary, or let selection handle it.
-                // For simplicity, regenerating phases will reset selections and subsequent cached items.
-                _childrenTasksCache.clear(); // Simplest way to handle regen of base
-                _fetchAIPlan(1, additionalNote: _regenerationTextController.text, isInitialLoad: true);
+          SizedBox(height: 20), //
+          ElevatedButton( //
+              child: Text("Regenerate Phases"), //
+              onPressed: () { //
+                Navigator.pop(context); //
+                _childrenTasksCache.clear(); //
+                // When regenerating, it's a new plan, so clear existingPlanForRefinement state if it was set by "Bring to Chat"
+                // This might need more thought if "Regenerate" is meant to work ON the existing plan.
+                // For now, assuming it starts fresh.
+                _fetchAIPlan(1, additionalNote: _regenerationTextController.text, isInitialLoad: true); //
               }),
-          SizedBox(height: 20),
+          SizedBox(height: 20), //
         ]),
       ),
     );
   }
 
-  Future<void> _saveToFirestore() async {
-    if (_phases.isEmpty) {
+  Future<void> _saveToFirestore() async { //
+    // This method saves the AI-generated plan to Firestore.
+    // If refining an existing plan, this would update it.
+    // The `goalName` is crucial here. If widget.existingPlanForRefinement is not null,
+    // `goalName` should be pre-filled from it.
+     if (_phases.isEmpty) { //
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("保存するフェーズがありません。")));
+        ScaffoldMessenger.of(context).showSnackBar( //
+            const SnackBar(content: Text("保存するフェーズがありません。"))); //
       }
       return;
     }
-    setState(() { _isLoading = true; });
+    if (goalName.isEmpty) { // If it's a new plan, goalName might not be set yet from the dialog
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Goal name is not set. Please ensure it's provided before saving.")));
+        }
+        return;
+    }
+    setState(() { _isLoading = true; }); //
 
     try {
-      // ユーザーの目標プランのルートドキュメント参照
-      // このドキュメントに、プラン生成時のユーザー入力などのメタ情報を保存できます。
-      // Retrieve the current list
+      final userGoalDocRef = _firestore.collection('financialGoals').doc(userId.uid); //
 
+      // Save/Update the main user inputs associated with this goal plan
+      // If it's a new plan or an update, set these.
+      // If the plan was loaded via existingPlanForRefinement, these are its original inputs.
+      await userGoalDocRef.set({ // Using set with merge:true to create or update
+        'earnThisYear': widget.earnThisYear, //
+        'currentSkill': widget.currentSkill, //
+        'preferToEarnMoney': widget.preferToEarnMoney, //
+        'note': widget.note, //
+        // 'goalName': goalName, // This was previously here, but goalName is usually part of a list or the collection name itself
+        'goalNameList': FieldValue.arrayUnion([goalName]), // Add new goalName to the list if it's not there
+        'lastUpdatedAt': FieldValue.serverTimestamp(), // Track updates
+      }, SetOptions(merge: true)); // Use merge:true to avoid overwriting other fields in financialGoals/{userId}
 
-      // Add a new value to the list
-
-      // Reference to the user's financial goals document
-      final userGoalDocRef = _firestore.collection('financialGoals').doc(userId.uid);
-
-      // Upload the updated list back to Firestore
-      await userGoalDocRef.update({
-        'goalName': goalName,
-      });
-
-      await userGoalDocRef.set({
-        'earnThisYear': widget.earnThisYear,
-        'currentSkill': widget.currentSkill,
-        'preferToEarnMoney': widget.preferToEarnMoney,
-        'note': widget.note,
-      });
-      // バッチ処理を開始
-      WriteBatch batch = _firestore.batch();
-
-      // オプション: ユーザーの入力やプラン全体のメタ情報を保存/更新
-      // merge:true にすることで、ドキュメントが存在しない場合は作成し、存在する場合はフィールドをマージします。
-      // フェーズを保存するサブコレクションの参照
+      WriteBatch batch = _firestore.batch(); //
       final phaseCollectionRef = userGoalDocRef.collection(goalName); //
 
-      // 既存のフェーズドキュメントを削除
-      // 注意: この方法ではフェーズドキュメントのみが削除され、そのサブコレクション（古い月次タスクなど）は残り続けます。
-      // サブコレクションも完全に削除するには、各ドキュメントを再帰的に読み取り削除するか、Cloud Functions を使用する必要があります。
-      // 今回は元のコードの削除ロジックを踏襲し、新しいデータで上書きする形とします。
-      // 新しいフェーズは新しいドキュメントIDで作成されるため、古いサブコレクションは直接的には競合しませんが、
-      // 「孤児」データとして残る可能性があります。
-      // QuerySnapshot oldPhasesSnapshot = await phaseCollectionRef.get(); //
-      // for (var doc in oldPhasesSnapshot.docs) { //
-      //   batch.delete(doc.reference); //
-      // }
-      // ここで一度バッチをコミットして削除を確定させることもできますが、
-      // 一連の「上書き保存」操作として、最後にまとめてコミットします。
+      // Clear existing data for this goalName if it's a full overwrite/update
+      // This is a destructive operation. Be careful if you only want to merge.
+      // For a full refresh from AI, clearing old data is often intended.
+      if (widget.existingPlanForRefinement != null || true) { // Assume overwrite for now
+          QuerySnapshot oldPhasesSnapshot = await phaseCollectionRef.get(); //
+          for (var doc in oldPhasesSnapshot.docs) { //
+              // Recursively delete subcollections if necessary (more complex)
+              // For now, just deleting phase documents. Subcollections might become orphaned.
+              // A proper deep delete would require listing and deleting children.
+              batch.delete(doc.reference); //
+          }
+      }
 
-      int phaseOrder = 0;
-      for (var phaseData in _phases) {
-        // 新しいフェーズドキュメントの参照を生成 (ユニークID)
-        final phaseDocRef = phaseCollectionRef.doc();
-        batch.set(phaseDocRef, {
-          'title': phaseData['title'],
-          'estimated_duration': phaseData['estimated_duration'],
-          'purpose': phaseData['purpose'],
-          'order': phaseOrder++,
+
+      int phaseOrder = 0; //
+      for (var phaseData in _phases) { //
+        final phaseDocRef = phaseCollectionRef.doc(phaseData['id'] ?? uuid.v4()); // Use AI provided ID or generate new
+        batch.set(phaseDocRef, { //
+          'title': phaseData['title'], //
+          'estimated_duration': phaseData['estimated_duration'], //
+          'purpose': phaseData['purpose'], //
+          'order': phaseOrder++, //
           'createdAt': FieldValue.serverTimestamp(), //
         });
 
-        // このフェーズに対応する月次タスクをキャッシュから取得
-        String monthlyTasksCacheKey = "level0_${phaseData['title']}"; // _generateCacheKey(phaseData, 0) と同等
-        List<Map<String, dynamic>>? monthlyTasks = _childrenTasksCache[monthlyTasksCacheKey];
+        String monthlyTasksCacheKey = "level0_${phaseData['title']}"; //
+        List<Map<String, dynamic>>? monthlyTasks = _childrenTasksCache[monthlyTasksCacheKey]; //
 
-        if (monthlyTasks != null && monthlyTasks.isNotEmpty) {
-          final monthlyTasksCollectionRef = phaseDocRef.collection('monthlyTasks');
-          int monthlyTaskOrder = 0;
-          for (var monthlyTaskData in monthlyTasks) {
-            final monthlyTaskDocRef = monthlyTasksCollectionRef.doc(); // 新しい月次タスクドキュメント
-            batch.set(monthlyTaskDocRef, {
-              'title': monthlyTaskData['title'],
-              'estimated_duration': monthlyTaskData['estimated_duration'],
-              'purpose': monthlyTaskData['purpose'],
-              'order': monthlyTaskOrder++,
-              // 'createdAt': FieldValue.serverTimestamp(), // 必要であれば追加
+        if (monthlyTasks != null && monthlyTasks.isNotEmpty) { //
+          final monthlyTasksCollectionRef = phaseDocRef.collection('monthlyTasks'); //
+          int monthlyTaskOrder = 0; //
+          for (var monthlyTaskData in monthlyTasks) { //
+            final monthlyTaskDocRef = monthlyTasksCollectionRef.doc(monthlyTaskData['id'] ?? uuid.v4()); //
+            batch.set(monthlyTaskDocRef, { //
+              'title': monthlyTaskData['title'], //
+              'estimated_duration': monthlyTaskData['estimated_duration'], //
+              'purpose': monthlyTaskData['purpose'], //
+              'order': monthlyTaskOrder++, //
             });
 
-            // この月次タスクに対応する週次タスクをキャッシュから取得
-            String weeklyTasksCacheKey = "level1_${monthlyTaskData['title']}"; // _generateCacheKey(monthlyTaskData, 1) と同等
-            List<Map<String, dynamic>>? weeklyTasks = _childrenTasksCache[weeklyTasksCacheKey];
+            String weeklyTasksCacheKey = "level1_${monthlyTaskData['title']}"; //
+            List<Map<String, dynamic>>? weeklyTasks = _childrenTasksCache[weeklyTasksCacheKey]; //
 
-            if (weeklyTasks != null && weeklyTasks.isNotEmpty) {
-              final weeklyTasksCollectionRef = monthlyTaskDocRef.collection('weeklyTasks');
-              int weeklyTaskOrder = 0;
-              for (var weeklyTaskData in weeklyTasks) {
-                final weeklyTaskDocRef = weeklyTasksCollectionRef.doc(); // 新しい週次タスクドキュメント
-                batch.set(weeklyTaskDocRef, {
-                  'title': weeklyTaskData['title'],
-                  'estimated_duration': weeklyTaskData['estimated_duration'],
-                  'purpose': weeklyTaskData['purpose'],
-                  'order': weeklyTaskOrder++,
-                  // 'createdAt': FieldValue.serverTimestamp(), // 必要であれば追加
+            if (weeklyTasks != null && weeklyTasks.isNotEmpty) { //
+              final weeklyTasksCollectionRef = monthlyTaskDocRef.collection('weeklyTasks'); //
+              int weeklyTaskOrder = 0; //
+              for (var weeklyTaskData in weeklyTasks) { //
+                final weeklyTaskDocRef = weeklyTasksCollectionRef.doc(weeklyTaskData['id'] ?? uuid.v4()); //
+                batch.set(weeklyTaskDocRef, { //
+                  'title': weeklyTaskData['title'], //
+                  'estimated_duration': weeklyTaskData['estimated_duration'], //
+                  'purpose': weeklyTaskData['purpose'], //
+                  'order': weeklyTaskOrder++, //
                 });
-              }
-            }
 
-            String dailyTaskCacheKey = "level2_${monthlyTaskData['title']}"; // _generateCacheKey(monthlyTaskData, 1) と同等
-            List<Map<String, dynamic>>? dailyTasks = _childrenTasksCache[dailyTaskCacheKey];
-
-            if (dailyTasks != null && dailyTasks.isNotEmpty) {
-              final weeklyTasksCollectionRef = monthlyTaskDocRef.collection('weeklyTasks');
-              int weeklyTaskOrder = 0;
-              for (var dailyTaskData in dailyTasks) {
-                final weeklyTaskDocRef = weeklyTasksCollectionRef.doc(); // 新しい週次タスクドキュメント
-                batch.set(weeklyTaskDocRef, {
-                  'title': dailyTaskData['title'],
-                  'estimated_duration': dailyTaskData['estimated_duration'],
-                  'purpose': dailyTaskData['purpose'],
-                  'order': weeklyTaskOrder++,
-                  // 'createdAt': FieldValue.serverTimestamp(), // 必要であれば追加
-                });
+                // Firestore does not store daily tasks under weekly per current chatWithAi logic
+                // If it did, they would be saved here. Example from original code:
+                // String dailyTaskCacheKey = "level2_${weeklyTaskData['title']}"; // Adjusted from monthlyTaskData
+                // List<Map<String, dynamic>>? dailyTasks = _childrenTasksCache[dailyTaskCacheKey];
+                // if (dailyTasks != null && dailyTasks.isNotEmpty) {
+                //    final dailyTasksCollectionRef = weeklyTaskDocRef.collection('dailyTasks'); // New subcollection
+                //    int dailyTaskOrder = 0;
+                //    for (var dailyTaskData in dailyTasks) {
+                //        final dailyTaskDocRef = dailyTasksCollectionRef.doc(dailyTaskData['id'] ?? uuid.v4());
+                //        batch.set(dailyTaskDocRef, { /* daily task fields */ });
+                //    }
+                // }
               }
             }
           }
         }
       }
 
-      await batch.commit(); // 全ての変更をコミット
+      await batch.commit(); //
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar( //
             const SnackBar(content: Text("プランが正常に保存されました！"))); //
       }
     } catch (e) {
       print("Firestoreへの保存エラー: $e"); //
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar( //
             SnackBar(content: Text("データの保存中にエラーが発生しました: $e"))); //
       }
     } finally {
@@ -626,43 +749,45 @@ Ensure No markdown and the resopnse is valid JSON.
     }
   }
 
-  Widget _buildTaskCard(Map<String, dynamic> task, bool isSelected, VoidCallback onTap, BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: isSelected ? 8 : 4,
-        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        color: isSelected ? theme.colorScheme.primaryContainer.withOpacity(0.5) : theme.cardColor,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(
-            color: isSelected ? theme.colorScheme.primary : theme.dividerColor,
-            width: isSelected ? 2.0 : 1.0,
+
+  Widget _buildTaskCard(Map<String, dynamic> task, bool isSelected, VoidCallback onTap, BuildContext context) { //
+    // ... (keep existing _buildTaskCard logic)
+    final theme = Theme.of(context); //
+    return GestureDetector( //
+      onTap: onTap, //
+      child: Card( //
+        elevation: isSelected ? 8 : 4, //
+        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 6), //
+        color: isSelected ? theme.colorScheme.primaryContainer.withOpacity(0.5) : theme.cardColor, //
+        shape: RoundedRectangleBorder( //
+          side: BorderSide( //
+            color: isSelected ? theme.colorScheme.primary : theme.dividerColor, //
+            width: isSelected ? 2.0 : 1.0, //
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12), //
         ),
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.7 > 280
-              ? 280 // Max width for cards
-              : MediaQuery.of(context).size.width * 0.7, // Responsive width
-          padding: EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Pushes content apart if card is tall
-              children: [
-                Text(
-                  task['title'] as String? ?? 'No Title',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.textTheme.titleMedium?.color),
+        child: Container( //
+          width: MediaQuery.of(context).size.width * 0.7 > 280 //
+              ? 280 // Max width for cards //
+              : MediaQuery.of(context).size.width * 0.7, // Responsive width //
+          padding: EdgeInsets.all(16), //
+          child: SingleChildScrollView( //
+            child: Column( //
+              crossAxisAlignment: CrossAxisAlignment.start, //
+              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Pushes content apart if card is tall //
+              children: [ //
+                Text( //
+                  task['title'] as String? ?? 'No Title', //
+                  style: theme.textTheme.titleMedium?.copyWith( //
+                      fontWeight: FontWeight.bold, //
+                      color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.textTheme.titleMedium?.color), //
                 ),
-                Divider(height: 16, color: theme.dividerColor.withOpacity(0.5)),
-                Text("Duration: ${task['estimated_duration'] as String? ?? 'N/A'}", style: theme.textTheme.bodyMedium),
-                SizedBox(height: 8),
-                Text("Purpose:", style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                SizedBox(height: 4),
-                Text(task['purpose'] as String? ?? 'N/A', style: theme.textTheme.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis,),
+                Divider(height: 16, color: theme.dividerColor.withOpacity(0.5)), //
+                Text("Duration: ${task['estimated_duration'] as String? ?? 'N/A'}", style: theme.textTheme.bodyMedium), //
+                SizedBox(height: 8), //
+                Text("Purpose:", style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)), //
+                SizedBox(height: 4), //
+                Text(task['purpose'] as String? ?? 'N/A', style: theme.textTheme.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis,), //
               ],
             ),
           ),
@@ -673,240 +798,264 @@ Ensure No markdown and the resopnse is valid JSON.
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: AppTheme.baseBackground,
-      appBar: AppBar(
-        title: Text("AI Goal Planner", style: TextStyle(fontWeight: FontWeight.w500)),
-        backgroundColor: theme.colorScheme.surfaceVariant, // Slightly different shade for appbar
-        elevation: 2,
+    final theme = Theme.of(context); //
+    bool canSave = _wholeTasks.isNotEmpty && _wholeTasks[0].isNotEmpty && !_isLoading; //
+    if (widget.existingPlanForRefinement != null && goalName.isEmpty) {
+        // If it's a refinement, goalName should be set from the existing plan.
+        // This is a fallback, should be set in initState.
+        goalName = widget.existingPlanForRefinement!.goalName; //
+    }
+
+
+    return Scaffold( //
+      backgroundColor: AppTheme.baseBackground, //
+      appBar: AppBar( //
+        title: Text(widget.existingPlanForRefinement != null ? "Refine: ${widget.existingPlanForRefinement!.goalName}" : "AI Goal Planner", style: TextStyle(fontWeight: FontWeight.w500)), //
+        backgroundColor: theme.colorScheme.surfaceVariant, //
+        elevation: 2, //
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_isLoading && _wholeTasks.isEmpty)
-              Expanded(child: Center(child: CircularProgressIndicator(color: theme.colorScheme.primary)))
-            else if (_errorMessage != null)
-              Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text("Error: $_errorMessage",
-                        style: TextStyle(color: theme.colorScheme.error, fontSize: 16), textAlign: TextAlign.center),
+      body: SafeArea( //
+        child: Column( //
+          crossAxisAlignment: CrossAxisAlignment.stretch, //
+          children: [ //
+            if (_isLoading && _wholeTasks.isEmpty) //
+              Expanded(child: Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))) //
+            else if (_errorMessage != null) //
+              Expanded( //
+                child: Center( //
+                  child: Padding( //
+                    padding: const EdgeInsets.all(16.0), //
+                    child: Text("Error: $_errorMessage", //
+                        style: TextStyle(color: theme.colorScheme.error, fontSize: 16), textAlign: TextAlign.center), //
                   ),
                 ),
               )
-            else if (_wholeTasks.isEmpty || _wholeTasks[0].isEmpty && !_isLoading)
-              Expanded(
-                child: Center(
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.lightbulb_outline, size: 60, color: theme.colorScheme.secondary),
-                    SizedBox(height: 16),
-                    Text("No suggestions from AI yet.", style: theme.textTheme.headlineSmall),
-                    SizedBox(height: 20),
-                    ElevatedButton.icon(
-                        icon: Icon(Icons.auto_awesome),
-                        label: Text("Generate Plan"),
-                        onPressed: _showRegenerateModal,
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: theme.colorScheme.onPrimary,
-                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12)))
+            else if (_wholeTasks.isEmpty || _wholeTasks[0].isEmpty && !_isLoading) //
+               Expanded( //
+                child: Center( //
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [ //
+                    Icon(Icons.lightbulb_outline, size: 60, color: theme.colorScheme.secondary), //
+                    SizedBox(height: 16), //
+                    Text("No plan generated yet.", style: theme.textTheme.headlineSmall), // "No suggestions from AI yet." changed for clarity //
+                    SizedBox(height: 20), //
+                    if (widget.existingPlanForRefinement == null) // Only show "Generate Plan" if it's not a refinement flow
+                        ElevatedButton.icon( //
+                            icon: Icon(Icons.auto_awesome), //
+                            label: Text("Generate Plan"), //
+                            onPressed: _showRegenerateModal, //
+                            style: ElevatedButton.styleFrom( //
+                                backgroundColor: theme.colorScheme.primary, //
+                                foregroundColor: theme.colorScheme.onPrimary, //
+                                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12))) //
+                    else // If refining, perhaps a different message or action
+                        Text("Plan loaded for refinement.", style: theme.textTheme.bodyLarge),
+
                   ]),
                 ),
               )
             else
-              Expanded(
-                child: ListView.builder(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  itemCount: _wholeTasks.length,
-                  itemBuilder: (context, levelIndex) {
-                    List<Map<String, dynamic>> currentLevelTasks = _wholeTasks[levelIndex];
-                    if (currentLevelTasks.isEmpty && levelIndex > 0 && !_isLoading) return SizedBox.shrink();
+              Expanded( //
+                child: ListView.builder( //
+                  padding: EdgeInsets.symmetric(vertical: 8), //
+                  itemCount: _wholeTasks.length, //
+                  itemBuilder: (context, levelIndex) { //
+                    List<Map<String, dynamic>> currentLevelTasks = _wholeTasks[levelIndex]; //
+                    if (currentLevelTasks.isEmpty && levelIndex > 0 && !_isLoading) return SizedBox.shrink(); //
 
-                    String levelTitle;
-                    dynamic currentSelection;
-                    VoidCallback Function(Map<String, dynamic>) onTapGenerator;
-                    Map<String, dynamic>? taskForBreakdownButton;
-                    int breakdownApiLevelForButton = 0;
+                    String levelTitle; //
+                    dynamic currentSelection; //
+                    VoidCallback Function(Map<String, dynamic>) onTapGenerator; //
+                    Map<String, dynamic>? taskForBreakdownButton; //
+                    int breakdownApiLevelForButton = 0; //
 
 
-                    if (levelIndex == 0) {
-                      levelTitle = "Project Phases ✨";
-                      currentSelection = selectedPhase;
-                      taskForBreakdownButton = selectedPhase;
-                      breakdownApiLevelForButton = 2; // To fetch monthly tasks
-                      onTapGenerator = (task) => () => setState(() {
-                            selectedPhase = task;
-                            _selectedMonthlyTask = null;
-                            if (_wholeTasks.length > 1) _wholeTasks.removeRange(1, _wholeTasks.length);
+                    if (levelIndex == 0) { //
+                      levelTitle = "Project Phases ✨"; //
+                      currentSelection = selectedPhase; //
+                      taskForBreakdownButton = selectedPhase; //
+                      breakdownApiLevelForButton = 2; // To fetch monthly tasks //
+                      onTapGenerator = (task) => () => setState(() { //
+                            selectedPhase = task; //
+                            _selectedMonthlyTask = null; //
+                            _selectedWeeklyTask = null; 
+                            if (_wholeTasks.length > 1) _wholeTasks.removeRange(1, _wholeTasks.length); //
                           });
-                    } else if (levelIndex == 1) {
-                      levelTitle = "Monthly Tasks for: ${selectedPhase?['title'] ?? 'Phase'} 🗓️";
-                      currentSelection = _selectedMonthlyTask;
-                      taskForBreakdownButton = _selectedMonthlyTask;
-                      breakdownApiLevelForButton = 3; // To fetch weekly tasks
-                      onTapGenerator = (task) => () => setState(() {
-                            _selectedMonthlyTask = task;
-                            if (_wholeTasks.length > 2) _wholeTasks.removeRange(2, _wholeTasks.length);
+                    } else if (levelIndex == 1) { //
+                      levelTitle = "Monthly Tasks for: ${selectedPhase?['title'] ?? 'Phase'} 🗓️"; //
+                      currentSelection = _selectedMonthlyTask; //
+                      taskForBreakdownButton = _selectedMonthlyTask; //
+                      breakdownApiLevelForButton = 3; // To fetch weekly tasks //
+                      onTapGenerator = (task) => () => setState(() { //
+                            _selectedMonthlyTask = task; //
+                             _selectedWeeklyTask = null;
+                            if (_wholeTasks.length > 2) _wholeTasks.removeRange(2, _wholeTasks.length); //
                           });
-                    } else if(levelIndex==2){ // levelIndex == 2 (Weekly Tasks)
-                      levelTitle = "Weekly Tasks for: ${selectedPhase?['title'] ?? 'Phase'} 🗓️";
-                      currentSelection = _selectedMonthlyTask;
-                      taskForBreakdownButton = _selectedMonthlyTask;
-                      breakdownApiLevelForButton = 4; // To fetch daily tasks
-                      onTapGenerator = (task) => () => setState(() {
-                            _selectedMonthlyTask = task;
-                            if (_wholeTasks.length > 3) _wholeTasks.removeRange(3, _wholeTasks.length);
+                    } else if (levelIndex == 2){ // Was levelIndex == 2 (Weekly Tasks)
+                      levelTitle = "Weekly Tasks for: ${_selectedMonthlyTask?['title'] ?? 'Month'} 📅"; // Title adjusted for weekly tasks
+                      currentSelection = _selectedWeeklyTask; // New selection state
+                      taskForBreakdownButton = _selectedWeeklyTask; // Use weekly task for breakdown
+                      breakdownApiLevelForButton = 4; // To fetch daily tasks //
+                      onTapGenerator = (task) => () => setState(() { //
+                            _selectedWeeklyTask = task; // Set selected weekly task
+                            if (_wholeTasks.length > 3) _wholeTasks.removeRange(3, _wholeTasks.length); //
                           });
-                    }else{
-                      levelTitle = "daily Tasks for: ${_selectedMonthlyTask?['title'] ?? 'Month'} 🎯";
-                      currentSelection = null; // No selection for the deepest level
-                      onTapGenerator = (task) => () => print("Viewed Weekly Task: ${task['title']}");
+                    } else { // Level 3: Daily tasks
+                      levelTitle = "Daily Tasks for: ${_selectedWeeklyTask?['title'] ?? 'Week'} 🎯"; //
+                      currentSelection = null; // No selection for the deepest level shown in this UI
+                      onTapGenerator = (task) => () => print("Viewed Daily Task: ${task['title']}"); //
                     }
+                    // Show breakdown button if current level is less than 3 (Phases, Monthly, Weekly) and a parent is selected
+                    bool showBreakdownButton = (levelIndex < 3 && taskForBreakdownButton != null); //
 
-                    bool showBreakdownButton = (levelIndex < 2 && taskForBreakdownButton != null);
 
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                          child: Text(levelTitle, style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9),
+                    return Column( //
+                      crossAxisAlignment: CrossAxisAlignment.start, //
+                      children: [ //
+                        Padding( //
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), //
+                          child: Text(levelTitle, style: TextStyle( //
+                            fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9), //
                           )),
                         ),
-                        if (currentLevelTasks.isEmpty && _isLoading && _wholeTasks.length == levelIndex +1) // only show loader for the current level being loaded
-                           Padding(
-                             padding: const EdgeInsets.symmetric(vertical: 50.0),
-                             child: Center(child: CircularProgressIndicator(color: theme.colorScheme.primary)),
+                        if (currentLevelTasks.isEmpty && _isLoading && _wholeTasks.length == levelIndex +1) //
+                           Padding( //
+                             padding: const EdgeInsets.symmetric(vertical: 50.0), //
+                             child: Center(child: CircularProgressIndicator(color: theme.colorScheme.primary)), //
                            )
-                        else if (currentLevelTasks.isEmpty && levelIndex > 0)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-                            child: Text(
-                                levelIndex == 1 ? "Select a phase and click 'Breakdown' to see its monthly tasks."
-                                                : "Select a monthly task and click 'Breakdown' to see its weekly actions.",
-                                style: theme.textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic, color: theme.colorScheme.outline),
-                                textAlign: TextAlign.center,
+                        else if (currentLevelTasks.isEmpty && levelIndex > 0) //
+                          Padding( //
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), //
+                            child: Text( //
+                                levelIndex == 1 ? "Select a phase and click 'Breakdown' to see its monthly tasks." //
+                                                : (levelIndex == 2 ? "Select a monthly task and click 'Breakdown' to see its weekly actions." //
+                                                                  : "Select a weekly task and click 'Breakdown' to see its daily actions."),
+                                style: theme.textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic, color: theme.colorScheme.outline), //
+                                textAlign: TextAlign.center, //
                             ),
                           )
                         else
-                          SizedBox(
-                            height: 240, // Card height
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: currentLevelTasks.length,
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                              itemBuilder: (context, index) {
-                                final task = currentLevelTasks[index];
-                                bool isSelected = task == currentSelection;
-                                return _buildTaskCard(task, isSelected, onTapGenerator(task), context);
+                          SizedBox( //
+                            height: 240, // Card height //
+                            child: ListView.builder( //
+                              scrollDirection: Axis.horizontal, //
+                              itemCount: currentLevelTasks.length, //
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0), //
+                              itemBuilder: (context, index) { //
+                                final task = currentLevelTasks[index]; //
+                                bool isSelected = task == currentSelection; //
+                                return _buildTaskCard(task, isSelected, onTapGenerator(task), context); //
                               },
                             ),
                           ),
                         if (showBreakdownButton)
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
-                            child: Center(
-                              child: ElevatedButton.icon(
-                                icon: Icon(Icons.view_timeline_outlined),
-                                label: Text("Breakdown: ${taskForBreakdownButton['title']}"),
+                            padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0), 
+                            child: Center( 
+                              child: ElevatedButton.icon( 
+                                icon: Icon(Icons.view_timeline_outlined), 
+                                label: Text("Breakdown: ${taskForBreakdownButton['title']}"), 
                                 onPressed: _isLoading ? null : () => _fetchAIPlan(breakdownApiLevelForButton, parentTaskToBreakdown: taskForBreakdownButton),
                                 style: ElevatedButton.styleFrom(
                                     backgroundColor: theme.colorScheme.secondaryContainer,
                                     foregroundColor: theme.colorScheme.onSecondaryContainer,
                                     padding: EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                    textStyle: theme.textTheme.labelLarge
+                                    textStyle: theme.textTheme.labelLarge //
                                 ),
                               ),
                             ),
                           ),
-                        if (levelIndex < _wholeTasks.length - 1)
-                          Divider(height: 25, thickness: 0.5, indent: 16, endIndent: 16, color: theme.dividerColor),
+                        if (levelIndex < _wholeTasks.length - 1) //
+                          Divider(height: 25, thickness: 0.5, indent: 16, endIndent: 16, color: theme.dividerColor), //
                       ],
                     );
                   },
                 ),
               ),
-            if (_isLoading && _wholeTasks.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Center(child: LinearProgressIndicator(color: theme.colorScheme.primary, backgroundColor: theme.colorScheme.surfaceVariant, minHeight: 2,)),
+            if (_isLoading && _wholeTasks.isNotEmpty) //
+              Padding( //
+                padding: const EdgeInsets.all(16.0), //
+                child: Center(child: LinearProgressIndicator(color: theme.colorScheme.primary, backgroundColor: theme.colorScheme.surfaceVariant, minHeight: 2,)), //
               ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal:16.0, vertical: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  OutlinedButton.icon(
-                    icon: Icon(Icons.published_with_changes),
-                    label: Text("Regen Phases"),
-                    onPressed: _isLoading ? null : _showRegenerateModal,
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.secondary,
-                        side: BorderSide(color: theme.colorScheme.secondary.withOpacity(0.7)),
-                        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10)),
+            Padding( //
+              padding: const EdgeInsets.symmetric(horizontal:16.0, vertical: 12.0), //
+              child: Row( //
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly, //
+                children: [ //
+                  OutlinedButton.icon( //
+                    icon: Icon(Icons.published_with_changes), //
+                    label: Text("Regen Phases"), //
+                    onPressed: _isLoading ? null : _showRegenerateModal, //
+                    style: OutlinedButton.styleFrom( //
+                        foregroundColor: theme.colorScheme.secondary, //
+                        side: BorderSide(color: theme.colorScheme.secondary.withOpacity(0.7)), //
+                        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10)), //
                   ),
-                  FilledButton.icon( // Using FilledButton for primary action
-                    icon: Icon(Icons.save_alt_outlined),
-                    label: Text("Save Phases"),
-                    onPressed: _isLoading || (_wholeTasks.isNotEmpty && _wholeTasks[0].isEmpty)
+                  FilledButton.icon( //
+                    icon: Icon(Icons.save_alt_outlined), //
+                    label: Text(widget.existingPlanForRefinement != null ? "Save Changes" : "Save Plan"), // Text updated for refinement
+                    onPressed: !canSave //
                       ? null
-                      : () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                          final TextEditingController _goalNameController = TextEditingController();
-                          return AlertDialog(
-                            shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            ),
-                            title: Text("Set Goal Name"),
-                            content: TextField(
-                            controller: _goalNameController,
-                            decoration: InputDecoration(
-                              hintText: "Enter goal name",
-                              border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(30),
-                              ),
-                              filled: true,
-                              fillColor: theme.colorScheme.surfaceVariant,
-                            ),
-                            ),
-                            actions: [
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.purple,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              ),
-                              onPressed: () {
-                              if (_goalNameController.text.trim().isNotEmpty) {
-                                setState(() {
-                                  goalName = _goalNameController.text.trim();
-                                  goalNameList.add(goalName);
-                                });
-                                Navigator.of(context).pop();
-                                _saveToFirestore();
-                                _savePlanToLocalDB();
-                              }
-                              },
-                              child: Text("Save the plan"),
-                            ),
-                            ],
-                          );
-                          },
-                        );
+                      : () { //
+                        // If it's a new plan, goalName is taken from the dialog.
+                        // If it's an existing plan, goalName is already set.
+                        if (widget.existingPlanForRefinement == null && goalName.isEmpty) {
+                            // Show dialog to get goalName ONLY IF it's a new plan and goalName isn't set
+                            showDialog( //
+                            context: context, //
+                            builder: (context) { //
+                                final TextEditingController _goalNameController = TextEditingController(); //
+                                return AlertDialog( //
+                                    shape: RoundedRectangleBorder( //
+                                    borderRadius: BorderRadius.circular(20), //
+                                    ),
+                                    title: Text("Set Goal Name"), //
+                                    content: TextField( //
+                                        controller: _goalNameController, //
+                                        decoration: InputDecoration( //
+                                        hintText: "Enter goal name", //
+                                        border: OutlineInputBorder( //
+                                        borderRadius: BorderRadius.circular(30), //
+                                        ),
+                                        filled: true, //
+                                        fillColor: theme.colorScheme.surfaceVariant, //
+                                        ),
+                                    ),
+                                    actions: [ //
+                                        ElevatedButton( //
+                                        style: ElevatedButton.styleFrom( //
+                                        backgroundColor: Colors.purple, //
+                                        foregroundColor: Colors.white, //
+                                        shape: RoundedRectangleBorder( //
+                                            borderRadius: BorderRadius.circular(30), //
+                                        ),
+                                        ),
+                                        onPressed: () { //
+                                        if (_goalNameController.text.trim().isNotEmpty) { //
+                                            setState(() { //
+                                            goalName = _goalNameController.text.trim(); //
+                                            // goalNameList.add(goalName); // This list isn't directly used for saving unique goal names here. Firestore's arrayUnion handles uniqueness.
+                                            });
+                                            Navigator.of(context).pop(); //
+                                            _saveToFirestore(); //
+                                            _savePlanToLocalDB(); //
+                                        }
+                                        },
+                                        child: Text("Save the plan"), //
+                                        ),
+                                    ],
+                                );
+                            },
+                            );
+                        } else {
+                             // If goalName is already set (either existing plan or new plan dialog already shown)
+                            _saveToFirestore(); //
+                            _savePlanToLocalDB(); //
+                        }
                         },
-                    style: FilledButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
-                        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10)),
+                    style: FilledButton.styleFrom( //
+                        backgroundColor: theme.colorScheme.primary, //
+                        foregroundColor: theme.colorScheme.onPrimary, //
+                        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10)), //
                   ),
                 ],
               ),
@@ -919,7 +1068,7 @@ Ensure No markdown and the resopnse is valid JSON.
 
   @override
   void dispose() {
-    _regenerationTextController.dispose();
+    _regenerationTextController.dispose(); //
     super.dispose();
   }
 }
