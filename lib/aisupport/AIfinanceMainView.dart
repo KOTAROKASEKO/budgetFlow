@@ -90,14 +90,7 @@ class _financialGoalState extends State<financialGoal> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                currentGoalStatus,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            getTasksForThisWeek(),
               const SizedBox(height: 32),
               Expanded(
                 child: Container(
@@ -254,6 +247,36 @@ class _financialGoalState extends State<financialGoal> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget getTasksForThisWeek(){
+    return ConstrainedBox(constraints: const BoxConstraints(maxHeight: 100),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _tasks.length,
+        itemBuilder: (context, index) {
+          DateTime date = _tasks.keys.elementAt(index);
+          List<Task> tasksForDate = _tasks[date] ?? [];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${date.day}/${date.month}',
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                ...tasksForDate.map((task) => Text(
+                  task.taskName,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                )).toList(),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
