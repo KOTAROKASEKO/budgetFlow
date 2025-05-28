@@ -47,12 +47,12 @@ class AppTheme {
           color: primaryText, fontSize: 20, fontWeight: FontWeight.w600),
       iconTheme: IconThemeData(color: primaryText),
     ),
-    cardTheme: CardTheme(
-      color: cardBackground,
-      elevation: 2, // Subtle shadow
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-    ),
+    // cardTheme: CardTheme(
+    //   color: cardBackground,
+    //   elevation: 2, // Subtle shadow
+    //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    //   margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+    // ),
     textTheme: const TextTheme(
       displayLarge: TextStyle(
           fontSize: 28, fontWeight: FontWeight.bold, color: primaryText, letterSpacing: 0.5), // For Total Amount
@@ -67,15 +67,15 @@ class AppTheme {
     ),
     iconTheme: const IconThemeData(color: primaryText, size: 24),
     dividerColor: secondaryText.withOpacity(0.3),
-    tabBarTheme: TabBarTheme(
-      labelColor: shiokuriBlue,
-      unselectedLabelColor: secondaryText,
-      indicator: UnderlineTabIndicator(
-        borderSide: BorderSide(color: shiokuriBlue, width: 2.0),
-      ),
-      labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-      unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-    ),
+    // tabBarTheme: TabBarTheme(
+    //   labelColor: shiokuriBlue,
+    //   unselectedLabelColor: secondaryText,
+    //   indicator: UnderlineTabIndicator(
+    //     borderSide: BorderSide(color: shiokuriBlue, width: 2.0),
+    //   ),
+    //   labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+    //   unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+    // ),
     // Add other theme properties as needed
   );
 

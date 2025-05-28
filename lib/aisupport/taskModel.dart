@@ -11,4 +11,6 @@ class Task {
     required this.dueDate,
     this.status = 'pending',
   });
+  //store local sql
+  
 }

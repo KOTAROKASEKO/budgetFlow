@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:moneymanager/DashBoard.dart';
-import 'package:moneymanager/aisupport/AIfinanceView.dart';
+import 'package:moneymanager/aisupport/AIfinanceMainView.dart';
 import 'package:moneymanager/analysis/View.dart';
 import 'package:moneymanager/showUpdate.dart';
 import 'package:moneymanager/themeColor.dart';

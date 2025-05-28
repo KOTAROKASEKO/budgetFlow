@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:moneymanager/aisupport/goal_input/goalInput.dart';
+import 'package:moneymanager/aisupport/goal_input/planManager.dart';
 import 'package:moneymanager/aisupport/taskModel.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -54,6 +55,25 @@ class _financialGoalState extends State<financialGoal> {
         : "Your next steps are planned!"; // Or show actual goal name
 
     return Scaffold(
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text(
+          'Financial Goal',
+          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () {
+              showModalBottomSheet(context: context, builder: (context){
+                return ProgressManagerScreen();
+              });
+            },
+          ),
+        ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       backgroundColor: const Color(0xFF1A1A1A), // Dark background
       body: SafeArea(
         child: Padding(

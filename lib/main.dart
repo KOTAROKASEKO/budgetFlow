@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         // Modern theme elements
-        scaffoldBackgroundColor: Colors.grey[100],
+        scaffoldBackgroundColor: const Color.fromARGB(255, 91, 91, 91),
         colorScheme: ColorScheme.fromSwatch(
           primarySwatch: Colors.deepPurple,
           accentColor: Colors.amberAccent,
