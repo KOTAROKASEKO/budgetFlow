@@ -18,6 +18,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 final LocalDatabaseService localDbService = LocalDatabaseService();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+    
   // MobileAds.instance.initialize();
 
   // BannerAd myBanner = BannerAd(
@@ -30,7 +31,9 @@ Future<void> main() async {
 
   // Hide navigation bar, but allow it to show on user interaction
   // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
   await localDbService.init();
+    
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

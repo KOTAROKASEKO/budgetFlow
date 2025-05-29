@@ -1,4 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:moneymanager/model/expenseModel.dart';
+import 'package:moneymanager/model/userSettingsModel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
 import 'package:moneymanager/aisupport/models/phase_hive.dart';
@@ -28,6 +30,12 @@ class LocalDatabaseService {
     }
     if (!Hive.isAdapterRegistered(DailyTaskHiveAdapter().typeId)) {
       Hive.registerAdapter(DailyTaskHiveAdapter());
+    } 
+    if(!Hive.isAdapterRegistered(expenseModelAdapter().typeId)){
+      Hive.registerAdapter(expenseModelAdapter());
+    }
+    if(!Hive.isAdapterRegistered(UserSettingsModelAdapter().typeId)){
+      Hive.registerAdapter(UserSettingsModelAdapter());
     }
     await Hive.openBox<UserPlanHive>(userPlansBoxName);
   }
