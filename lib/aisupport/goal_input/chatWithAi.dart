@@ -409,53 +409,168 @@ class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
 
     switch (breakdownLevelApi) {
       case 1: // Fetching Phases
-        promptForBreakDown = """
-  You are an AI financial goal manager. Your task is to generate a JSON array of actionable financial plan phases based on the user's goals, skills, and preferences.
-  $refinementContext
-  If the goal is "achieve financial freedom within 5 years," divide it into several broad phases (2–6), based on logical progression and the estimated time required for each phase.
-  Each phase must include: id (string, a unique uuid), title (string), estimated_duration (string), purpose (string).
-  User's income goal for this year: ${widget.earnThisYear}
-  User's current skills: ${widget.currentSkill}
-  User's preferred way to earn money: ${widget.preferToEarnMoney}
-  User's notes: $combinedNote
-  Output only a JSON array. Do not include markdown formatting. Ensure valid JSON. Example: [{"id": "generated-uuid-1", "title": "Phase 1: Foundation", "estimated_duration": "3 months", "purpose": "Build initial skills and resources."}]
-  """;
+        promptForBreakDown =  """
+You are an AI financial goal manager.
+
+Your task is to generate a JSON array of actionable financial plan phases based on the user's goals, skills, and preferences.
+
+$refinementContext
+
+Each object in the array must follow **strict JSON format**:
+
+{
+  "id": "string (UUID)",
+  "title": "string",
+  "estimated_duration": "string (e.g., '6 months')",
+  "purpose": "string (plain text only, no special characters like dollar signs or quotes inside)"
+}
+
+**DO NOT use markdown formatting. Output ONLY a valid JSON array**, like this:
+[
+  {
+    "id": "uuid-1",
+    "title": "Phase 1: Foundation",
+    "estimated_duration": "3 months",
+    "purpose": "Build initial skills and resources."
+  }
+]
+
+User's income goal for this year: ${widget.earnThisYear}  
+User's current skills: ${widget.currentSkill}  
+User's preferred way to earn money: ${widget.preferToEarnMoney}  
+User's notes: $combinedNote
+
+Do not use markdown formatting. Output ONLY a valid JSON array.
+""";
         break;
       case 2: // Fetching Monthly tasks for selectedPhase
         // parentTaskToBreakdown is selectedPhase here
         promptForBreakDown = """
-  You are an AI financial goal manager. Break down the following phase into actionable 1-month tasks.
-  $refinementContext
-  For the given phase duration of "${parentTaskToBreakdown!['estimated_duration'] ?? ''}", generate approximately 4-6 distinct 1-month tasks.
-  Each task: id (string, a unique uuid), title (string), estimated_duration (string, fixed to "1 month"), purpose (string).
-  Phase details: Title: "${parentTaskToBreakdown['title'] ?? ''}", Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}", Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
-  User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
-  Return ONLY a JSON array of these tasks. Ensure each JSON object is complete and valid. No markdown. Example: [{"id": "uuid-m1", "title": "Month 1 Task", "estimated_duration": "1 month", "purpose": "Achieve X."}]
-  """;
+You are an AI financial goal manager.
+
+Your task is to break down the following financial goal phase into approximately 4 to 6 actionable monthly tasks.
+
+$refinementContext
+
+Each object in the array must follow strict JSON format:
+
+{
+  "id": "string (UUID)",
+  "title": "string",
+  "estimated_duration": "1 month",
+  "purpose": "string (plain text only, no special characters like dollar signs or quotes inside)"
+}
+
+Phase details:
+- Title: "${parentTaskToBreakdown!['title'] ?? ''}"
+- Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}"
+- Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
+
+User context:
+- Income Goal: ${widget.earnThisYear}
+- Current Skills: ${widget.currentSkill}
+- Preferred Way to Earn: ${widget.preferToEarnMoney}
+- Notes: $combinedNote
+
+**DO NOT use markdown formatting. Output ONLY a valid JSON array**, like this:
+[
+  {
+    "id": "uuid-m1",
+    "title": "Month 1 Task",
+    "estimated_duration": "1 month",
+    "purpose": "Achieve X."
+  }
+]
+
+Do not use markdown formatting. Output ONLY a valid JSON array.
+""";
+
         break;
       case 3: // Fetching Weekly tasks for _selectedMonthlyTask
         // parentTaskToBreakdown is _selectedMonthlyTask here
         promptForBreakDown = """
-  You are an AI financial goal manager. Break down the following monthly task into around 4 actionable weekly sub-tasks.
-  $refinementContext
-  Each sub-task: id (string, a unique uuid), title (string), estimated_duration (string, typically "1 week"), purpose (string).
-  Monthly Task details: Title: "${parentTaskToBreakdown!['title'] ?? ''}", Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}", Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
-  User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
-  Output only a JSON array. Example: [{"id": "uuid-w1", "title": "Weekly sub-task 1", "estimated_duration": "1 week", "purpose": "Purpose."}]
-  No markdown. Ensure valid JSON.
-  """;
+You are an AI financial goal manager.
+
+Your task is to break down the following monthly task into approximately 4 actionable weekly sub-tasks.
+
+$refinementContext
+
+Each object in the array must follow strict JSON format:
+
+{
+  "id": "string (UUID)",
+  "title": "string",
+  "estimated_duration": "1 week",
+  "purpose": "string (plain text only, no special characters like dollar signs or quotes inside)"
+}
+
+Monthly Task details:
+- Title: "${parentTaskToBreakdown!['title'] ?? ''}"
+- Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}"
+- Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
+
+User context:
+- Income Goal: ${widget.earnThisYear}
+- Current Skills: ${widget.currentSkill}
+- Preferred Way to Earn: ${widget.preferToEarnMoney}
+- Notes: $combinedNote
+
+**DO NOT use markdown formatting. Output ONLY a valid JSON array**, like this:
+[
+  {
+    "id": "uuid-w1",
+    "title": "Weekly Sub-task 1",
+    "estimated_duration": "1 week",
+    "purpose": "Achieve Y."
+  }
+]
+
+Do not use markdown formatting. Output ONLY a valid JSON array.
+""";
+
         break;
       case 4: // Fetching Daily tasks for _selectedWeeklyTask
         // parentTaskToBreakdown is _selectedWeeklyTask here
         promptForBreakDown = """
-  You are an AI financial goal manager. Break down the following weekly task into around 5-7 actionable daily sub-tasks.
-  $refinementContext
-  Each sub-task: id (string, a unique uuid), title (string), estimated_duration (string, typically "1 day" or a few hours like "2-3 hours"), purpose (string).
-  Weekly Task details: Title: "${parentTaskToBreakdown!['title'] ?? ''}", Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}", Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
-  User context: Income Goal: ${widget.earnThisYear}, Skills: ${widget.currentSkill}, Preferred Earning: ${widget.preferToEarnMoney}, Notes: $combinedNote
-  Output ONLY a JSON array. Example: [{"id": "uuid-d1", "title": "Daily action for Monday", "estimated_duration": "1 day", "purpose": "Specific daily goal."}]
-  Ensure No markdown. Ensure the response is valid JSON.
-  """;
+You are an AI financial goal manager.
+
+Your task is to break down the following weekly task into approximately 5 to 7 actionable daily sub-tasks.
+
+$refinementContext
+
+Each object in the array must follow strict JSON format:
+
+{
+  "id": "string (UUID)",
+  "title": "string",
+  "estimated_duration": "string (e.g., '1 day', '2-3 hours')",
+  "purpose": "string (plain text only, no special characters like dollar signs or quotes inside)"
+}
+
+Weekly Task details:
+- Title: "${parentTaskToBreakdown!['title'] ?? ''}"
+- Purpose: "${parentTaskToBreakdown['purpose'] ?? ''}"
+- Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
+
+User context:
+- Income Goal: ${widget.earnThisYear}
+- Current Skills: ${widget.currentSkill}
+- Preferred Way to Earn: ${widget.preferToEarnMoney}
+- Notes: $combinedNote
+
+**DO NOT use markdown formatting. Output ONLY a valid JSON array**, like this:
+[
+  {
+    "id": "uuid-d1",
+    "title": "Daily Task 1",
+    "estimated_duration": "1 day",
+    "purpose": "Accomplish Z."
+  }
+]
+
+Do not use markdown formatting. Output ONLY a valid JSON array.
+""";
+
       default:
         promptForBreakDown = ""; // Should not happen
     }
@@ -543,9 +658,6 @@ class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
                       _wholeTasks.add(newTasksFromAI); // Add the newly fetched children
                   } else {
                       print("Error: _wholeTasks length discrepancy AFTER AI call for breakdown level $breakdownLevelApi. Length: ${_wholeTasks.length}, Expected parent level in _wholeTasks: $currentParentDisplayLevelInWholeTasks. New tasks might not display correctly.");
-                      // This situation means _wholeTasks was not in the expected state (e.g. [phases] when trying to add monthly tasks).
-                      // This could happen if the initial load (level 1) logic is complex or if _wholeTasks is modified unexpectedly.
-                      // For now, this will result in tasks not being added correctly if this state occurs.
                   }
 
                   // Reset selections for levels deeper than the one just loaded

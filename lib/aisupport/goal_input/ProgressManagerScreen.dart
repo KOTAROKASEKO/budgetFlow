@@ -333,23 +333,15 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
     _fetchDataForCurrentLevel(); //
   }
 
-  Future<bool> _onWillPop() async { //
+  Future<bool> _onWillPop() async {
     if (_navigationStack.isNotEmpty) {
       setState(() {
-        _navigationStack.removeLast(); //
-        // directory = directory.split('/').sublist(0, directory.split('/').length - 1).join('/'); // Not used
+        _navigationStack.removeLast();
       });
-      _fetchDataForCurrentLevel(); //
+      _fetchDataForCurrentLevel();
       return false;
     }
     return true;
-  }
-
-  String _getAppBarTitle() { //
-    if (_navigationStack.isEmpty) {
-      return 'Financial Goal Plans'; //
-    }
-    return _navigationStack.map((level) => level['name']).join(' > '); //
   }
 
   String? _getGoalNameFromStack() { // Helper to get current goal name
@@ -628,7 +620,7 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
     ));
   }
 
-  Widget _buildGoalGrid() { //
+  Widget _buildGoalGrid() {
     if (_isLoading && _goalCollectionNames.isEmpty) return const Center(child: CircularProgressIndicator());
     if (_goalCollectionNames.isEmpty && _errorMessage == null) { //
       return const Center(child: Text("No financial plans set up yet. Create one with the AI planner!")); //
@@ -643,12 +635,12 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
     return GridView.builder(
       padding: const EdgeInsets.all(16.0), //
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount( //
-        crossAxisCount: 2, //
+        crossAxisCount: 1, //
         crossAxisSpacing: 16.0, //
         mainAxisSpacing: 16.0, //
         childAspectRatio: 3 / 2, //
       ),
-      itemCount: _goalCollectionNames.length, //
+      itemCount: _goalCollectionNames.length,
       itemBuilder: (context, index) {
         final goalName = _goalCollectionNames[index]; //
         final itemData = {'id': goalName, 'title': goalName, 'type': 'goal'};
@@ -658,6 +650,7 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
              _showItemOptionsMenu(context, itemData, details.globalPosition);
           },
           child: Card( //
+          color: Colors.deepPurple,
             elevation: 4, //
             child: InkWell( //
               onTap: () { //
@@ -666,11 +659,20 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
               child: Center( //
                 child: Padding( //
                   padding: const EdgeInsets.all(8.0), //
-                  child: Text( //
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Text( //
                     goalName, //
                     textAlign: TextAlign.center, //
-                    style: Theme.of(context).textTheme.titleMedium, //
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24, //
+                      color: const Color.fromARGB(255, 255, 255, 255)
+                      ) //
                   ),
+                  Icon(Icons.arrow_circle_right_rounded, color: Colors.white,size: 30,)
+                  ])
                 ),
               ),
             ),
@@ -709,16 +711,19 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
           onLongPressStart: (details) {
             _showItemOptionsMenu(context, item, details.globalPosition);
           },
-          child: Card( //
+          child: Card( 
+          color: Colors.deepPurple,
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), //
             elevation: 2, //
             child: ListTile( //
-              title: Text(itemTitle, style: const TextStyle(fontWeight: FontWeight.bold)), //
+              title: Text(itemTitle, style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255),fontSize: 20,fontWeight: FontWeight.bold)), //
               subtitle: Column( //
                 crossAxisAlignment: CrossAxisAlignment.start, //
                 children: [
-                  if (itemPurpose.isNotEmpty) Text("Purpose: $itemPurpose"), //
-                  if (itemDuration.isNotEmpty) Text("Duration: $itemDuration"), //
+                  SizedBox(height: 10,),
+                  if (itemPurpose.isNotEmpty) Text("Purpose: $itemPurpose", style: TextStyle(color: const Color.fromARGB(255, 255, 255, 255),fontWeight: FontWeight.bold),), 
+                  Divider(),
+                  if (itemDuration.isNotEmpty) Text("Duration: $itemDuration",style: TextStyle(color: const Color.fromARGB(255, 255, 255, 255),fontWeight: FontWeight.bold)), //
                 ],
               ),
               trailing: hasChildren ? const Icon(Icons.chevron_right) : null, //
@@ -749,17 +754,15 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
     return WillPopScope( //
       onWillPop: _onWillPop, //
       child: Scaffold(
-        appBar: AppBar( //
-          title: Text(_getAppBarTitle()), //
-          centerTitle: true, //
-          leading: _navigationStack.isNotEmpty //
-              ? IconButton( //
-                  icon: const Icon(Icons.arrow_back), //
-                  onPressed: () { //
-                    _onWillPop(); //
-                  },
-                )
-              : null,
+        appBar: AppBar(
+          centerTitle: true,
+          backgroundColor: const Color.fromARGB(255, 81, 81, 81),
+          shape: const RoundedRectangleBorder( //
+            borderRadius: BorderRadius.vertical( //
+              bottom: Radius.circular(20), //
+            ), //
+          ),
+          title: Text('Road Map', style: TextStyle(color: Colors.white),),
         ),
         body: _isLoading && (_navigationStack.isEmpty ? _goalCollectionNames.isEmpty : _currentItems.isEmpty)
             ? const Center(child: CircularProgressIndicator()) //

@@ -1079,17 +1079,18 @@ class _DashboardState extends State<Dashboard> {
         }
 
         void selectTypeAndUpdateState(int index) {
+          _draggableController.dispose();
             TransactionType newType = index == 0 ? TransactionType.expense : TransactionType.income;
             if (mounted && _selectedType != newType) {
                 setState(() { // This is _DashboardState.setState
+                _draggableController = DraggableScrollableController(); // Reinitialize controller
                     _selectedType = newType;
                     _category = _selectedType == TransactionType.expense ? "Food" : "Salary"; // Reset category
                     _categoryIcons = _selectedType == TransactionType.expense // Update available categories
                                     ? _getExpenseCategoriesWithIcons()
                                     : _getIncomeCategoriesWithIcons();
-                    localErrorText = ""; // Clear local error when type changes
+                    localErrorText = "";
                 });
-                // Important: To make the StatefulBuilder for the sheet update its own UI (like toggle buttons, colors based on newType)
                 setSheetState(() {}); 
             }
         }
@@ -1257,10 +1258,7 @@ class _DashboardState extends State<Dashboard> {
                       // Validate category (ensure it's in the current list for the selected type)
                       bool categoryIsValid = currentCategories.any((cat) => cat.itemName == _category);
                       if (_category.isEmpty || !categoryIsValid) {
-                          // If invalid, try to set a default or show error
-                          // This check might be redundant if _category is always set from lists.
                           setSheetState(() => localErrorText = "Please select a valid category.");
-                          // Fallback, though _category should always be valid if selected from grid
                           if(mounted) {
                             setState(() {
                                _category = defaultCategoryForType;

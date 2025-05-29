@@ -144,11 +144,38 @@ class _financialGoalState extends State<financialGoal> {
           IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
             onPressed: () {
-              showModalBottomSheet(
-                  context: context,
-                  builder: (context) {
-                    return ProgressManagerScreen();
-                  });
+                 showModalBottomSheet(
+                  enableDrag: true,
+                  showDragHandle: true,
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent, // Transparent for rounded corners
+              builder: (context) {
+                return DraggableScrollableSheet(
+                initialChildSize: 0.9,
+                minChildSize: 0.4,
+                maxChildSize: 0.9,
+                expand: false,
+                builder: (context, scrollController) {
+                  return Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(24),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                    ),
+                    child: ProgressManagerScreen(),
+                  ),
+                  );
+                },
+                );
+              },
+              );
+
             },
           ),
         ],
@@ -320,9 +347,12 @@ class _financialGoalState extends State<financialGoal> {
                         ),
 
               const SizedBox(height: 24),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: FloatingActionButton(
+              
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton:FloatingActionButton(
                   onPressed: () {
                     Navigator.of(context).push(
                       PageRouteBuilder(
@@ -353,11 +383,6 @@ class _financialGoalState extends State<financialGoal> {
                     size: 32,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
