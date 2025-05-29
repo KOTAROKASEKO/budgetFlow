@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'package:moneymanager/analysis/ViewModel.dart';
-import 'package:moneymanager/analysis/controller.dart';
+import 'package:moneymanager/Transaction_Views/analysis/ViewModel.dart';
+import 'package:moneymanager/Transaction_Views/analysis/controller.dart';
 import 'package:moneymanager/apptheme.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:provider/provider.dart';

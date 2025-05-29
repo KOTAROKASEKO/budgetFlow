@@ -3,14 +3,17 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/services.dart';
 // import 'package:flutter/services.dart';
 // import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:hive/hive.dart';
 import 'package:moneymanager/View_BottomTab.dart';
 import 'package:moneymanager/aisupport/Database/localDatabase.dart';
-import 'package:moneymanager/analysis/ViewModel.dart';
-import 'package:moneymanager/dashboard/database/dasboardDB.dart';
+import 'package:moneymanager/Transaction_Views/analysis/ViewModel.dart';
+import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
 import 'package:moneymanager/uid/uid.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart'; // FlutterFire CLIによって生成されるべきファイル
 import 'package:google_fonts/google_fonts.dart';
@@ -31,10 +34,13 @@ Future<void> main() async {
   // myBanner.load();
 
   // Hide navigation bar, but allow it to show on user interaction
-  // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  final appDocumentDir = await getApplicationDocumentsDirectory();
+  Hive.init(appDocumentDir.path);
 
   await localDbService.init();
-  await dashBoardDBManager().init();
+  await dashBoardDBManager.init();
     
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

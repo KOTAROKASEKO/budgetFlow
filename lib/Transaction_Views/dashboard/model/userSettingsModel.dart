@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'userSettingsModel.g.dart'; // Will be generated
 
-@HiveType(typeId: 1) // Ensure typeId is unique (0 is used by expenseModel)
+@HiveType(typeId: 6) // Ensure typeId is unique (0 is used by expenseModel)
 class UserSettingsModel extends HiveObject {
   @HiveField(0)
   int budget;

@@ -1,7 +1,4 @@
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:moneymanager/dashboard/model/expenseModel.dart';
-import 'package:moneymanager/dashboard/model/userSettingsModel.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
 import 'package:moneymanager/aisupport/models/phase_hive.dart';
 import 'package:moneymanager/aisupport/models/monthly_task_hive.dart';
@@ -12,8 +9,7 @@ class LocalDatabaseService {
   static const String userPlansBoxName = 'userFinancialPlans';
 
   Future<void> init() async {
-    final appDocumentDir = await getApplicationDocumentsDirectory();
-    Hive.init(appDocumentDir.path);
+    
 
     // Register Adapters
     if (!Hive.isAdapterRegistered(UserPlanHiveAdapter().typeId)) {

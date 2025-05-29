@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:moneymanager/feedback/feedback.dart';
 import 'package:moneymanager/main.dart'; // Or your auth screen like UserAuthScreen
-import 'package:moneymanager/dashboard/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
+import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
 import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/uid/uid.dart'; // Ensure userId.uid is available
 import 'package:uuid/uuid.dart';
@@ -33,7 +33,7 @@ class _DashboardState extends State<Dashboard> {
   static const String _expenseCacheBoxName = 'monthlyExpensesCache';
   static const String _userSettingsBoxName = 'userSettings';
 
-  String _category = "Food"; // Default category
+  String _category = "Food";
   int _budget = 0;
   int _avg = 0;
   int _total = 0;
@@ -62,7 +62,6 @@ class _DashboardState extends State<Dashboard> {
 
   double _income = 0;
 
-  // Hive Box Accessors
   Box<List<dynamic>> get _expenseBox => Hive.box<List<dynamic>>(_expenseCacheBoxName);
   Box get _settingsBox => Hive.box(_userSettingsBoxName);
 
@@ -167,7 +166,6 @@ class _DashboardState extends State<Dashboard> {
       return;
     }
 
-    // Ensure correct year and month are set for the fetch operation
     var parts = dateToFetch.split('-');
     _year = int.parse(parts[0]);
     _month = int.parse(parts[1]);
@@ -194,7 +192,6 @@ class _DashboardState extends State<Dashboard> {
         final cacheKey = '${userId.uid}_$dateToFetch';
         // Hive stores a list of HiveObjects. Ensure they are correctly adapted.
         await _expenseBox.put(cacheKey, _expenseModels.toList());
-
 
         _calculateFinancialSummary();
         setState(() {
@@ -726,7 +723,7 @@ class _DashboardState extends State<Dashboard> {
     return Padding(
         padding: const EdgeInsets.fromLTRB(10, 12.0, 10, 8.0), // Added horizontal padding
         child: SizedBox( // Used SizedBox instead of ConstrainedBox for ListView
-            height: 100, // Fixed height for horizontal list
+            height: 110, // Fixed height for horizontal list
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
