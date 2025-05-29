@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:moneymanager/DashBoard.dart';
+import 'package:moneymanager/dashboard/DashBoard.dart';
 import 'package:moneymanager/aisupport/AIfinanceMainView.dart';
 import 'package:moneymanager/analysis/View.dart';
 import 'package:moneymanager/showUpdate.dart';

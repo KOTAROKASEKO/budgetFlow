@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:moneymanager/analysis/ViewModel.dart';
-import 'package:moneymanager/model/expenseModel.dart'; // Ensure this path is correct
+import 'package:moneymanager/dashboard/model/expenseModel.dart'; // Ensure this path is correct
 import 'package:moneymanager/uid/uid.dart'; // Ensure this path is correct
 
 class AnalysisController {

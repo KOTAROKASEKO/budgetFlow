@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:moneymanager/feedback/feedback.dart';
 import 'package:moneymanager/main.dart'; // Or your auth screen like UserAuthScreen
-import 'package:moneymanager/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
+import 'package:moneymanager/dashboard/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
 import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/uid/uid.dart'; // Ensure userId.uid is available
 import 'package:uuid/uuid.dart';

@@ -9,6 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:moneymanager/View_BottomTab.dart';
 import 'package:moneymanager/aisupport/Database/localDatabase.dart';
 import 'package:moneymanager/analysis/ViewModel.dart';
+import 'package:moneymanager/dashboard/database/dasboardDB.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart'; // FlutterFire CLIによって生成されるべきファイル
@@ -33,6 +34,7 @@ Future<void> main() async {
   // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   await localDbService.init();
+  await dashBoardDBManager().init();
     
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
