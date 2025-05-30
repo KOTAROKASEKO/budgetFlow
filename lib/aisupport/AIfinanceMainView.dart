@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:moneymanager/aisupport/Database/localDatabase.dart';
 import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
@@ -5,6 +6,8 @@ import 'package:moneymanager/aisupport/goal_input/goalInput.dart';
 import 'package:moneymanager/aisupport/goal_input/ProgressManagerScreen.dart';
 import 'package:moneymanager/aisupport/models/daily_task_hive.dart';
 import 'package:moneymanager/aisupport/taskModel.dart';
+import 'package:moneymanager/todoList/View_goalSetting.dart';
+import 'package:moneymanager/uid/uid.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class financialGoal extends StatefulWidget {
@@ -31,10 +34,6 @@ class _financialGoalState extends State<financialGoal> {
     _selectedDay = _focusedDay; //
     _loadTasksForCurrentGoal();
   }
-
-  // Inside _financialGoalState class
-
-// ... (existing initState, _loadTasksForCurrentGoal, _getTasksForDay etc.)
 
   Future<void> _handleTaskDroppedOnCalendar(DailyTaskHive droppedTask,
       String originalPlanGoalName, DateTime targetDate) async {
@@ -127,6 +126,23 @@ class _financialGoalState extends State<financialGoal> {
     // TableCalendar's focusedDay and selectedDay are often UTC
     DateTime normalizedDay = DateTime.utc(day.year, day.month, day.day);
     return _tasks[normalizedDay] ?? [];
+  }
+  
+  Future<bool> _userAlreadyHasGoal() async {
+
+
+    final doc = await FirebaseFirestore.instance
+      .collection('FinancialGoals')
+      .doc(userId.uid)
+      .get();
+
+    if (doc.exists) {
+      final goals = doc.data()?['goals'];
+      if (goals is List && goals.length == 1) {
+      return true;
+      }
+    }
+    return false;
   }
 
   @override
@@ -352,37 +368,43 @@ class _financialGoalState extends State<financialGoal> {
           ),
         ),
       ),
-      floatingActionButton:FloatingActionButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            GoalInputPage(),
-                        transitionsBuilder:
-                            (context, animation, secondaryAnimation, child) {
-                          const begin = Offset(0.0, 1.0);
-                          const end = Offset.zero;
-                          const curve = Curves.ease;
-
-                          final tween = Tween(begin: begin, end: end)
-                              .chain(CurveTween(curve: curve));
-
-                          return SlideTransition(
-                            position: animation.drive(tween),
-                            child: child,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  backgroundColor: Colors.blueAccent,
-                  shape: const CircleBorder(),
-                  child: const Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: 32,
+      
+      floatingActionButton: FutureBuilder<bool>(
+        future: _userAlreadyHasGoal(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SizedBox(height: 0,width: 0,); // Show nothing while checking
+          } else if (snapshot.hasError) {
+            return const Text('Error checking goal status');
+          } else if (snapshot.data == true) {
+            // User already has a goal
+            return FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProgressManagerScreen(),
                   ),
-                ),
+                );
+              },
+              child: const Icon(Icons.check),
+            );
+          } else {
+            // User does not have a goal, show GoalInput
+            return FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GoalInputPage(),
+                  ),
+                );
+              },
+              child: const Icon(Icons.add),
+            );
+          }
+        },
+      ),
     );
   }
 

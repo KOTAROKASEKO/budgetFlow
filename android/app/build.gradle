@@ -1,8 +1,9 @@
 plugins {
     id "com.android.application"
-    id 'com.google.gms.google-services'
+    id 'com.google.gms.google-services' version '4.4.2'
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.android.gms.ads" version "20.6.0"
 }
 
 android {
@@ -51,4 +52,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation flutter.embedding
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
 }

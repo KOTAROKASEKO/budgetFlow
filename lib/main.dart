@@ -4,8 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
-// import 'package:flutter/services.dart';
-// import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive/hive.dart';
 import 'package:moneymanager/View_BottomTab.dart';
@@ -23,15 +22,15 @@ final LocalDatabaseService localDbService = LocalDatabaseService();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
     
-  // MobileAds.instance.initialize();
+  MobileAds.instance.initialize();
 
-  // BannerAd myBanner = BannerAd(
-  //   adUnitId: 'ca-app-pub-1761598891234951/7527486247',
-  //   size: AdSize.banner,
-  //   request: AdRequest(),
-  //   listener: BannerAdListener(),
-  // );
-  // myBanner.load();
+  BannerAd myBanner = BannerAd(
+    adUnitId: 'ca-app-pub-1761598891234951/7527486247',
+    size: AdSize.banner,
+    request: AdRequest(),
+    listener: BannerAdListener(),
+  );
+  myBanner.load();
 
   // Hide navigation bar, but allow it to show on user interaction
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
