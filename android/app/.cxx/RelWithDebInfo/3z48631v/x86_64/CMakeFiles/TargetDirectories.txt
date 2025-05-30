@@ -1,0 +1,2 @@
+C:/Users/USER/Desktop/university/3.1/moneymanager/android/app/.cxx/RelWithDebInfo/3z48631v/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/USER/Desktop/university/3.1/moneymanager/android/app/.cxx/RelWithDebInfo/3z48631v/x86_64/CMakeFiles/rebuild_cache.dir

@@ -16,8 +16,10 @@ android/keystore.properties
 android/app/google-services.json
 firebase.json
 android/app/key.jks
-
-
+storeListingPic
+util.txt
+リリースの前に！.txt
+.env
 # IntelliJ related
 *.iml
 *.ipr
@@ -49,3 +51,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# FVM Version Cache
+.fvm/

@@ -1,3 +1,5 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive"
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "cmake.sourceDirectory": "C:/Users/USER/Desktop/university/3.1/moneymanager/linux",
+  "dart.flutterSdkPath": ".fvm/versions/stable"
 }

@@ -1,83 +1,137 @@
 import 'package:flutter/material.dart';
-import 'package:moneymanager/BuyList.dart';
-import 'package:moneymanager/DashBoard.dart';
+import 'package:moneymanager/Transaction_Views/dashboard/DashBoard.dart';
+import 'package:moneymanager/aisupport/AIfinanceMainView.dart';
+import 'package:moneymanager/Transaction_Views/analysis/View.dart';
+import 'package:moneymanager/showUpdate.dart';
+import 'package:moneymanager/themeColor.dart';
 
 class BottomTab extends StatefulWidget {
-  const BottomTab({Key? key}) : super(key: key);
+  const BottomTab({super.key});
 
   @override
   _BottomTabState createState() => _BottomTabState();
 }
 
 class _BottomTabState extends State<BottomTab> {
+  final ShowUpdate _updateChecker = ShowUpdate();
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
     Dashboard(),
-    BuyList(),
+    AnalysisScreen(),
+    financialGoal(),
   ];
 
-  void changeIndex() {
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _performUpdateCheck();
+  }
+  void _performUpdateCheck() {
+    _updateChecker.checkUpdate(context, (currentVersion, newVersion) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20.0)),
+              title: const Text("Update Available",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              content: Text(
+                  "A newer version ($newVersion) is available.\nCurrent Version: $currentVersion"),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
+              actionsPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
+              actions: <Widget>[
+                TextButton(
+                  style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10)),
+                  child: const Text("Later"),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.shiokuriBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0))),
+                  child: const Text("Update Now"),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _updateChecker.launchAppStore();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    });
+  }
+
+  void _onItemTapped(int index) {
     setState(() {
-      _selectedIndex = _selectedIndex;
+      _selectedIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Stack(
-      children: [
-        _pages[_selectedIndex],
-        Positioned(
-            right: 100,
-            bottom: 11,
-            child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Container(
-                  width: 240,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color.fromARGB(255, 209, 209, 209),
-                        blurRadius: 3,
-                        spreadRadius: 3,
-                        offset: Offset(0, 2),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      GestureDetector(
-                        child: Image.asset(
-                          'assets/home.png',
-                          width: _selectedIndex == 0 ? 40 : 20,
-                          height: 40,
-                        ),
-                        onTap: () {
-                          _selectedIndex = 0;
-                          changeIndex();
-                        },
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          _selectedIndex = 1;
-                          changeIndex();
-                        },
-                        child: Icon(
-                          size: _selectedIndex == 1 ? 40 : 20,
-                          Icons.list,
-                          color: const Color.fromARGB(255, 0, 0, 0),
-                        ),
-                      )
-                    ],
-                  ),
-                )))
-      ],
-    ));
+      backgroundColor: theme.backgroundColor,
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: Container(
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
+            backgroundColor: Colors.white,
+            selectedItemColor: Colors.black,
+            unselectedItemColor: Colors.grey,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.monetization_on),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.analytics),
+                label: 'Analysis',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.list),
+                label: 'List',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
