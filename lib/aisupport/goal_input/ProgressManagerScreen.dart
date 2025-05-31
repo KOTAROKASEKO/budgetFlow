@@ -139,6 +139,7 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
         note: userInputs['note'] ?? '', //
         phases: phases, //
         createdAt: (userInputs['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(), //
+        duration: userInputs['duration'] ?? '', //
       );
 
     } catch (e) {
@@ -414,6 +415,7 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
     try {
       if (itemType == 'goal') {
         await _localDbService.deleteUserPlan(itemId); // itemId is goalName here
+        await deleteOnFirestore(itemTitle);
         _fetchGoalCollectionNames(); // Refresh goal list
       } else {
         String? goalName = _getGoalNameFromStack();
@@ -608,14 +610,15 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
 
     Navigator.of(context).push(MaterialPageRoute(
         builder: (context) => ChatWithAIScreen(
-            earnThisYear: plan.earnThisYear, //
-            currentSkill: plan.currentSkill, //
-            preferToEarnMoney: plan.preferToEarnMoney, //
-            note: plan.note, //
-            existingPlanForRefinement: plan, // Pass the whole plan
-            // Optionally pass itemType and itemId if ChatWithAI needs to focus:
-            // focusItemType: itemType, 
-            // focusItemId: itemId,
+            earnThisYear: plan.earnThisYear,
+            currentSkill: plan.currentSkill,
+            preferToEarnMoney: plan.preferToEarnMoney,
+            note: plan.note,
+            existingPlanForRefinement: plan, 
+            duration: plan.duration??"1 year",
+            // Optionally pass itemType and itemId if Cha
+            // fo
+            
         ),
     ));
   }
@@ -623,7 +626,7 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
   Widget _buildGoalGrid() {
     if (_isLoading && _goalCollectionNames.isEmpty) return const Center(child: CircularProgressIndicator());
     if (_goalCollectionNames.isEmpty && _errorMessage == null) { //
-      return const Center(child: Text("No financial plans set up yet. Create one with the AI planner!")); //
+      return const Center(child: Text("No financial plans set up yet. Create one with the AI planner!")); 
     }
      if (_errorMessage != null && _goalCollectionNames.isEmpty) {
         return Center(child: Padding(
@@ -634,11 +637,11 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
 
     return GridView.builder(
       padding: const EdgeInsets.all(16.0), //
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount( //
-        crossAxisCount: 1, //
-        crossAxisSpacing: 16.0, //
-        mainAxisSpacing: 16.0, //
-        childAspectRatio: 3 / 2, //
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 1,
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
+        childAspectRatio: 3 / 2,
       ),
       itemCount: _goalCollectionNames.length,
       itemBuilder: (context, index) {
@@ -682,10 +685,10 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
     );
   }
 
-  Widget _buildItemsList() { //
+  Widget _buildItemsList() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_currentItems.isEmpty && _errorMessage == null) { //
-      return const Center(child: Text("No items at this level.")); //
+    if (_currentItems.isEmpty && _errorMessage == null) {
+      return const Center(child: Text("No items at this level."));
     }
     if (_errorMessage != null && _currentItems.isEmpty) {
        return Center(child: Padding(
@@ -694,13 +697,13 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
         ));
     }
 
-    return ListView.builder( //
-      itemCount: _currentItems.length, //
+    return ListView.builder(
+      itemCount: _currentItems.length,
       itemBuilder: (context, index) {
-        final item = _currentItems[index]; //
-        final itemTitle = item['title'] as String? ?? 'No Title'; //
-        final itemPurpose = item['purpose'] as String? ?? ''; //
-        final itemDuration = item['estimated_duration'] as String? ?? ''; //
+        final item = _currentItems[index];
+        final itemTitle = item['title'] as String? ?? 'No Title';
+        final itemPurpose = item['purpose'] as String? ?? '';
+        final itemDuration = item['estimated_duration'] as String? ?? '';
         final itemType = item['type'] as String;
 
         bool hasChildren = itemType != 'dailyTask';  // Assuming weekly tasks are the lowest level displayed here.
@@ -714,8 +717,8 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
           child: Card( 
           color: Colors.deepPurple,
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), //
-            elevation: 2, //
-            child: ListTile( //
+            elevation: 2,
+            child: ListTile(
               title: Text(itemTitle, style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255),fontSize: 20,fontWeight: FontWeight.bold)), //
               subtitle: Column( //
                 crossAxisAlignment: CrossAxisAlignment.start, //
@@ -727,18 +730,18 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
                 ],
               ),
               trailing: hasChildren ? const Icon(Icons.chevron_right) : null, //
-              onTap: () { //
+              onTap: () {
                 if (!hasChildren) return;
 
-                final currentLevelType = _navigationStack.last['type']; //
-                if (currentLevelType == 'goal') { //
-                  _navigateToNextLevel('phase', item['id'], itemTitle); //
-                } else if (currentLevelType == 'phase') { //
-                  _navigateToNextLevel('monthlyTask', item['id'], itemTitle); //
-                } else if (currentLevelType == 'monthlyTask') { // New logic for weekly tasks
-                   _navigateToNextLevel('weeklyTask', item['id'], itemTitle); 
-                } else if (currentLevelType == 'weeklyTask') { // ★★★ 修正箇所 ★★★
-                _navigateToNextLevel('dailyTask', item['id'], itemTitle); // 次のレベルは 'dailyTask'
+                final currentLevelType = _navigationStack.last['type'];
+                if (currentLevelType == 'goal') { 
+                  _navigateToNextLevel('phase', item['id'], itemTitle); 
+                } else if (currentLevelType == 'phase') { 
+                  _navigateToNextLevel('monthlyTask', item['id'], itemTitle); 
+                } else if (currentLevelType == 'monthlyTask') { // New logic for weekly tas
+                   _navigateToNextLevel('weeklyTask', item['id'], itemTitle);
+                } else if (currentLevelType == 'weeklyTask') { // ★★★ 修正箇所 ★
+                _navigateToNextLevel('dailyTask', item['id'], itemTitle); // 次のレベルは 'dailyTas
               }
                 // weeklyTask is the last level in this view, so no further navigation on tap.
               },
@@ -776,5 +779,17 @@ class _ProgressManagerScreenState extends State<ProgressManagerScreen> {
                     : _buildItemsList(), //
       ),
     );
+  }
+  
+  Future<void> deleteOnFirestore(String itemTitle) async {
+    try {
+      // 1. Remove the goalName from the user's goalNameList array
+      final userDocRef = _firestore.collection('financialGoals').doc(userId.uid);
+      await userDocRef.update({
+        'goalNameList': FieldValue.arrayRemove([itemTitle])
+      });
+    } catch (e) {
+      print("Error deleting goal '$itemTitle' from Firestore: $e");
+    }
   }
 }

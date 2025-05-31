@@ -3,7 +3,6 @@ plugins {
     id 'com.google.gms.google-services' version '4.4.2'
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.android.gms.ads" version "20.6.0"
 }
 
 android {
@@ -37,14 +36,12 @@ android {
         applicationId = "com.kotarokase.moneyTracker"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
-        versionCode = 21 // Increment this for each release
+        versionCode = 22
         versionName = "1.6.1"
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.release
         }
     }
@@ -54,7 +51,3 @@ flutter {
     source = "../.."
 }
 
-dependencies {
-    implementation flutter.embedding
-    implementation 'com.google.android.gms:play-services-ads:23.0.0'
-}

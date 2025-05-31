@@ -17,6 +17,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatWithAIScreen extends StatefulWidget {
   final String earnThisYear;
+  final String duration;
   final String currentSkill;
   final String preferToEarnMoney;
   final String note;
@@ -27,12 +28,11 @@ class ChatWithAIScreen extends StatefulWidget {
   const ChatWithAIScreen({
     super.key,
     required this.earnThisYear,
+    required this.duration,
     required this.currentSkill,
     required this.preferToEarnMoney,
     required this.note,
-    this.existingPlanForRefinement, // Initialize new parameter
-    // this.focusItemType,
-    // this.focusItemId,
+    this.existingPlanForRefinement,
   });
 
   @override
@@ -263,7 +263,8 @@ class _ChatWithAIScreenState extends State<ChatWithAIScreen> {
         preferToEarnMoney: widget.preferToEarnMoney, //
         note: widget.note, //
         phases: hivePhases, //
-        createdAt: widget.existingPlanForRefinement?.createdAt ?? DateTime.now(), // Preserve original creation date if refining
+        createdAt: widget.existingPlanForRefinement?.createdAt ?? DateTime.now(), 
+        duration: widget.duration, // Preserve original creation date if refining
       );
 
       await _localDbService.saveUserPlan(userPlan); //
@@ -435,7 +436,8 @@ Each object in the array must follow **strict JSON format**:
   }
 ]
 
-User's income goal for this year: ${widget.earnThisYear}  
+User's income goal for this year: RM ${widget.earnThisYear} 
+Duration of the plan: ${widget.duration} months
 User's current skills: ${widget.currentSkill}  
 User's preferred way to earn money: ${widget.preferToEarnMoney}  
 User's notes: $combinedNote
@@ -510,10 +512,11 @@ Monthly Task details:
 - Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
 
 User context:
-- Income Goal: ${widget.earnThisYear}
-- Current Skills: ${widget.currentSkill}
-- Preferred Way to Earn: ${widget.preferToEarnMoney}
-- Notes: $combinedNote
+User's income goal for this year: RM ${widget.earnThisYear} 
+Duration of the plan: ${widget.duration} months
+User's current skills: ${widget.currentSkill}  
+User's preferred way to earn money: ${widget.preferToEarnMoney}  
+User's notes: $combinedNote
 
 **DO NOT use markdown formatting. Output ONLY a valid JSON array**, like this:
 [
@@ -553,10 +556,11 @@ Weekly Task details:
 - Duration: "${parentTaskToBreakdown['estimated_duration'] ?? ''}"
 
 User context:
-- Income Goal: ${widget.earnThisYear}
-- Current Skills: ${widget.currentSkill}
-- Preferred Way to Earn: ${widget.preferToEarnMoney}
-- Notes: $combinedNote
+User's income goal for this year: RM ${widget.earnThisYear} 
+Duration of the plan: ${widget.duration} months
+User's current skills: ${widget.currentSkill}  
+User's preferred way to earn money: ${widget.preferToEarnMoney}  
+User's notes: $combinedNote
 
 **DO NOT use markdown formatting. Output ONLY a valid JSON array**, like this:
 [
@@ -739,7 +743,7 @@ Do not use markdown formatting. Output ONLY a valid JSON array.
      if (_phases.isEmpty) { //
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar( //
-            const SnackBar(content: Text("保存するフェーズがありません。"))); //
+            const SnackBar(content: Text("there is no phase to save"))); //
       }
       return;
     }
@@ -895,11 +899,11 @@ Do not use markdown formatting. Output ONLY a valid JSON array.
                       color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.textTheme.titleMedium?.color), //
                 ),
                 Divider(height: 16, color: theme.dividerColor.withOpacity(0.5)), //
-                Text("Duration: ${task['estimated_duration'] as String? ?? 'N/A'}", style: theme.textTheme.bodyMedium), //
+                Text("Duration: ${task['estimated_duration'] as String? ?? 'N/A'}", style: TextStyle(color: Colors.white)), //
                 SizedBox(height: 8), //
-                Text("Purpose:", style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)), //
+                Text("Purpose:", style: TextStyle(color: Colors.white)), //
                 SizedBox(height: 4), //
-                Text(task['purpose'] as String? ?? 'N/A', style: theme.textTheme.bodySmall, maxLines: 3, overflow: TextOverflow.ellipsis,), //
+                Text(task['purpose'] as String? ?? 'N/A', style: TextStyle(color: Colors.white)), //
               ],
             ),
           ),

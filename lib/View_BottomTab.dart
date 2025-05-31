@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:moneymanager/Transaction_Views/buyLlist/BuyList.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/DashBoard.dart';
-import 'package:moneymanager/aisupport/AIfinanceMainView.dart';
 import 'package:moneymanager/Transaction_Views/analysis/View.dart';
+import 'package:moneymanager/aisupport/AIfinanceMainView.dart';
 import 'package:moneymanager/showUpdate.dart';
 import 'package:moneymanager/themeColor.dart';
 
@@ -13,12 +14,14 @@ class BottomTab extends StatefulWidget {
 }
 
 class _BottomTabState extends State<BottomTab> {
+
   final ShowUpdate _updateChecker = ShowUpdate();
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
     Dashboard(),
     AnalysisScreen(),
+    BuyList(),
     financialGoal(),
   ];
 
@@ -28,6 +31,7 @@ class _BottomTabState extends State<BottomTab> {
     super.initState();
     _performUpdateCheck();
   }
+
   void _performUpdateCheck() {
     _updateChecker.checkUpdate(context, (currentVersion, newVersion) {
       if (mounted) {
@@ -83,7 +87,8 @@ class _BottomTabState extends State<BottomTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return SafeArea(
+      child:Scaffold(
       backgroundColor: theme.backgroundColor,
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
@@ -128,10 +133,14 @@ class _BottomTabState extends State<BottomTab> {
                 icon: Icon(Icons.list),
                 label: 'List',
               ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.smart_toy),
+                label: 'List',
+              ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );}
 }

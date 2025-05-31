@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/aisupport/goal_input/chatWithAi.dart';
 
 class GoalInputPage extends StatefulWidget {
@@ -14,8 +15,12 @@ class _GoalInputPageState extends State<GoalInputPage> {
   final TextEditingController _currentSkillController = TextEditingController();
   final TextEditingController _preferToEarnMoneyController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
-  
+  final TextEditingController _durationController = TextEditingController();
+
   bool isLoadingAI = false;
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  
 
   @override
   void dispose() {
@@ -23,7 +28,39 @@ class _GoalInputPageState extends State<GoalInputPage> {
     _currentSkillController.dispose();
     _preferToEarnMoneyController.dispose();
     _noteController.dispose();
+    _bannerAd?.dispose();
     super.dispose();
+  }
+
+  initState() {
+    super.initState();
+    _loadBannerAd();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      // Use a test ad unit ID for development
+      // For Android: 'ca-app-pub-3940256099942544/6300978111'
+      // For iOS: 'ca-app-pub-3940256099942544/2934735716'
+      // Replace with your actual Ad Unit ID when ready for production
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test Ad Unit ID for Android
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+          print('BannerAd loaded.');
+        },
+        onAdFailedToLoad: (ad, err) {
+          ad.dispose();
+          _isBannerAdLoaded = false; // Set to false if loading fails
+          print('BannerAd failed to load: $err');
+        },
+        // You can add more listeners like onAdOpened, onAdClosed, onAdImpression here
+      ),
+    )..load(); // Don't forget to call .load()
   }
 
   @override
@@ -51,12 +88,37 @@ class _GoalInputPageState extends State<GoalInputPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: ListView(
             children: [
+              const SizedBox(height: 16), // Space below the ad
+               if (_isBannerAdLoaded && _bannerAd != null)
+                Container( // Use a Container to give the ad a background if desired
+                  alignment: Alignment.center,
+                  width: _bannerAd!.size.width.toDouble(),
+                  height: _bannerAd!.size.height.toDouble(),
+                  child: AdWidget(ad: _bannerAd!),
+                ),
               SizedBox(height: 24),
-              _buildInputField(
-                controller: _earnThisYearController,
-                hintText: 'How much you gonna earn this year?',
-                keyboardType: TextInputType.number,
-              ),
+              Row(
+                children:[
+                  Expanded(
+                    flex: 1,
+                    child:_buildInputField(
+                      controller: _earnThisYearController,
+                      hintText: 'Make how much (RM) ',
+                      maxLines: 3,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+              const SizedBox(width: 24),
+                  Expanded(
+                    flex: 1,
+                    child:_buildInputField(
+                      controller: _durationController,
+                      hintText: 'How many months',
+                      maxLines: 2,
+                      keyboardType: TextInputType.number,
+                    )
+                  ),
+              ]),
               const SizedBox(height: 24),
               _buildInputField(
                 controller: _currentSkillController,
@@ -89,6 +151,7 @@ class _GoalInputPageState extends State<GoalInputPage> {
                       MaterialPageRoute(
                         builder: (context) => ChatWithAIScreen(
                           earnThisYear: _earnThisYearController.text,
+                          duration: _durationController.text,
                           currentSkill: _currentSkillController.text,
                           preferToEarnMoney: _preferToEarnMoneyController.text,
                           note: _noteController.text,
@@ -120,6 +183,8 @@ class _GoalInputPageState extends State<GoalInputPage> {
                   ),
                 ),
               ),
+              SizedBox(height: 24), // Space below the button
+              // Space below the ad
             ],
           ),
         ),
@@ -193,13 +258,17 @@ class _GoalInputPageState extends State<GoalInputPage> {
     var textBoxColor = Colors.black;
     return Container(
       decoration: BoxDecoration(
+        border: Border.all(
+          width: 2,
+          color: Colors.deepPurple
+          ),
         color: textBoxColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
             blurRadius: 8,
-            offset: const Offset(0, 4), // 影の位置
+            offset: const Offset(0, 4),
           ),
         ],
       ),

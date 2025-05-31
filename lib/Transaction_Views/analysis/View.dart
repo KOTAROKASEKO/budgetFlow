@@ -65,9 +65,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
         return Scaffold(
           backgroundColor: theme.backgroundColor, // Assuming 'theme' is accessible
           appBar: AppBar(
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
             backgroundColor: Colors.black,
             title: Text('Expense Analysis', style: AppTheme.darkTheme.textTheme.headlineMedium),
             centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppTheme.shiokuriBlue),
+                onPressed: () {
+                  // Trigger a refresh of the data
+                  _analysisController.fetchExpensesForCurrentMonth();
+                },
+              ),
+            ],
           ),
           body: SafeArea(
             child: Padding(

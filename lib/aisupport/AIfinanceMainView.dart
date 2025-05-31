@@ -6,7 +6,7 @@ import 'package:moneymanager/aisupport/goal_input/goalInput.dart';
 import 'package:moneymanager/aisupport/goal_input/ProgressManagerScreen.dart';
 import 'package:moneymanager/aisupport/models/daily_task_hive.dart';
 import 'package:moneymanager/aisupport/taskModel.dart';
-import 'package:moneymanager/todoList/View_goalSetting.dart';
+import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -21,42 +21,108 @@ class _financialGoalState extends State<financialGoal> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay; // Nullable for initial state
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  bool hasGoal = true; // Assume true initially, will be checked
 
-  // Dummy Task Data - In a real app, this would come from a state management solution or backend
   final LocalDatabaseService _localDbService = LocalDatabaseService();
-  Map<DateTime, List<Task>> _tasks = {}; // Keep this, but populate from Hive
-  String _currentGoalName =
-      "Default Goal"; // You'll need a way to select/set the current goal
+  Map<DateTime, List<Task>> _tasks = {};
+  String _currentGoalName = "Default Goal";
 
   @override
   void initState() {
     super.initState();
-    _selectedDay = _focusedDay; //
-    _loadTasksForCurrentGoal();
+    _selectedDay = _focusedDay;
+    _loadCurrentGoalNameAndTasks(); // Consolidated loading
+    _checkIfUserAlreadyHasGoal(); // Check Firestore for goal existence
   }
+
+  // Consolidated method to load goal name and then tasks
+  Future<void> _loadCurrentGoalNameAndTasks() async {
+    await _localDbService.init(); // Ensure Hive is initialized
+    final allPlans = _localDbService.getAllUserPlans();
+    if (allPlans.isNotEmpty) {
+      // You might want a more sophisticated way to select the "current" goal
+      // For now, let's assume the first plan is the current one.
+      final currentPlan = allPlans.first;
+      setState(() {
+        _currentGoalName = currentPlan.goalName;
+      });
+      _loadTasksForCurrentGoal();
+    } else {
+      print("No local plans found. Displaying default or empty state.");
+      setState(() {
+        _currentGoalName = "No Goal Set"; // Or handle as appropriate
+        _tasks = {};
+        // Consider setting hasGoal to false if no local plans and no Firestore plans
+      });
+    }
+  }
+
+
+  Future<void> _checkIfUserAlreadyHasGoal() async {
+    // This checks Firestore and might influence the `hasGoal` state,
+    // particularly for UI elements like the FAB.
+    final doc = await FirebaseFirestore.instance
+        .collection('financialGoals')
+        .doc(userId.uid)
+        .get();
+
+    bool firestoreGoalExists = false;
+    if (doc.exists) {
+      final goals = doc.data()?['goalNameList'];
+      if (goals is List && goals.isNotEmpty) {
+        firestoreGoalExists = true;
+      }
+    }
+
+    // Update `hasGoal` based on local plans primarily,
+    // or Firestore if local is empty.
+    // This logic might need refinement based on your app's specific flow
+    // for what "hasGoal" truly means (e.g., ability to create new vs. manage existing).
+    final localPlansExist = _localDbService.getAllUserPlans().isNotEmpty;
+
+    setState(() {
+      // If there's a local plan, they definitely have a goal they are working with.
+      // If no local plan, but a goal exists in Firestore (perhaps not yet cached locally),
+      // they still "have a goal" in a broader sense.
+      hasGoal = localPlansExist || firestoreGoalExists;
+      if (!localPlansExist && !firestoreGoalExists) {
+        print('User does not have any goal (local or Firestore).');
+      } else if (localPlansExist) {
+        print('User has at least one local goal.');
+      } else {
+        print('User has a goal in Firestore but no local plans detected yet.');
+      }
+    });
+  }
+
 
   Future<void> _handleTaskDroppedOnCalendar(DailyTaskHive droppedTask,
       String originalPlanGoalName, DateTime targetDate) async {
     UserPlanHive? plan = _localDbService.getUserPlan(originalPlanGoalName);
     if (plan == null) {
       print("Error: Plan '$originalPlanGoalName' not found for updating task.");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              "Error: Plan '$originalPlanGoalName' not found.")));
       return;
     }
 
     bool taskUpdated = false;
+    // Normalize targetDate to UTC to match how dates might be stored or compared
+    final normalizedTargetDate = DateTime.utc(targetDate.year, targetDate.month, targetDate.day);
+
     for (var phase in plan.phases) {
       for (var mTask in phase.monthlyTasks) {
         for (var wTask in mTask.weeklyTasks) {
           for (int i = 0; i < wTask.dailyTasks.length; i++) {
             if (wTask.dailyTasks[i].id == droppedTask.id) {
               // Update the actual DailyTaskHive object within the plan
-              wTask.dailyTasks[i].dueDate = targetDate;
-              // You might want to change the status to indicate it's scheduled
+              wTask.dailyTasks[i].dueDate = normalizedTargetDate; // Use normalized date
               wTask.dailyTasks[i].status =
-                  'scheduled_on_calendar'; // Example status
+                  'scheduled_on_calendar';
               taskUpdated = true;
               print(
-                  "Task '${wTask.dailyTasks[i].title}' updated to $targetDate in plan '${plan.goalName}'");
+                  "Task '${wTask.dailyTasks[i].title}' updated to $normalizedTargetDate in plan '${plan.goalName}'");
               break;
             }
           }
@@ -69,20 +135,22 @@ class _financialGoalState extends State<financialGoal> {
 
     if (taskUpdated) {
       await _localDbService.saveUserPlan(plan);
-      // Refresh the UI. This will cause getTasksForThisWeek to re-filter
-      // and _getTasksForDay for the calendar to pick up the new date.
-      setState(() {
-        _loadTasksForCurrentGoal(); // Reloads _tasks for the calendar
-        // getTasksForThisWeek will be rebuilt by the build method due to setState
-      });
+      print("Plan '${plan.goalName}' saved successfully after task update.");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              "Task '${droppedTask.title}' scheduled on ${targetDate.toLocal().toString().split(' ')[0]}")));
+      // Reload tasks for the current goal to refresh the calendar and lists
+      _loadTasksForCurrentGoal();
     } else {
       print(
           "Error: Task with id '${droppedTask.id}' not found in plan '$originalPlanGoalName' after attempting to update.");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              "Error: Task '${droppedTask.title}' not found in the plan.")));
     }
   }
 
   void _loadTasksForCurrentGoal() {
-    // Assuming you have a way to set/get the active _currentGoalName
     UserPlanHive? plan = _localDbService.getUserPlan(_currentGoalName);
     Map<DateTime, List<Task>> loadedTasks = {};
 
@@ -91,13 +159,14 @@ class _financialGoalState extends State<financialGoal> {
         for (var mTask in phase.monthlyTasks) {
           for (var wTask in mTask.weeklyTasks) {
             for (var dTask in wTask.dailyTasks) {
-              // Convert DailyTaskHive to the Task model required by TableCalendar's eventLoader
               final taskForCalendar = Task(
-                taskId: dTask.id, //
-                taskName: dTask.title, //
-                dueDate: dTask.dueDate, //
-                status: dTask.status, //
+                taskId: dTask.id,
+                taskName: dTask.title,
+                dueDate: dTask.dueDate,
+                status: dTask.status,
               );
+              // IMPORTANT: Ensure the key for the map is UTC if dueDates are UTC.
+              // TableCalendar typically works well with UTC dates for events.
               final dateKey = DateTime.utc(
                   dTask.dueDate.year, dTask.dueDate.month, dTask.dueDate.day);
               if (loadedTasks[dateKey] == null) {
@@ -109,47 +178,27 @@ class _financialGoalState extends State<financialGoal> {
         }
       }
     } else {
-      print(
-          "Plan '$_currentGoalName' not found in local DB for calendar view.");
-      // Optionally, implement Firestore fallback here as well
+      print("Plan '$_currentGoalName' not found in local DB for calendar view.");
     }
 
-    setState(() {
-      _tasks = loadedTasks; //
-      // Update currentGoalStatus based on whether tasks were loaded
-    });
+    if (mounted) { // Check if the widget is still in the tree
+      setState(() {
+        _tasks = loadedTasks;
+      });
+    }
   }
 
-  // Helper function to get tasks for a given day
   List<Task> _getTasksForDay(DateTime day) {
-    // Normalize the date to UTC to match keys in _tasks map
-    // TableCalendar's focusedDay and selectedDay are often UTC
     DateTime normalizedDay = DateTime.utc(day.year, day.month, day.day);
     return _tasks[normalizedDay] ?? [];
-  }
-  
-  Future<bool> _userAlreadyHasGoal() async {
-
-
-    final doc = await FirebaseFirestore.instance
-      .collection('FinancialGoals')
-      .doc(userId.uid)
-      .get();
-
-    if (doc.exists) {
-      final goals = doc.data()?['goals'];
-      if (goals is List && goals.length == 1) {
-      return true;
-      }
-    }
-    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine the current goal status (replace with actual logic)
     return Scaffold(
+      backgroundColor: theme.backgroundColor,
       appBar: AppBar(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
         centerTitle: true,
         title: const Text(
           'Financial Goal',
@@ -158,259 +207,255 @@ class _financialGoalState extends State<financialGoal> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
+            icon: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.deepPurpleAccent,
+                  shape: BoxShape.circle,
+                ),
+              child:Icon(Icons.flag, color: Colors.white),
+              ),
             onPressed: () {
-                 showModalBottomSheet(
-                  enableDrag: true,
-                  showDragHandle: true,
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent, // Transparent for rounded corners
-              builder: (context) {
-                return DraggableScrollableSheet(
-                initialChildSize: 0.9,
-                minChildSize: 0.4,
-                maxChildSize: 0.9,
-                expand: false,
-                builder: (context, scrollController) {
-                  return Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(24),
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                    ),
-                    child: ProgressManagerScreen(),
-                  ),
+              showModalBottomSheet(
+                enableDrag: true,
+                showDragHandle: true,
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) {
+                  return DraggableScrollableSheet(
+                    initialChildSize: 0.9,
+                    minChildSize: 0.4,
+                    maxChildSize: 0.9,
+                    expand: false,
+                    builder: (context, scrollController) {
+                      return Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          child: ProgressManagerScreen(),
+                        ),
+                      );
+                    },
                   );
                 },
-                );
-              },
               );
-
             },
           ),
         ],
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.black, // Use a defined color for consistency
         elevation: 0,
       ),
-      backgroundColor: const Color(0xFF1A1A1A), // Dark background
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: ListView(
+          child: Column( // Changed to Column for better structure
             children: [
               Text(
-                'Current goal:',
+                '$_currentGoalName', // Display current goal name
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 20, // Increased size
+                  fontWeight: FontWeight.w500, // Medium weight
                 ),
+                textAlign: TextAlign.start,
               ),
               const SizedBox(height: 8),
-              getTasksForThisWeek(),
-              const SizedBox(height: 32),
+              getTasksForThisWeek(), // This is the horizontal list of draggable tasks
+              const SizedBox(height: 24), // Adjusted spacing
 
-              TableCalendar(
-                firstDay: DateTime.utc(2020, 1, 1),
-                lastDay: DateTime.utc(2030, 12, 31),
-                focusedDay: _focusedDay,
-                calendarFormat: _calendarFormat,
-                selectedDayPredicate: (day) {
-                  // Use isSameDay to check if a day is selected
-                  return isSameDay(_selectedDay, day);
-                },
-                onDaySelected: (selectedDay, focusedDay) {
-                  setState(() {
-                    _selectedDay = selectedDay;
-                    _focusedDay = focusedDay; // Update focused day
-                  });
-                },
-                onFormatChanged: (format) {
-                  if (_calendarFormat != format) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                  }
-                },
-                onPageChanged: (focusedDay) {
-                  _focusedDay = focusedDay;
-                },
-                eventLoader: _getTasksForDay, // Pass the event loader
-                calendarBuilders: CalendarBuilders(
-                  // You need to provide builders for all day types you want to be drop targets
-                  // defaultBuilder, selectedBuilder, todayBuilder, outsideBuilder, weekendBuilder etc.
-                  // Here's an example for defaultBuilder. Apply similarly to others.
-
-                  defaultBuilder: (context, day, focusedDay) {
-                    return _buildCalendarDayCell(day, focusedDay);
-                  },
-                  todayBuilder: (context, day, focusedDay) {
-                    // You can add specific styling for today, then wrap with DragTarget
-                    return _buildCalendarDayCell(day, focusedDay,
-                        isToday: true);
-                  },
-                  selectedBuilder: (context, day, focusedDay) {
-                    return _buildCalendarDayCell(day, focusedDay,
-                        isSelected: true);
-                  },
-                  outsideBuilder: (context, day, focusedDay) {
-                    // For days outside the current month, usually non-interactive
-                    // Or make them drag targets too if needed.
-                    return Opacity(
-                      opacity: 0.5, // Example: dim them
-                      child: _buildCalendarDayCell(day, focusedDay,
-                          isOutside: true),
-                    );
-                  },
-                  // Add other builders like weekendBuilder if you have specific styles
-                ),
-                // Customize calendar style for dark theme
-                calendarStyle: CalendarStyle(
-                  todayDecoration: const BoxDecoration(
-                    color: Color(0xFF5A5A5A), // Slightly lighter dark for today
-                    shape: BoxShape.circle,
-                  ),
-                  selectedDecoration: const BoxDecoration(
-                    color: Colors.blueAccent, // Vibrant blue for selected day
-                    shape: BoxShape.circle,
-                  ),
-                  defaultTextStyle: const TextStyle(color: Colors.white),
-                  weekendTextStyle: const TextStyle(color: Colors.redAccent),
-                  outsideTextStyle:
-                      TextStyle(color: Colors.white.withOpacity(0.4)),
-                  markerDecoration: const BoxDecoration(
-                    color: Color(0xFF8A2BE2),
-                    shape: BoxShape.circle,
-                  ),
-                  markerSize: 6.0,
-                  markersMaxCount: 3, // Max number of dots
-                ),
-                headerStyle: const HeaderStyle(
-                  formatButtonVisible: false,
-                  titleCentered: true,
-                  titleTextStyle: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold),
-                  // leftWithIcon: true,
-                  // rightWithIcon: true,
-                  // leftIcon: Icon(Icons.chevron_left, color: Colors.white),
-                  // rightIcon: Icon(Icons.chevron_right, color: Colors.white),
-                ),
-                daysOfWeekStyle: const DaysOfWeekStyle(
-                  weekdayStyle: TextStyle(color: Colors.white70),
-                  weekendStyle: TextStyle(color: Colors.redAccent),
+              Expanded( // Makes the calendar and task list take available space
+                child: ListView( // Use ListView for scrollability if content overflows
+                  children: [
+                    TableCalendar(
+                      firstDay: DateTime.utc(2020, 1, 1),
+                      lastDay: DateTime.utc(2030, 12, 31),
+                      focusedDay: _focusedDay,
+                      calendarFormat: _calendarFormat,
+                      selectedDayPredicate: (day) {
+                        return isSameDay(_selectedDay, day);
+                      },
+                      onDaySelected: (selectedDay, focusedDay) {
+                        if (!isSameDay(_selectedDay, selectedDay)) {
+                          setState(() {
+                            _selectedDay = selectedDay;
+                            _focusedDay = focusedDay;
+                          });
+                        }
+                      },
+                      onFormatChanged: (format) {
+                        if (_calendarFormat != format) {
+                          setState(() {
+                            _calendarFormat = format;
+                          });
+                        }
+                      },
+                      onPageChanged: (focusedDay) {
+                        _focusedDay = focusedDay;
+                      },
+                      eventLoader: _getTasksForDay,
+                      calendarBuilders: CalendarBuilders(
+                        defaultBuilder: (context, day, focusedDay) {
+                          return _buildCalendarDayCell(day, focusedDay);
+                        },
+                        todayBuilder: (context, day, focusedDay) {
+                          return _buildCalendarDayCell(day, focusedDay,
+                              isToday: true);
+                        },
+                        selectedBuilder: (context, day, focusedDay) {
+                          return _buildCalendarDayCell(day, focusedDay,
+                              isSelected: true);
+                        },
+                        outsideBuilder: (context, day, focusedDay) {
+                          return Opacity(
+                            opacity: 0.5,
+                            child: _buildCalendarDayCell(day, focusedDay,
+                                isOutside: true),
+                          );
+                        },
+                      ),
+                      calendarStyle: CalendarStyle(
+                        todayDecoration: const BoxDecoration(
+                          color: Color(0xFF5A5A5A),
+                          shape: BoxShape.circle,
+                        ),
+                        selectedDecoration: const BoxDecoration(
+                          color: Colors.blueAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        defaultTextStyle: const TextStyle(color: Colors.white),
+                        weekendTextStyle:
+                            const TextStyle(color: Colors.redAccent),
+                        outsideTextStyle:
+                            TextStyle(color: Colors.white.withOpacity(0.4)),
+                        markerDecoration: const BoxDecoration(
+                          color: Color(0xFF8A2BE2),
+                          shape: BoxShape.circle,
+                        ),
+                        markerSize: 6.0,
+                        markersMaxCount: 3,
+                      ),
+                      headerStyle: const HeaderStyle(
+                        formatButtonVisible: false,
+                        titleCentered: true,
+                        titleTextStyle: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold),
+                        leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white),
+                        rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white),
+                      ),
+                      daysOfWeekStyle: const DaysOfWeekStyle(
+                        weekdayStyle: TextStyle(color: Colors.white70),
+                        weekendStyle: TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Display tasks for the selected day
+                    _buildSelectedDayTasks(),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              // Display tasks for the selected day
-
-              _selectedDay == null
-                  ? const Center(
-                      child: Text(
-                        'Select a day to view tasks.',
-                        style: TextStyle(color: Colors.white54, fontSize: 16),
-                      ),
-                    )
-                  : _getTasksForDay(_selectedDay!).isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No tasks for this day.',
-                            style:
-                                TextStyle(color: Colors.white54, fontSize: 16),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _getTasksForDay(_selectedDay!).length,
-                          itemBuilder: (context, index) {
-                            final task = _getTasksForDay(_selectedDay!)[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 4.0),
-                              child: Card(
-                                color: const Color(
-                                    0xFF2A2A2A), // Slightly lighter dark for task cards
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                child: ListTile(
-                                  title: Text(
-                                    task.taskName,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  subtitle: Text(
-                                    'Status: ${task.status}',
-                                    style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7)),
-                                  ),
-                                  // You can add more details or actions here
-                                  onTap: () {
-                                    // Handle task tap, e.g., show task details
-                                    print('Tapped on task: ${task.taskName}');
-                                  },
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-
-              const SizedBox(height: 24),
-              
             ],
           ),
         ),
       ),
-      
-      floatingActionButton: FutureBuilder<bool>(
-        future: _userAlreadyHasGoal(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const SizedBox(height: 0,width: 0,); // Show nothing while checking
-          } else if (snapshot.hasError) {
-            return const Text('Error checking goal status');
-          } else if (snapshot.data == true) {
-            // User already has a goal
-            return FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProgressManagerScreen(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          if (hasGoal) { // `hasGoal` is updated by `_checkIfUserAlreadyHasGoal`
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Subscription Required'),
+                content: const Text(
+                  'You need a subscription to create more goals.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
                   ),
-                );
-              },
-              child: const Icon(Icons.check),
+                ],
+              ),
             );
           } else {
-            // User does not have a goal, show GoalInput
-            return FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GoalInputPage(),
-                  ),
-                );
-              },
-              child: const Icon(Icons.add),
+            final result = await Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => GoalInputPage()),
             );
+            // If a new goal might have been created, reload relevant data.
+            if (result == true) { // Assuming GoalInputPage returns true on successful goal creation
+              _loadCurrentGoalNameAndTasks();
+              _checkIfUserAlreadyHasGoal();
+            }
           }
         },
+        backgroundColor: Colors.deepPurpleAccent,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
+  Widget _buildSelectedDayTasks() {
+    if (_selectedDay == null) {
+      return const Center(
+        child: Text(
+          'Select a day to view tasks.',
+          style: TextStyle(color: Colors.white54, fontSize: 16),
+        ),
+      );
+    }
+    final tasksForSelectedDay = _getTasksForDay(_selectedDay!);
+    if (tasksForSelectedDay.isEmpty) {
+      return const Center(
+        child: Text(
+          'No tasks for this day.',
+          style: TextStyle(color: Colors.white54, fontSize: 16),
+        ),
+      );
+    }
+    // Using a Column directly if the number of tasks per day is small,
+    // or ListView if it can be long.
+    // For simplicity, using Column, assuming not too many tasks on one day.
+    return Column( // Changed from ListView.builder to prevent nested scrolling issues
+      children: tasksForSelectedDay.map((task) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: Card(
+            color: const Color(0xFF2A2A2A),
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              title: Text(
+                task.taskName,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                'Status: ${task.status}',
+                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              ),
+              onTap: () {
+                print('Tapped on task: ${task.taskName}');
+                // Potentially show task details dialog
+              },
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+
   Widget _buildCalendarDayCell(DateTime day, DateTime focusedDay,
       {bool isToday = false, bool isSelected = false, bool isOutside = false}) {
-    // Basic day cell appearance (you can customize this further)
     final text = '${day.day}';
     TextStyle textStyle = const TextStyle(color: Colors.white);
     BoxDecoration decoration = const BoxDecoration();
@@ -421,34 +466,38 @@ class _financialGoalState extends State<financialGoal> {
     if (isSelected) {
       decoration =
           const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle);
-      textStyle = const TextStyle(color: Colors.white);
+      textStyle = const TextStyle(color: Colors.white); // Ensure text is visible
     } else if (isToday) {
       decoration = BoxDecoration(
           color: Color(0xFF5A5A5A).withOpacity(0.5), shape: BoxShape.circle);
     }
 
     return DragTarget<Map<String, dynamic>>(
-      // Expecting the Map from Draggable
       builder: (BuildContext context, List<dynamic> accepted,
           List<dynamic> rejected) {
-        // This is the visual representation of the day cell
+        bool isHovered = accepted.isNotEmpty;
         return AnimatedContainer(
-          duration: Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 200),
           margin: const EdgeInsets.all(4.0),
           alignment: Alignment.center,
           decoration: decoration.copyWith(
-              border: accepted.isNotEmpty
-                  ? Border.all(color: Colors.greenAccent, width: 2)
-                  : null // Visual feedback on hover
-              ),
+            border: isHovered
+                ? Border.all(color: Colors.greenAccent, width: 2.5) // Thicker border
+                : (isSelected || isToday ? null : Border.all(color: Colors.white24, width: 0.5)), // Subtle border for other days
+            boxShadow: isHovered ? [
+                BoxShadow(
+                    color: Colors.greenAccent.withOpacity(0.5),
+                    blurRadius: 8,
+                    spreadRadius: 2
+                )
+            ] : [],
+          ),
           child: Text(text, style: textStyle),
         );
       },
       onWillAcceptWithDetails: (details) {
-        // You can use this to provide feedback when a draggable is over the target
-        // e.g., change the border color or background of the cell
-        // For this example, the builder's 'accepted.isNotEmpty' handles some feedback
-        return true; // Must return true to allow the drop
+        // You can add more sophisticated logic here if needed
+        return true; // Allow drop
       },
       onAcceptWithDetails: (details) {
         final Map<String, dynamic> droppedData = details.data;
@@ -463,47 +512,46 @@ class _financialGoalState extends State<financialGoal> {
   }
 
   Widget getTasksForThisWeek() {
-    List<Map<String, dynamic>> draggableTaskItems =
-        []; // Store task and its plan's goalName
-
+    List<Map<String, dynamic>> draggableTaskItems = [];
     final allPlans = _localDbService.getAllUserPlans();
 
-    for (var plan in allPlans) {
-      for (var phase in plan.phases) {
-        for (var mTask in phase.monthlyTasks) {
-          for (var wTask in mTask.weeklyTasks) {
-            for (var dTask in wTask.dailyTasks) {
-              // *** ADD FILTER HERE: Only include tasks that are not yet scheduled on the calendar ***
-              if (dTask.status != 'scheduled_on_calendar') {
-                // Example filter
-                draggableTaskItems.add({
-                  'task': dTask, // The DailyTaskHive object
-                  'planGoalName': plan.goalName,
-                });
-              }
+    // Filter for the current goal only, if a specific goal is selected for the calendar view
+    // Otherwise, it will show draggable tasks from all plans, which might be confusing.
+    UserPlanHive? currentPlan = _localDbService.getUserPlan(_currentGoalName);
+
+    if (currentPlan != null) {
+        for (var phase in currentPlan.phases) {
+            for (var mTask in phase.monthlyTasks) {
+                for (var wTask in mTask.weeklyTasks) {
+                    for (var dTask in wTask.dailyTasks) {
+                        if (dTask.status != 'scheduled_on_calendar' && dTask.status != 'completed') {
+                            draggableTaskItems.add({
+                                'task': dTask,
+                                'planGoalName': currentPlan.goalName, // Associate with the current plan
+                            });
+                        }
+                    }
+                }
             }
-          }
         }
-      }
     }
 
-    // Sort if needed (your existing sort logic was for Task objects, adapt if necessary)
-    // For DailyTaskHive, it would be:
+
     draggableTaskItems.sort((a, b) => (a['task'] as DailyTaskHive)
-        .dueDate
+        .dueDate // Or some other priority field if dueDate isn't set for unscheduled
         .compareTo((b['task'] as DailyTaskHive).dueDate));
 
     if (draggableTaskItems.isEmpty) {
       return SizedBox(
-          height: 134, // Matching your original height
+          height: 134,
           child: Center(
-              child: Text("No tasks to schedule.",
+              child: Text("No tasks to schedule for $_currentGoalName.",
                   style: TextStyle(color: Colors.white54))));
     }
 
     return ConstrainedBox(
       constraints:
-          const BoxConstraints(maxHeight: 134), // Your specified height
+          const BoxConstraints(maxHeight: 162), // Increased height slightly
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: draggableTaskItems.length,
@@ -511,87 +559,101 @@ class _financialGoalState extends State<financialGoal> {
           final taskData = draggableTaskItems[index];
           final DailyTaskHive task = taskData['task'] as DailyTaskHive;
 
-          // This is the visual representation of the task in the list
           Widget taskItemWidget = Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 8.0), // Reduced horizontal for more items
-            child: GestureDetector(
-              onTap: () {/* Your existing showDialog logic */},
-              child: Container(
-                width: 130, // Slightly wider for better feedback
-                // ... (rest of your existing Container styling for the task item)
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2D2D44),
-                  borderRadius: BorderRadius.circular(14),
-                  // ... boxShadow, border
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        // ... date container styling
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 4, horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.deepPurpleAccent.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${task.dueDate.day}/${task.dueDate.month}', // Display current/placeholder date
-                          style: const TextStyle(
-                              color: Colors.deepPurpleAccent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15),
-                        ),
+            padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 8.0),
+            child: Container(
+              width: 140, // Slightly wider
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D2D44), // Task item color
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: Offset(0,2),
+                  )
+                ]
+              ),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 4, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurpleAccent.withOpacity(0.25), // More vibrant
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        task.title, // Use task.title from DailyTaskHive
+                      child: Text(
+                        // Display placeholder or original due date before scheduling
+                        task.status == 'pending' ? "Unscheduled" : '${task.dueDate.day}/${task.dueDate.month}',
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600),
+                            color: Colors.deepPurpleAccent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      task.title,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                     const SizedBox(height: 4),
+                      Text(
+                        taskData['planGoalName'], // Show which plan it belongs to
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 10,
+                        ),
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
+                        maxLines: 1,
                       ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ),
           );
 
-          return Draggable<Map<String, dynamic>>(
-            data:
-                taskData, // Pass the map containing DailyTaskHive and planGoalName
+          // Using LongPressDraggable for long press to drag
+          return LongPressDraggable<Map<String, dynamic>>(
+            data: taskData,
             feedback: Material(
-                // Wrap feedback in Material for correct themeing
                 elevation: 4.0,
-                color: Colors
-                    .transparent, // Transparent so only the item is visible
+                color: Colors.transparent,
                 child: ConstrainedBox(
-                  // Ensure feedback has constraints
-                  constraints:
-                      BoxConstraints(maxWidth: 150), // Slightly larger feedback
-                  child: taskItemWidget, // Use a copy of the item as feedback
+                  constraints: BoxConstraints(maxWidth: 150),
+                  child: taskItemWidget, // Show the same widget as feedback
                 )),
-            childWhenDragging: Container(
-              // Placeholder when dragging
-              width: 130, // Match item width
-              margin:
-                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+            childWhenDragging: Container( // Placeholder when dragging
+              width: 140,
+              margin: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 12.0), // Adjusted margin
               decoration: BoxDecoration(
                 color: Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
+              child: Center(child: Icon(Icons.drag_handle, color: Colors.white24)), // Optional: show drag handle or similar
             ),
             child: taskItemWidget, // The actual item
+            onDragStarted: () {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text("Dragging '${task.title}'... Drop on a calendar day."),
+                        duration: Duration(seconds: 2),
+                        backgroundColor: Colors.blueGrey,
+                    )
+                 );
+            },
           );
         },
       ),

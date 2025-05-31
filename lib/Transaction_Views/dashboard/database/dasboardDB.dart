@@ -1,65 +1,90 @@
+// dashboard/database/dasboardDB.dart
 import 'package:hive/hive.dart';
-import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart';
-import 'package:moneymanager/Transaction_Views/dashboard/model/userSettingsModel.dart';
+import 'package:moneymanager/Transaction_Views/buyLlist/model/buy_list_item_model.dart';
+import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart'; // Assuming this is the correct path
+import 'package:moneymanager/Transaction_Views/dashboard/model/userSettingsModel.dart'; // Assuming this is the correct path
 
 class dashBoardDBManager {
+  static const String buyListItemsBoxName = 'buyListItemsBox';
+  static const String expenseCacheBoxName = 'monthlyExpensesCache'; // Already defined in DashBoard.dart
+  static const String _userSettingsBoxName = 'userSettings'; // Already defined in DashBoard.dart
+
+
   static Future<void> init() async {
     print("[DBManager] init() called.");
 
-    // --- Register expenseModelAdapter (typeId 0) ---
+    // --- Register expenseModelAdapter (typeId 5) ---
     try {
-      // Attempt to register unconditionally
       Hive.registerAdapter(expenseModelAdapter());
       print("[DBManager] expenseModelAdapter registration call made.");
     } on HiveError catch (e) {
       if (e.message.contains("already registered")) {
-        print("[DBManager] expenseModelAdapter was already registered (caught HiveError).");
+        print("[DBManager] expenseModelAdapter was already registered.");
       } else {
         print("[DBManager] HiveError during expenseModelAdapter registration: $e");
-        rethrow; // Rethrow other HiveErrors
+        rethrow;
       }
     } catch (e) {
       print("[DBManager] Unexpected error during expenseModelAdapter registration: $e");
-      rethrow; // Rethrow unexpected errors
+      rethrow;
     }
 
-    // --- Register UserSettingsModelAdapter (typeId 1) ---
-    // Ensure UserSettingsModelAdapter is correctly generated and accessible
+    // --- Register UserSettingsModelAdapter (typeId 6) ---
     final userSettingsAdapter = UserSettingsModelAdapter();
-    // ignore: unnecessary_null_comparison
-    if (userSettingsAdapter.typeId != null) { // typeId for UserSettingsModel is 1
-      try {
-        Hive.registerAdapter(userSettingsAdapter);
-        print("[DBManager] UserSettingsModelAdapter registration call made (typeId: ${userSettingsAdapter.typeId}).");
-      } on HiveError catch (e) {
-        if (e.message.contains("already registered")) {
-          print("[DBManager] UserSettingsModelAdapter (typeId: ${userSettingsAdapter.typeId}) was already registered (caught HiveError).");
-        } else {
-          print("[DBManager] HiveError during UserSettingsModelAdapter registration: $e");
-          rethrow;
-        }
-      } catch (e) {
-        print("[DBManager] Unexpected error during UserSettingsModelAdapter registration: $e");
+    try {
+      Hive.registerAdapter(userSettingsAdapter);
+      print("[DBManager] UserSettingsModelAdapter registration call made (typeId: ${userSettingsAdapter.typeId}).");
+    } on HiveError catch (e) {
+      if (e.message.contains("already registered")) {
+        print("[DBManager] UserSettingsModelAdapter (typeId: ${userSettingsAdapter.typeId}) was already registered.");
+      } else {
+        print("[DBManager] HiveError during UserSettingsModelAdapter registration: $e");
         rethrow;
       }
-    } else {
-      print("[DBManager] UserSettingsModelAdapter.typeId is null. Skipping registration.");
+    } catch (e) {
+      print("[DBManager] Unexpected error during UserSettingsModelAdapter registration: $e");
+      rethrow;
     }
+
+    // --- Register BuyListItemAdapter (typeId 7) ---
+    final buyListItemAdapter = BuyListItemAdapter();
+    try {
+      Hive.registerAdapter(buyListItemAdapter);
+      print("[DBManager] BuyListItemAdapter registration call made (typeId: ${buyListItemAdapter.typeId}).");
+    } on HiveError catch (e) {
+      if (e.message.contains("already registered")) {
+        print("[DBManager] BuyListItemAdapter (typeId: ${buyListItemAdapter.typeId}) was already registered.");
+      } else {
+        print("[DBManager] HiveError during BuyListItemAdapter registration: $e");
+        rethrow;
+      }
+    } catch (e) {
+      print("[DBManager] Unexpected error during BuyListItemAdapter registration: $e");
+      rethrow;
+    }
+
 
     // --- Open Boxes ---
-    if (!Hive.isBoxOpen('monthlyExpensesCache')) {
-      await Hive.openBox<List<dynamic>>('monthlyExpensesCache');
-      print("[DBManager] Box 'monthlyExpensesCache' opened.");
+    if (!Hive.isBoxOpen(expenseCacheBoxName)) {
+      await Hive.openBox<List<dynamic>>(expenseCacheBoxName);
+      print("[DBManager] Box '$expenseCacheBoxName' opened.");
     } else {
-      print("[DBManager] Box 'monthlyExpensesCache' was already open.");
+      print("[DBManager] Box '$expenseCacheBoxName' was already open.");
     }
 
-    if (!Hive.isBoxOpen('userSettings')) {
-      await Hive.openBox('userSettings');
-      print("[DBManager] Box 'userSettings' opened.");
+    if (!Hive.isBoxOpen(_userSettingsBoxName)) {
+      await Hive.openBox(_userSettingsBoxName);
+      print("[DBManager] Box '$_userSettingsBoxName' opened.");
     } else {
-      print("[DBManager] Box 'userSettings' was already open.");
+      print("[DBManager] Box '$_userSettingsBoxName' was already open.");
+    }
+
+    if (!Hive.isBoxOpen(buyListItemsBoxName)) {
+      await Hive.openBox<BuyListItem>(buyListItemsBoxName);
+      print("[DBManager] Box '$buyListItemsBoxName' opened.");
+    } else {
+      print("[DBManager] Box '$buyListItemsBoxName' was already open.");
     }
     print("[DBManager] init() finished.");
   }
-} 
+}

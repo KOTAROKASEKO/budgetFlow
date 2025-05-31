@@ -25,6 +25,7 @@ class DailyTaskHive extends HiveObject {
   @HiveField(6)
   int order;
 
+
   DailyTaskHive({
     required this.id,
     required this.title,

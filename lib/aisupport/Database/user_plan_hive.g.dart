@@ -23,14 +23,15 @@ class UserPlanHiveAdapter extends TypeAdapter<UserPlanHive> {
       preferToEarnMoney: fields[3] as String,
       note: fields[4] as String,
       phases: (fields[5] as List).cast<PhaseHive>(),
-      createdAt: fields[6] as DateTime,
+      createdAt: fields[7] as DateTime,
+      duration: fields[6] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserPlanHive obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.goalName)
       ..writeByte(1)
@@ -44,6 +45,8 @@ class UserPlanHiveAdapter extends TypeAdapter<UserPlanHive> {
       ..writeByte(5)
       ..write(obj.phases)
       ..writeByte(6)
+      ..write(obj.duration)
+      ..writeByte(7)
       ..write(obj.createdAt);
   }
 

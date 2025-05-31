@@ -24,7 +24,12 @@ class UserPlanHive extends HiveObject {
   List<PhaseHive> phases;
 
   @HiveField(6)
+  String? duration;
+
+  @HiveField(7)
   DateTime createdAt;
+
+  
 
   UserPlanHive({
     required this.goalName,
@@ -34,5 +39,6 @@ class UserPlanHive extends HiveObject {
     required this.note,
     required this.phases,
     required this.createdAt,
+    required this.duration,
   });
 }

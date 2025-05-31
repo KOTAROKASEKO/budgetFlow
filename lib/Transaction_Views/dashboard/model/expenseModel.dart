@@ -26,6 +26,9 @@ class expenseModel extends HiveObject {
   @HiveField(6)
   DateTime? timestamp; // Store as DateTime for Hive compatibility
 
+  @HiveField(7)
+  String? monthYear; // Optional, used for collection path in Firestore
+
   expenseModel({
     required this.amount,
     required this.date,
@@ -33,7 +36,8 @@ class expenseModel extends HiveObject {
     this.description,
     this.category,
     this.type,
-    this.timestamp,
+    this.timestamp, 
+    this.monthYear,
   });
 
   // Factory constructor to create from Firestore data

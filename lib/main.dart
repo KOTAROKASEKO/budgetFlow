@@ -145,10 +145,10 @@ class MyApp extends StatelessWidget {
             );
           } else if (snapshot.hasData) {
             userId.initUid();
+            
             // User is logged in, navigate to HomeScreen
             return const BottomTab();
           } else {
-            // User is not logged in, show AuthScreen
             return const UserAuthScreen();
           }
         },
