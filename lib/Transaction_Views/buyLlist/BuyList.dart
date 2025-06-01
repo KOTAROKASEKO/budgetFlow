@@ -1,13 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart'; // Import Hive Flutter
-import 'package:intl/intl.dart'; // For date formatting
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
 import 'package:moneymanager/Transaction_Views/buyLlist/model/buy_list_item_model.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
-import 'package:moneymanager/themeColor.dart'; // Assuming this file exists
-import 'package:moneymanager/uid/uid.dart'; // Assuming this file exists
+import 'package:moneymanager/themeColor.dart';
+import 'package:moneymanager/uid/uid.dart';
 import 'package:uuid/uuid.dart';
-
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart';
 
 class BuyList extends StatefulWidget {
@@ -18,21 +17,117 @@ class BuyList extends StatefulWidget {
 }
 
 class _BuyListState extends State<BuyList> {
-  final DraggableScrollableController draggableController = DraggableScrollableController();
+  final DraggableScrollableController draggableController =
+      DraggableScrollableController();
   final TextEditingController itemNameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
-  
+
   late Box<BuyListItem> _buyListBox;
-  double _totalPlannedExpense = 0.0;
+  double _totalPlannedExpense = 0.0; // For AppBar "Total Plan"
+
+  // State variables for simulation
+  double _actualTodaysBaseExpense = 0.0;
+  int _actualTodaysExpenseCount = 0;
+  Set<String> _selectedBuyListItemIds = {};
+  double _simulatedTodaysTotalExpense = 0.0;
+  double _simulatedTodaysAverageExpense = 0.0;
 
   @override
   void initState() {
     super.initState();
     _buyListBox = Hive.box<BuyListItem>(dashBoardDBManager.buyListItemsBoxName);
-    _calculateTotalPlannedExpense();
-    _buyListBox.watch().listen((event) { // Listen for changes to update total
-        _calculateTotalPlannedExpense();
+    _fetchActualTodaysBaseData();
+    _calculateTotalPlannedExpense(); // For AppBar
+
+    _buyListBox.watch().listen((event) {
+      _calculateTotalPlannedExpense(); // Update AppBar total
+
+      bool itemRemovedFromSelection = false;
+      if (event.deleted && _selectedBuyListItemIds.contains(event.key as String)) {
+        _selectedBuyListItemIds.remove(event.key as String);
+        itemRemovedFromSelection = true;
+      }
+
+      if (itemRemovedFromSelection || !event.deleted) {
+        _recalculateSimulatedExpenses();
+      }
+      if (mounted) {
+        setState(() {}); // Refresh list
+      }
     });
+  }
+
+  Future<void> _fetchActualTodaysBaseData() async {
+    DateTime now = DateTime.now();
+    String formattedMonthYear = DateFormat('yyyy-MM').format(now);
+    int currentDay = now.day;
+    double sumOfTodaysExpenses = 0.0;
+    int countOfTodaysExpenses = 0;
+
+    try {
+      final expenseCacheBox =
+          Hive.box<List<dynamic>>(dashBoardDBManager.expenseCacheBoxName);
+      final cacheKey = '${userId.uid}_$formattedMonthYear';
+      List<dynamic>? cachedMonthData = expenseCacheBox.get(cacheKey);
+
+      if (cachedMonthData != null) {
+        List<expenseModel> monthTransactions =
+            cachedMonthData.cast<expenseModel>().toList();
+        for (var expense in monthTransactions) {
+          if (expense.date == currentDay && expense.type == 'expense') {
+            sumOfTodaysExpenses += expense.amount.abs();
+            countOfTodaysExpenses++;
+          }
+        }
+      }
+    } catch (e) {
+      print("Error fetching today's base expense data: $e");
+    }
+
+    if (mounted) {
+      setState(() {
+        _actualTodaysBaseExpense = sumOfTodaysExpenses;
+        _actualTodaysExpenseCount = countOfTodaysExpenses;
+        _recalculateSimulatedExpenses();
+      });
+    }
+  }
+
+  void _recalculateSimulatedExpenses() {
+    double selectedItemsPriceSum = 0.0;
+    for (String itemId in _selectedBuyListItemIds) {
+      final item = _buyListBox.get(itemId);
+      if (item != null) {
+        selectedItemsPriceSum += item.price;
+      }
+    }
+
+    _simulatedTodaysTotalExpense =
+        _actualTodaysBaseExpense + selectedItemsPriceSum;
+
+    int totalSimulatedItemsCount =
+        _actualTodaysExpenseCount + _selectedBuyListItemIds.length;
+    if (totalSimulatedItemsCount > 0) {
+      _simulatedTodaysAverageExpense =
+          _simulatedTodaysTotalExpense / totalSimulatedItemsCount;
+    } else {
+      _simulatedTodaysAverageExpense = 0.0;
+    }
+
+    // No setState here, calling function will handle it or it's part of a build cycle
+  }
+
+  void _toggleBuyListItemSelection(String itemId) {
+    if (mounted) {
+      setState(() {
+        if (_selectedBuyListItemIds.contains(itemId)) {
+          _selectedBuyListItemIds.remove(itemId);
+        } else {
+          _selectedBuyListItemIds.add(itemId);
+        }
+        _recalculateSimulatedExpenses();
+      });
+    }
   }
 
   void _calculateTotalPlannedExpense() {
@@ -52,16 +147,12 @@ class _BuyListState extends State<BuyList> {
     draggableController.dispose();
     itemNameController.dispose();
     priceController.dispose();
-    // Hive boxes are typically kept open for the app's lifetime
-    // If you specifically need to close it: await _buyListBox.close();
     super.dispose();
   }
 
   void _showAddItemSheet() {
-    // Clear fields before showing the sheet
     itemNameController.clear();
     priceController.clear();
-
     showModalBottomSheet(
       enableDrag: true,
       isScrollControlled: true,
@@ -79,18 +170,23 @@ class _BuyListState extends State<BuyList> {
               builder: (context, StateSetter setStateModal) {
                 return Container(
                   padding: EdgeInsets.only(
-                    top: 20, left: 20, right: 20,
+                    top: 20,
+                    left: 20,
+                    right: 20,
                     bottom: MediaQuery.of(context).viewInsets.bottom + 20,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.white, // Sheet background
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(25), topRight: Radius.circular(25),
+                      topLeft: Radius.circular(25),
+                      topRight: Radius.circular(25),
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.grey.withOpacity(0.3),
-                        spreadRadius: 3, blurRadius: 10, offset: const Offset(0, -3),
+                        spreadRadius: 3,
+                        blurRadius: 10,
+                        offset: const Offset(0, -3),
                       ),
                     ],
                   ),
@@ -99,7 +195,8 @@ class _BuyListState extends State<BuyList> {
                     children: [
                       Center(
                         child: Container(
-                          width: 40, height: 5,
+                          width: 40,
+                          height: 5,
                           decoration: BoxDecoration(
                             color: Colors.grey[300],
                             borderRadius: BorderRadius.circular(10),
@@ -111,8 +208,9 @@ class _BuyListState extends State<BuyList> {
                         'Add New Item',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.bold,
-                          color: theme.shiokuriBlue, // Use theme color
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: theme.shiokuriBlue,
                         ),
                       ),
                       const SizedBox(height: 25),
@@ -120,21 +218,26 @@ class _BuyListState extends State<BuyList> {
                         controller: itemNameController,
                         textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
-                          labelText: 'Item Name', hintText: 'e.g., Coffee Beans',
-                          prefixIcon: const Icon(Icons.shopping_basket_outlined),
+                          labelText: 'Item Name',
+                          hintText: 'e.g., Coffee Beans',
+                          prefixIcon:
+                              const Icon(Icons.shopping_basket_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(color: Colors.grey[400]!),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: theme.shiokuriBlue, width: 2),
+                            borderSide:
+                                BorderSide(color: theme.shiokuriBlue, width: 2),
                           ),
-                          filled: true, fillColor: Colors.grey[50],
+                          filled: true,
+                          fillColor: Colors.grey[50],
                         ),
                         onTap: () {
                           draggableController.animateTo(
-                            0.9, duration: const Duration(milliseconds: 300),
+                            0.9,
+                            duration: const Duration(milliseconds: 300),
                             curve: Curves.easeOutCubic,
                           );
                         },
@@ -142,10 +245,12 @@ class _BuyListState extends State<BuyList> {
                       const SizedBox(height: 20),
                       TextField(
                         controller: priceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.done,
                         decoration: InputDecoration(
-                          labelText: 'Price (RM)', hintText: 'e.g., 25.50',
+                          labelText: 'Price (RM)',
+                          hintText: 'e.g., 25.50',
                           prefixIcon: const Icon(Icons.attach_money),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -153,13 +258,16 @@ class _BuyListState extends State<BuyList> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: theme.shiokuriBlue, width: 2),
+                            borderSide:
+                                BorderSide(color: theme.shiokuriBlue, width: 2),
                           ),
-                          filled: true, fillColor: Colors.grey[50],
+                          filled: true,
+                          fillColor: Colors.grey[50],
                         ),
                         onTap: () {
                           draggableController.animateTo(
-                            0.9, duration: const Duration(milliseconds: 300),
+                            0.9,
+                            duration: const Duration(milliseconds: 300),
                             curve: Curves.easeOutCubic,
                           );
                         },
@@ -167,7 +275,8 @@ class _BuyListState extends State<BuyList> {
                       const SizedBox(height: 30),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.add_shopping_cart),
-                        label: const Text('Add Item', style: TextStyle(fontSize: 16)),
+                        label:
+                            const Text('Add Item', style: TextStyle(fontSize: 16)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.shiokuriBlue,
                           foregroundColor: Colors.white,
@@ -181,7 +290,8 @@ class _BuyListState extends State<BuyList> {
                           if (itemNameController.text.isNotEmpty &&
                               priceController.text.isNotEmpty) {
                             final String itemId = const Uuid().v4();
-                            final double price = double.tryParse(priceController.text) ?? 0.0;
+                            final double price =
+                                double.tryParse(priceController.text) ?? 0.0;
                             final String itemName = itemNameController.text;
 
                             final newItem = BuyListItem(
@@ -191,18 +301,20 @@ class _BuyListState extends State<BuyList> {
                               createdAt: DateTime.now(),
                             );
 
-                            await _buyListBox.put(itemId, newItem); // Save to Hive
+                            await _buyListBox.put(itemId, newItem);
 
                             itemNameController.clear();
                             priceController.clear();
                             Navigator.pop(context); // Close modal
 
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Item added successfully!')),
+                              const SnackBar(
+                                  content: Text('Item added successfully!')),
                             );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please fill in all fields.')),
+                              const SnackBar(
+                                  content: Text('Please fill in all fields.')),
                             );
                           }
                         },
@@ -220,60 +332,53 @@ class _BuyListState extends State<BuyList> {
 
   Future<void> addToExpense(BuildContext context, BuyListItem item) async {
     DateTime now = DateTime.now();
-    String formattedDate = DateFormat('yyyy-MM').format(now); // Ensures MM format (e.g., "2023-11")
+    String formattedDate = DateFormat('yyyy-MM').format(now);
     Uuid uuid = const Uuid();
     String expenseId = uuid.v4();
 
     try {
-      // 1. Add to Firebase expenses collection
       await FirebaseFirestore.instance
           .collection("expenses")
-          .doc(userId.uid) // Make sure userId.uid is available and correct
+          .doc(userId.uid)
           .collection(formattedDate)
           .doc(expenseId)
           .set({
-        "category": 'Shopping', // Or 'Others'
+        "category": 'Shopping',
         "amount": item.price,
         "description": item.itemName,
-        "date": now.day, // Storing day of the month
-        "monthYear": formattedDate, // Storing YYYY-MM for easier querying if needed
-        "expenseId": expenseId, // Storing the generated expenseId
-        "fullDate": Timestamp.fromDate(now), // Storing full timestamp
-        "timestamp": FieldValue.serverTimestamp(), // Firestore server timestamp
-        "type": "expense", // To distinguish from income if this collection is shared
-        "sourceBuyListId": item.id, 
+        "date": now.day,
+        "monthYear": formattedDate,
+        "expenseId": expenseId,
+        "fullDate": Timestamp.fromDate(now),
+        "timestamp": FieldValue.serverTimestamp(),
+        "type": "expense",
+        "sourceBuyListId": item.id,
       });
 
-      // 2. Add to Hive expenses cache (monthlyExpensesCache)
-      // This logic should mirror how DashBoard.dart adds expenses to its cache
-      final expenseCacheBox = Hive.box<List<dynamic>>(dashBoardDBManager.expenseCacheBoxName); // Corrected box name
+      final expenseCacheBox =
+          Hive.box<List<dynamic>>(dashBoardDBManager.expenseCacheBoxName);
       final cacheKey = '${userId.uid}_$formattedDate';
-      
-      List<dynamic> cachedMonthExpensesDynamic = expenseCacheBox.get(cacheKey) ?? [];
-      // Ensure all elements are indeed expenseModel or handle conversion/casting carefully
-      List<expenseModel> cachedMonthExpenses = cachedMonthExpensesDynamic.cast<expenseModel>().toList();
 
+      List<dynamic> cachedMonthExpensesDynamic =
+          expenseCacheBox.get(cacheKey) ?? [];
+      List<expenseModel> cachedMonthExpenses =
+          cachedMonthExpensesDynamic.cast<expenseModel>().toList();
 
       final newExpense = expenseModel(
         id: expenseId,
-        amount: -item.price, // Expenses are typically negative
+        amount: -item.price,
         date: now.day,
         description: item.itemName,
         category: 'Shopping',
         type: 'expense',
-        timestamp: now, // Local timestamp for cache
+        timestamp: now,
         monthYear: formattedDate,
       );
       cachedMonthExpenses.add(newExpense);
-      // Optional: Sort if your dashboard relies on a specific order from cache
       cachedMonthExpenses.sort((a, b) => b.timestamp!.compareTo(a.timestamp!));
       await expenseCacheBox.put(cacheKey, cachedMonthExpenses);
-      
+
       print('Item added to Firebase expenses and Hive cache.');
-
-      // 3. Delete from BuyList Hive box (done in onDismissed after this call)
-      // This will be handled by the onDismissed callback after this function completes successfully.
-
     } catch (error) {
       print('Failed to process item to expense: $error');
       if (context.mounted) {
@@ -281,13 +386,77 @@ class _BuyListState extends State<BuyList> {
           SnackBar(content: Text('Error moving item to expenses: $error')),
         );
       }
-      // Optionally, re-add to buy list or handle error appropriately
-      // Since we are optimistic, if it fails, the item might remain in the buy list
-      // or you might need a mechanism to revert/retry.
-      rethrow; // Rethrow to prevent deletion from buy list if this fails
+      rethrow;
     }
   }
 
+  Widget _buildTodaysSimulatedExpenseCard() {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.fromLTRB(15, 15, 15, 8), // Adjusted margin
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Colors.white, // Card background color
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Today's Simulated Total",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "RM ${_simulatedTodaysTotalExpense.toStringAsFixed(2)}",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: theme.shiokuriBlue,
+                      ),
+                    ),
+                  ],
+                ),
+                Icon(Icons.calculate_outlined,
+                    color: theme.shiokuriBlue, size: 28),
+              ],
+            ),
+            const SizedBox(height: 12),
+             Divider(color: Colors.grey[300]),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                 Text(
+                  "Simulated Avg. Per Item",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  "RM ${_simulatedTodaysAverageExpense.toStringAsFixed(2)}",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.deepPurple[400],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +487,8 @@ class _BuyListState extends State<BuyList> {
           children: [
             Text(
               "Shopping List",
-              style: theme.normal.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+              style: theme.normal
+                  .copyWith(color: Colors.white, fontWeight: FontWeight.bold),
             ),
             Text(
               "Total Plan: RM ${_totalPlannedExpense.toStringAsFixed(2)}",
@@ -328,99 +498,164 @@ class _BuyListState extends State<BuyList> {
         ),
         centerTitle: true,
       ),
-      body: ValueListenableBuilder<Box<BuyListItem>>(
-        valueListenable: _buyListBox.listenable(),
-        builder: (context, box, _) {
-          final items = box.values.toList().cast<BuyListItem>();
-          items.sort((a, b) => b.createdAt.compareTo(a.createdAt)); // Sort by newest first
+      body: Column( // Wrapped body in a Column
+        children: [
+          _buildTodaysSimulatedExpenseCard(), // Added simulation card
+          Expanded( // List takes remaining space
+            child: ValueListenableBuilder<Box<BuyListItem>>(
+              valueListenable: _buyListBox.listenable(),
+              builder: (context, box, _) {
+                final items = box.values.toList().cast<BuyListItem>();
+                items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-          if (items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.shopping_cart_checkout_rounded, size: 80, color: Colors.grey[400]),
-                  const SizedBox(height: 20),
-                  Text("Your shopping list is empty!", style: TextStyle(fontSize: 18, color: Colors.grey[600])),
-                  const SizedBox(height: 10),
-                  Text("Tap '+' to add new items.", style: TextStyle(fontSize: 16, color: Colors.grey[500])),
-                ],
-              ),
-            );
-          }
+                if (items.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.shopping_cart_checkout_rounded,
+                            size: 80, color: Colors.grey[400]),
+                        const SizedBox(height: 20),
+                        Text("Your shopping list is empty!",
+                            style: TextStyle(
+                                fontSize: 18, color: Colors.grey[600])),
+                        const SizedBox(height: 10),
+                        Text("Tap '+' to add new items.",
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.grey[500])),
+                      ],
+                    ),
+                  );
+                }
 
-          return ListView.builder(
-            padding: const EdgeInsets.only(top: 10, bottom: 80), // Padding for FAB
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
+                return ListView.builder(
+                  padding: const EdgeInsets.only(top: 2, bottom: 80), // Adjusted top padding
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final bool isSelected =
+                        _selectedBuyListItemIds.contains(item.id);
 
-              return Dismissible(
-                key: Key(item.id), // Use item's unique ID from Hive object
-                background: _buildSwipeActionLeft(), // Right swipe (Add to Expenses)
-                secondaryBackground: _buildSwipeActionRight(), // Left swipe (Delete)
-                onDismissed: (direction) async {
-                  if (direction == DismissDirection.startToEnd) { // Swiped Right (Add to Expenses)
-                    try {
-                        await addToExpense(context, item); // Pass context here
-                        await _buyListBox.delete(item.key); // Delete from Hive after successful Firebase/cache add
-                         if (mounted) {
+                    return Dismissible(
+                      key: Key(item.id),
+                      background: _buildSwipeActionLeft(),
+                      secondaryBackground: _buildSwipeActionRight(),
+                      onDismissed: (direction) async {
+                        String dismissedItemId = item.id; 
+                        if (direction == DismissDirection.startToEnd) {
+                          try {
+                            await addToExpense(context, item);
+                            await _buyListBox.delete(item.key); 
+                            
+                            if (mounted) {
+                              setState(() {
+                                _selectedBuyListItemIds.remove(dismissedItemId); 
+                              });
+                            }
+                            await _fetchActualTodaysBaseData(); 
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        '${item.itemName} added to expenses')),
+                              );
+                            }
+                          } catch (e) {
+                            print(
+                                "Dismissal cancelled due to error in addToExpense: $e");
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Failed to move to expenses. Item restored.')),
+                              );
+                              setState(() {}); 
+                            }
+                          }
+                        } else if (direction == DismissDirection.endToStart) {
+                          await _buyListBox.delete(item.key); 
+                           if (mounted) {
+                            setState(() { 
+                              bool wasSelected = _selectedBuyListItemIds.remove(dismissedItemId);
+                              if (wasSelected) {
+                                _recalculateSimulatedExpenses(); 
+                              }
+                            });
                             ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('${item.itemName} added to expenses')),
+                                SnackBar(
+                                    content: Text(
+                                        '${item.itemName} removed from list.')),
                             );
-                         }
-                    } catch (e) {
-                        // Error already handled in addToExpense, item remains in list
-                        print("Dismissal cancelled due to error in addToExpense: $e");
-                         if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar( // Show specific error
-                                SnackBar(content: Text('Failed to move to expenses. Item restored.')),
-                            );
-                         }
-                         // To "restore" the item visually if optimistic UI was used, you might need to re-fetch or re-add.
-                         // However, since we await, if addToExpense fails and rethrows, delete won't happen.
-                         // If it doesn't rethrow, then this part is tricky. Best is for addToExpense to be robust.
-                    }
-                  } else if (direction == DismissDirection.endToStart) { // Swiped Left (Delete)
-                    await _buyListBox.delete(item.key); // Delete from Hive
-                     if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${item.itemName} removed from list.')),
-                        );
-                     }
-                  }
-                   _calculateTotalPlannedExpense(); // Recalculate total after any dismissal
-                },
-                child: Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    leading: CircleAvatar(
-                      backgroundColor: theme.shiokuriBlue.withOpacity(0.1),
-                      child: Icon(Icons.local_mall_outlined, color: theme.shiokuriBlue),
-                    ),
-                    title: Text(
-                      item.itemName,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
-                    ),
-                    subtitle: Text(
-                      'Price: RM ${item.price.toStringAsFixed(2)}',
-                      style: const TextStyle(color: Colors.black54, fontSize: 14),
-                    ),
-                    trailing: Icon(Icons.drag_handle, color: Colors.grey[300]),
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                          }
+                        }
+                      },
+                      child: Card(
+                        elevation: isSelected ? 4 : 2.5,
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 15, vertical: 7),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                        color: isSelected 
+                            ? Colors.blueGrey.withOpacity(0.9)
+                            : Colors.white,
+                        child: ListTile(
+                          onTap: () { // Tap to toggle if selection mode is active
+                            if (_selectedBuyListItemIds.isNotEmpty) {
+                               _toggleBuyListItemSelection(item.id);
+                            }
+                            // If selection mode is not active, tap does nothing for selection.
+                            // Long press is needed to initiate.
+                          },
+                          onLongPress: () { // Long press always toggles selection
+                            _toggleBuyListItemSelection(item.id);
+                          },
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 10),
+                          leading: CircleAvatar(
+                            backgroundColor: isSelected
+                                ? Colors.green.withOpacity(0.8) 
+                                : theme.shiokuriBlue.withOpacity(0.1),
+                            child: Icon(
+                              isSelected
+                                  ? Icons.check_circle_outline_rounded 
+                                  : Icons.local_mall_outlined,
+                              color: isSelected
+                                  ? Colors.white
+                                  : theme.shiokuriBlue,
+                                  size: 24,
+                            ),
+                          ),
+                          title: Text(
+                            item.itemName,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16.5,
+                                color: isSelected ? theme.shiokuriBlue : Colors.black87,
+                                ),
+                          ),
+                          subtitle: Text(
+                            'Price: RM ${item.price.toStringAsFixed(2)}',
+                            style: TextStyle(
+                                color: isSelected ? theme.shiokuriBlue.withOpacity(0.8) : Colors.black54, fontSize: 14),
+                          ),
+                          trailing: isSelected
+                            ? Icon(Icons.done_all_rounded, color: Colors.green, size: 22)
+                            : Icon(Icons.drag_handle_rounded, color: Colors.grey[350], size: 22),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSwipeActionLeft() { // For Right Swipe: Add to expenses
+  Widget _buildSwipeActionLeft() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.green,
@@ -434,13 +669,15 @@ class _BuyListState extends State<BuyList> {
         children: [
           Icon(Icons.add_task_rounded, color: Colors.white),
           SizedBox(width: 10),
-          Text('Add to Expenses', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text('Add to Expenses',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  Widget _buildSwipeActionRight() { // For Left Swipe: Delete
+  Widget _buildSwipeActionRight() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.redAccent,
@@ -452,7 +689,9 @@ class _BuyListState extends State<BuyList> {
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Text('Delete Item', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text('Delete Item',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           SizedBox(width: 10),
           Icon(Icons.delete_sweep_rounded, color: Colors.white),
         ],

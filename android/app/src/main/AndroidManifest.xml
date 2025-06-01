@@ -6,8 +6,8 @@ package="com.kotarokase.moneyTracker">
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data
-                android:name="com.google.android.gms.ads.APPLICATION_ID"
-                android:value="ca-app-pub-2930870921842974~3092646708"/>
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" /> 
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -132,9 +132,6 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      // --- Initial Route ---
-      // Use a StreamBuilder to listen to auth state changes
-      // and show AuthScreen or HomeScreen accordingly.
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {

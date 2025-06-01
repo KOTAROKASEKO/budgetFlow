@@ -146,7 +146,7 @@ class _GoalInputPageState extends State<GoalInputPage> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () async{
-                    Navigator.push(
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
                         builder: (context) => ChatWithAIScreen(

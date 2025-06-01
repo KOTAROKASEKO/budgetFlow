@@ -5,7 +5,15 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+Properties properties = new Properties()
+if (rootProject.file("local.properties").exists()) {
+    properties.load(rootProject.file("local.properties").newDataInputStream())
+}
+
 android {
+    buildFeatures {
+        buildConfig true
+    }
     signingConfigs {
         release {
             def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -16,6 +24,8 @@ android {
             storePassword keystoreProperties["storePassword"]
             keyAlias keystoreProperties["keyAlias"]
             keyPassword keystoreProperties["keyPassword"]
+
+            
         }
     }
 
@@ -37,12 +47,27 @@ android {
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = 22
-        versionName = "1.6.1"
+        versionName = "1.7.0"
+
+        def admobAppId = properties.getProperty("admob.app.id") ?: "YOUR_FALLBACK_ADMOB_ID"
+        buildConfigField "String", "ADMOB_APP_ID", "\"${admobAppId}\""
+        manifestPlaceholders = [admobAppId: admobAppId]
+
+        manifestPlaceholders = [
+            admobAppId: admobAppId,
+            applicationName: "io.flutter.app.FlutterApplication" // Or your custom Application class
+        ]
     }
 
     buildTypes {
         release {
             signingConfig = signingConfigs.release
+        }
+        debug {
+            manifestPlaceholders = [
+                admobAppId: "ca-app-pub-3940259994254470~3419835294", // AdMob test ID
+                applicationName: "io.flutter.app.FlutterApplication" // Consistent for debug
+            ]
         }
     }
 }

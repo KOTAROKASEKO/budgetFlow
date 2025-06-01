@@ -513,7 +513,6 @@ class _financialGoalState extends State<financialGoal> {
 
   Widget getTasksForThisWeek() {
     List<Map<String, dynamic>> draggableTaskItems = [];
-    final allPlans = _localDbService.getAllUserPlans();
 
     // Filter for the current goal only, if a specific goal is selected for the calendar view
     // Otherwise, it will show draggable tasks from all plans, which might be confusing.

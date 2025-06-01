@@ -14,6 +14,7 @@ migrate_working_dir/
 app/release-keystore.jks
 android/keystore.properties
 android/app/google-services.json
+local.properties
 firebase.json
 android/app/key.jks
 storeListingPic

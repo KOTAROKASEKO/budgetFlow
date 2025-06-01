@@ -472,7 +472,7 @@ class _DashboardState extends State<Dashboard> {
                       const SizedBox(height: 16),
                       const Text("Finance Planner", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                       const SizedBox(height: 4),
-                      Text("Version 1.6.1", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
+                      Text("Version 1.7.0", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
                     ],
                   ),
                 ),
@@ -1097,29 +1097,28 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _showExpenseInputSheet() {
-    _showTransactionInputSheet(
-      context: context,
-      transactionType: TransactionType.expense,
-      categories: _getExpenseCategoriesWithIcons(),
-      formattedDate: _formattedDate,
-      expenseBox: _expenseBox,
-      fetchDataCallback: fetchData,
-      themeColors: SheetThemeColors(
-        backgroundColor: const Color.fromARGB(255, 85, 85, 85)!,
-        textColor: Colors.white,
-        hintTextColor: const Color.fromARGB(255, 0, 0, 0)!,
-        inputBorderColor: const Color.fromARGB(255, 0, 0, 0)!,
-        focusedInputBorderColor: theme.shiokuriBlue,
-        primaryActionColor: Colors.deepPurple,
-        categorySelectedBackgroundColor: theme.shiokuriBlue.withOpacity(0.2),
-        categorySelectedIconColor: theme.shiokuriBlue,
-        categorySelectedTextColor: const Color.fromARGB(255, 196, 43, 216),
-        categoryUnselectedIconColor: Colors.grey[400]!,
-        categoryUnselectedTextColor: Colors.grey[400]!,
-      ),
-    );
-  }
-
+  _showTransactionInputSheet(
+    context: context,
+    transactionType: TransactionType.expense,
+    categories: _getExpenseCategoriesWithIcons(),
+    formattedDate: _formattedDate,
+    expenseBox: _expenseBox,
+    fetchDataCallback: fetchData,
+    themeColors: SheetThemeColors(
+      backgroundColor: const Color.fromARGB(255, 85, 85, 85), // Dark background (already set)
+      textColor: Colors.white, // Keep text white as it should be visible on dark grey
+      hintTextColor: Colors.grey[400]!, // Change hint text to a lighter grey
+      inputBorderColor: Colors.grey[600]!, // Change border to a visible grey
+      focusedInputBorderColor: theme.shiokuriBlue, // Keep as is
+      primaryActionColor: Colors.deepPurple,
+      categorySelectedBackgroundColor: theme.shiokuriBlue.withOpacity(0.2),
+      categorySelectedIconColor: theme.shiokuriBlue,
+      categorySelectedTextColor: const Color.fromARGB(255, 196, 43, 216),
+      categoryUnselectedIconColor: Colors.grey[400]!,
+      categoryUnselectedTextColor: Colors.grey[400]!,
+    ),
+  );
+}
 
 void _showTransactionInputSheet({
   required BuildContext context,
@@ -1487,7 +1486,7 @@ class _TransactionInputSheetContentState extends State<_TransactionInputSheetCon
             // Amount Field
             TextFormField(
               controller: _amountController,
-              style: TextStyle(color: themeColors.textColor),
+              style: TextStyle(fontWeight: FontWeight.bold,color: const Color.fromARGB(255, 48, 48, 48)),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: "Amount",
@@ -1516,7 +1515,7 @@ class _TransactionInputSheetContentState extends State<_TransactionInputSheetCon
             // Description Field (Optional)
             TextFormField(
               controller: _descriptionController,
-              style: TextStyle(color: themeColors.textColor),
+              style: TextStyle(fontWeight: FontWeight.bold,color: const Color.fromARGB(255, 48, 48, 48)),
               keyboardType: TextInputType.text,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
