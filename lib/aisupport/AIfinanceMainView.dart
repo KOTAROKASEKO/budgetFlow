@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/aisupport/Database/localDatabase.dart';
 import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
 import 'package:moneymanager/aisupport/goal_input/goalInput.dart';
@@ -22,48 +21,22 @@ class _financialGoalState extends State<financialGoal> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay; // Nullable for initial state
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  bool hasGoal = true; // Assume true initially, will be checked
+  bool hasGoal = false; // Assume true initially, will be checked
 
   final LocalDatabaseService _localDbService = LocalDatabaseService();
   Map<DateTime, List<Task>> _tasks = {};
   String _currentGoalName = "Default Goal";
 
-    BannerAd? _bannerAd;
-  bool _isBannerAdLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
     _loadCurrentGoalNameAndTasks(); // Consolidated loading
-    _checkIfUserAlreadyHasGoal(); // Check Firestore for goal existence
-    _loadBannerAd();
+    // _checkIfUserAlreadyHasGoal(); 
   }
 
-    void _loadBannerAd() {
-    _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test Ad Unit ID
-      // Replace with your actual ad unit ID for production
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (Ad ad) {
-          if (mounted) {
-            setState(() {
-              _isBannerAdLoaded = true;
-            });
-          }
-        },
-        onAdFailedToLoad: (Ad ad, LoadAdError error) {
-          ad.dispose();
-          print('BannerAd failed to load: $error');
-        },
-        onAdOpened: (Ad ad) => print('BannerAd opened.'),
-        onAdClosed: (Ad ad) => print('BannerAd closed.'),
-        onAdImpression: (Ad ad) => print('BannerAd impression.'),
-      ),
-    )..load();
-  }
+
 
 
   // Consolidated method to load goal name and then tasks
@@ -90,6 +63,7 @@ class _financialGoalState extends State<financialGoal> {
 
 
   Future<void> _checkIfUserAlreadyHasGoal() async {
+    
     // This checks Firestore and might influence the `hasGoal` state,
     // particularly for UI elements like the FAB.
     final doc = await FirebaseFirestore.instance
@@ -101,7 +75,7 @@ class _financialGoalState extends State<financialGoal> {
     if (doc.exists) {
       final goals = doc.data()?['goalNameList'];
       if (goals is List && goals.isNotEmpty) {
-        firestoreGoalExists = true;
+          firestoreGoalExists = true;
       }
     }
 

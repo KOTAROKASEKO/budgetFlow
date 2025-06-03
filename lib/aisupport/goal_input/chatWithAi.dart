@@ -1521,7 +1521,6 @@ Do not use markdown formatting. Output ONLY a valid JSON array.
                             horizontal: 15, vertical: 10)), //
                   ),
                   FilledButton.icon(
-                    //
                     icon: Icon(Icons.save_alt_outlined), //
                     label: Text(widget.existingPlanForRefinement != null
                         ? "Save Changes"
@@ -1542,21 +1541,21 @@ Do not use markdown formatting. Output ONLY a valid JSON array.
                                   //
                                   final TextEditingController
                                       _goalNameController =
-                                      TextEditingController(); //
+                                      TextEditingController();
                                   return AlertDialog(
                                     //
                                     shape: RoundedRectangleBorder(
                                       //
                                       borderRadius:
-                                          BorderRadius.circular(20), //
+                                          BorderRadius.circular(20), 
                                     ),
-                                    title: Text("Set Goal Name"), //
+                                    title: Text("Set Goal Name"), 
                                     content: TextField(
-                                      //
-                                      controller: _goalNameController, //
+                                      
+                                      controller: _goalNameController, 
                                       decoration: InputDecoration(
-                                        //
-                                        hintText: "Enter goal name", //
+                                        
+                                        hintText: "Enter goal name", 
                                         border: OutlineInputBorder(
                                           //
                                           borderRadius:
