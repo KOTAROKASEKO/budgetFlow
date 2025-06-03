@@ -114,7 +114,7 @@ class _FeedbackFormState extends State<FeedbackForm> {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: theme.shiokuriBlue, // Use your theme color
+                  color: theme.apptheme_Black, // Use your theme color
                 ),
               ),
               const SizedBox(height: 20),
@@ -127,11 +127,11 @@ class _FeedbackFormState extends State<FeedbackForm> {
                     _feedbackType == null
                         ? Icons.category_outlined
                         : _feedbackTypeIcons[_feedbackTypes.indexOf(_feedbackType!)],
-                    color: theme.shiokuriBlue,
+                    color: theme.apptheme_Black,
                   ),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: theme.shiokuriBlue, width: 2),
+                    borderSide: BorderSide(color: theme.apptheme_Black, width: 2),
                      borderRadius: BorderRadius.circular(12)
                   ),
                   filled: true,
@@ -165,10 +165,10 @@ class _FeedbackFormState extends State<FeedbackForm> {
                 controller: _subjectController,
                 decoration: InputDecoration(
                   labelText: 'Subject (Optional)',
-                  prefixIcon: Icon(Icons.short_text_rounded, color: theme.shiokuriBlue),
+                  prefixIcon: Icon(Icons.short_text_rounded, color: theme.apptheme_Black),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                    focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: theme.shiokuriBlue, width: 2),
+                    borderSide: BorderSide(color: theme.apptheme_Black, width: 2),
                      borderRadius: BorderRadius.circular(12)
                   ),
                   filled: true,
@@ -184,10 +184,10 @@ class _FeedbackFormState extends State<FeedbackForm> {
                 decoration: InputDecoration(
                   labelText: 'Details',
                   hintText: 'Please provide as much detail as possible...',
-                  prefixIcon: Icon(Icons.notes_rounded, color: theme.shiokuriBlue),
+                  prefixIcon: Icon(Icons.notes_rounded, color: theme.apptheme_Black),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                    focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: theme.shiokuriBlue, width: 2),
+                    borderSide: BorderSide(color: theme.apptheme_Black, width: 2),
                      borderRadius: BorderRadius.circular(12)
                   ),
                   filled: true,
@@ -238,7 +238,7 @@ class _FeedbackFormState extends State<FeedbackForm> {
                 icon: const Icon(Icons.send_rounded, size: 20),
                 label: const Text('Submit Feedback', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.shiokuriBlue,
+                  backgroundColor: theme.apptheme_Black,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(

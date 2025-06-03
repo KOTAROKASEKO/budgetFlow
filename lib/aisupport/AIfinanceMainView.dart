@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/aisupport/Database/localDatabase.dart';
 import 'package:moneymanager/aisupport/Database/user_plan_hive.dart';
 import 'package:moneymanager/aisupport/goal_input/goalInput.dart';
@@ -27,13 +28,43 @@ class _financialGoalState extends State<financialGoal> {
   Map<DateTime, List<Task>> _tasks = {};
   String _currentGoalName = "Default Goal";
 
+    BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
     _loadCurrentGoalNameAndTasks(); // Consolidated loading
     _checkIfUserAlreadyHasGoal(); // Check Firestore for goal existence
+    _loadBannerAd();
   }
+
+    void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test Ad Unit ID
+      // Replace with your actual ad unit ID for production
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (Ad ad) {
+          if (mounted) {
+            setState(() {
+              _isBannerAdLoaded = true;
+            });
+          }
+        },
+        onAdFailedToLoad: (Ad ad, LoadAdError error) {
+          ad.dispose();
+          print('BannerAd failed to load: $error');
+        },
+        onAdOpened: (Ad ad) => print('BannerAd opened.'),
+        onAdClosed: (Ad ad) => print('BannerAd closed.'),
+        onAdImpression: (Ad ad) => print('BannerAd impression.'),
+      ),
+    )..load();
+  }
+
 
   // Consolidated method to load goal name and then tasks
   Future<void> _loadCurrentGoalNameAndTasks() async {
@@ -205,59 +236,13 @@ class _financialGoalState extends State<financialGoal> {
           style: TextStyle(
               color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            icon: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Colors.deepPurpleAccent,
-                  shape: BoxShape.circle,
-                ),
-              child:Icon(Icons.flag, color: Colors.white),
-              ),
-            onPressed: () {
-              showModalBottomSheet(
-                enableDrag: true,
-                showDragHandle: true,
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) {
-                  return DraggableScrollableSheet(
-                    initialChildSize: 0.9,
-                    minChildSize: 0.4,
-                    maxChildSize: 0.9,
-                    expand: false,
-                    builder: (context, scrollController) {
-                      return Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(24),
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(24),
-                          ),
-                          child: ProgressManagerScreen(),
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          ),
-        ],
         backgroundColor: Colors.black, // Use a defined color for consistency
         elevation: 0,
       ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column( // Changed to Column for better structure
+          child: ListView( // Changed to Column for better structure
             children: [
               Text(
                 '$_currentGoalName', // Display current goal name
@@ -268,102 +253,175 @@ class _financialGoalState extends State<financialGoal> {
                 ),
                 textAlign: TextAlign.start,
               ),
+              
               const SizedBox(height: 8),
               getTasksForThisWeek(), // This is the horizontal list of draggable tasks
               const SizedBox(height: 24), // Adjusted spacing
-
-              Expanded( // Makes the calendar and task list take available space
-                child: ListView( // Use ListView for scrollability if content overflows
+              GestureDetector(
+                onTap: () {
+                    showModalBottomSheet(
+                      enableDrag: true,
+                      showDragHandle: true,
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) {
+                      return DraggableScrollableSheet(
+                        initialChildSize: 0.9,
+                        minChildSize: 0.4,
+                        maxChildSize: 0.9,
+                        expand: false,
+                        builder: (context, scrollController) {
+                        return Container(
+                          decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          ),
+                          child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          child: ProgressManagerScreen(),
+                          ),
+                        );
+                        },
+                      );
+                      },
+                    );
+                    },
+                  
+                child:Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                  colors: [
+                    Colors.deepPurple.withOpacity(0.85),
+                    Colors.deepPurpleAccent.withOpacity(0.85),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                  BoxShadow(
+                    color: Colors.deepPurple.withOpacity(0.25),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                  ],
+                  border: Border.all(
+                  color: Colors.deepPurpleAccent.withOpacity(0.5),
+                  width: 1.2,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Row(
                   children: [
-                    TableCalendar(
-                      firstDay: DateTime.utc(2020, 1, 1),
-                      lastDay: DateTime.utc(2030, 12, 31),
-                      focusedDay: _focusedDay,
-                      calendarFormat: _calendarFormat,
-                      selectedDayPredicate: (day) {
-                        return isSameDay(_selectedDay, day);
-                      },
-                      onDaySelected: (selectedDay, focusedDay) {
-                        if (!isSameDay(_selectedDay, selectedDay)) {
-                          setState(() {
-                            _selectedDay = selectedDay;
-                            _focusedDay = focusedDay;
-                          });
-                        }
-                      },
-                      onFormatChanged: (format) {
-                        if (_calendarFormat != format) {
-                          setState(() {
-                            _calendarFormat = format;
-                          });
-                        }
-                      },
-                      onPageChanged: (focusedDay) {
-                        _focusedDay = focusedDay;
-                      },
-                      eventLoader: _getTasksForDay,
-                      calendarBuilders: CalendarBuilders(
-                        defaultBuilder: (context, day, focusedDay) {
-                          return _buildCalendarDayCell(day, focusedDay);
-                        },
-                        todayBuilder: (context, day, focusedDay) {
-                          return _buildCalendarDayCell(day, focusedDay,
-                              isToday: true);
-                        },
-                        selectedBuilder: (context, day, focusedDay) {
-                          return _buildCalendarDayCell(day, focusedDay,
-                              isSelected: true);
-                        },
-                        outsideBuilder: (context, day, focusedDay) {
-                          return Opacity(
-                            opacity: 0.5,
-                            child: _buildCalendarDayCell(day, focusedDay,
-                                isOutside: true),
-                          );
-                        },
-                      ),
-                      calendarStyle: CalendarStyle(
-                        todayDecoration: const BoxDecoration(
-                          color: Color(0xFF5A5A5A),
-                          shape: BoxShape.circle,
-                        ),
-                        selectedDecoration: const BoxDecoration(
-                          color: Colors.blueAccent,
-                          shape: BoxShape.circle,
-                        ),
-                        defaultTextStyle: const TextStyle(color: Colors.white),
-                        weekendTextStyle:
-                            const TextStyle(color: Colors.redAccent),
-                        outsideTextStyle:
-                            TextStyle(color: Colors.white.withOpacity(0.4)),
-                        markerDecoration: const BoxDecoration(
-                          color: Color(0xFF8A2BE2),
-                          shape: BoxShape.circle,
-                        ),
-                        markerSize: 6.0,
-                        markersMaxCount: 3,
-                      ),
-                      headerStyle: const HeaderStyle(
-                        formatButtonVisible: false,
-                        titleCentered: true,
-                        titleTextStyle: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold),
-                        leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white),
-                        rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white),
-                      ),
-                      daysOfWeekStyle: const DaysOfWeekStyle(
-                        weekdayStyle: TextStyle(color: Colors.white70),
-                        weekendStyle: TextStyle(color: Colors.redAccent),
-                      ),
+                  Text(
+                    "Review my plan",
+                    style: TextStyle(
+                    color: Colors.white.withOpacity(0.95),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
                     ),
-                    const SizedBox(height: 16),
-                    // Display tasks for the selected day
-                    _buildSelectedDayTasks(),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(Icons.flag, color: Colors.white),
+                  Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
                   ],
                 ),
+                ),
               ),
+              TableCalendar(
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _focusedDay,
+                calendarFormat: _calendarFormat,
+                selectedDayPredicate: (day) {
+                  return isSameDay(_selectedDay, day);
+                },
+                onDaySelected: (selectedDay, focusedDay) {
+                  if (!isSameDay(_selectedDay, selectedDay)) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                  }
+                },
+                onFormatChanged: (format) {
+                  if (_calendarFormat != format) {
+                    setState(() {
+                      _calendarFormat = format;
+                    });
+                  }
+                },
+                onPageChanged: (focusedDay) {
+                  _focusedDay = focusedDay;
+                },
+                eventLoader: _getTasksForDay,
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    return _buildCalendarDayCell(day, focusedDay);
+                  },
+                  todayBuilder: (context, day, focusedDay) {
+                    return _buildCalendarDayCell(day, focusedDay,
+                        isToday: true);
+                  },
+                  selectedBuilder: (context, day, focusedDay) {
+                    return _buildCalendarDayCell(day, focusedDay,
+                        isSelected: true);
+                  },
+                  outsideBuilder: (context, day, focusedDay) {
+                    return Opacity(
+                      opacity: 0.5,
+                      child: _buildCalendarDayCell(day, focusedDay,
+                          isOutside: true),
+                    );
+                  },
+                ),
+                calendarStyle: CalendarStyle(
+                  todayDecoration: const BoxDecoration(
+                    color: Color(0xFF5A5A5A),
+                    shape: BoxShape.circle,
+                  ),
+                  selectedDecoration: const BoxDecoration(
+                    color: Colors.blueAccent,
+                    shape: BoxShape.circle,
+                  ),
+                  defaultTextStyle: const TextStyle(color: Colors.white),
+                  weekendTextStyle:
+                      const TextStyle(color: Colors.redAccent),
+                  outsideTextStyle:
+                      TextStyle(color: Colors.white.withOpacity(0.4)),
+                  markerDecoration: const BoxDecoration(
+                    color: Color(0xFF8A2BE2),
+                    shape: BoxShape.circle,
+                  ),
+                  markerSize: 6.0,
+                  markersMaxCount: 3,
+                ),
+                headerStyle: const HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                  titleTextStyle: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold),
+                  leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white),
+                  rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white),
+                ),
+                daysOfWeekStyle: const DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(color: Colors.white70),
+                  weekendStyle: TextStyle(color: Colors.redAccent),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Display tasks for the selected day
+              _buildSelectedDayTasks(),
+              
+              //advertisement 
             ],
           ),
         ),

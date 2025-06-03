@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 class theme{
-  static final Color shiokuriBlue = Color.fromARGB(255, 0, 0, 0);
+  static final Color apptheme_Black = Color.fromARGB(255, 0, 0, 0);
   static final Color fontColor = Color.fromARGB(255, 255, 255, 255);
   static final Color backgroundColor = Color.fromARGB(255, 61, 61, 61);
   static final Color foregroundColor = Color.fromARGB(255, 251, 251, 251);

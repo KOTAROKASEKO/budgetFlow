@@ -8,6 +8,7 @@ import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:uuid/uuid.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart'; // Import for ads
 
 class BuyList extends StatefulWidget {
   const BuyList({super.key});
@@ -32,6 +33,10 @@ class _BuyListState extends State<BuyList> {
   double _simulatedTodaysTotalExpense = 0.0;
   double _simulatedTodaysAverageExpense = 0.0;
 
+  // Ad variables
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +60,35 @@ class _BuyListState extends State<BuyList> {
         setState(() {}); // Refresh list
       }
     });
+
+    _loadBannerAd(); // Load the banner ad
   }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test Ad Unit ID
+      // Replace with your actual ad unit ID for production
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (Ad ad) {
+          if (mounted) {
+            setState(() {
+              _isBannerAdLoaded = true;
+            });
+          }
+        },
+        onAdFailedToLoad: (Ad ad, LoadAdError error) {
+          ad.dispose();
+          print('BannerAd failed to load: $error');
+        },
+        onAdOpened: (Ad ad) => print('BannerAd opened.'),
+        onAdClosed: (Ad ad) => print('BannerAd closed.'),
+        onAdImpression: (Ad ad) => print('BannerAd impression.'),
+      ),
+    )..load();
+  }
+
 
   Future<void> _fetchActualTodaysBaseData() async {
     DateTime now = DateTime.now();
@@ -147,6 +180,7 @@ class _BuyListState extends State<BuyList> {
     draggableController.dispose();
     itemNameController.dispose();
     priceController.dispose();
+    _bannerAd?.dispose(); // Dispose the banner ad
     super.dispose();
   }
 
@@ -210,7 +244,7 @@ class _BuyListState extends State<BuyList> {
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: theme.shiokuriBlue,
+                          color: theme.apptheme_Black,
                         ),
                       ),
                       const SizedBox(height: 25),
@@ -229,7 +263,7 @@ class _BuyListState extends State<BuyList> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide:
-                                BorderSide(color: theme.shiokuriBlue, width: 2),
+                                BorderSide(color: theme.apptheme_Black, width: 2),
                           ),
                           filled: true,
                           fillColor: Colors.grey[50],
@@ -259,7 +293,7 @@ class _BuyListState extends State<BuyList> {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide:
-                                BorderSide(color: theme.shiokuriBlue, width: 2),
+                                BorderSide(color: theme.apptheme_Black, width: 2),
                           ),
                           filled: true,
                           fillColor: Colors.grey[50],
@@ -278,7 +312,7 @@ class _BuyListState extends State<BuyList> {
                         label:
                             const Text('Add Item', style: TextStyle(fontSize: 16)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.shiokuriBlue,
+                          backgroundColor: theme.apptheme_Black,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(
@@ -420,13 +454,13 @@ class _BuyListState extends State<BuyList> {
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: theme.shiokuriBlue,
+                        color: theme.apptheme_Black,
                       ),
                     ),
                   ],
                 ),
                 Icon(Icons.calculate_outlined,
-                    color: theme.shiokuriBlue, size: 28),
+                    color: theme.apptheme_Black, size: 28),
               ],
             ),
             const SizedBox(height: 12),
@@ -464,7 +498,7 @@ class _BuyListState extends State<BuyList> {
       backgroundColor: theme.backgroundColor,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddItemSheet,
-        backgroundColor: theme.shiokuriBlue,
+        backgroundColor: theme.apptheme_Black,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text("Add Item", style: TextStyle(color: Colors.white)),
         elevation: 4.0,
@@ -475,7 +509,7 @@ class _BuyListState extends State<BuyList> {
         elevation: 0,
         flexibleSpace: Container(
           decoration: BoxDecoration(
-            color: theme.shiokuriBlue,
+            color: theme.apptheme_Black,
             borderRadius: const BorderRadius.only(
               bottomRight: Radius.circular(30),
               bottomLeft: Radius.circular(30),
@@ -498,8 +532,17 @@ class _BuyListState extends State<BuyList> {
         ),
         centerTitle: true,
       ),
-      body: Column( // Wrapped body in a Column
+      body: Column(
         children: [
+          if (_isBannerAdLoaded && _bannerAd != null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            ),
           _buildTodaysSimulatedExpenseCard(), // Added simulation card
           Expanded( // List takes remaining space
             child: ValueListenableBuilder<Box<BuyListItem>>(
@@ -529,7 +572,7 @@ class _BuyListState extends State<BuyList> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.only(top: 2, bottom: 80), // Adjusted top padding
+                  padding: EdgeInsets.only(top: 2, bottom: 80 + (_isBannerAdLoaded ? _bannerAd!.size.height.toDouble() : 0.0)), // Adjusted bottom padding to accommodate ad
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -615,14 +658,14 @@ class _BuyListState extends State<BuyList> {
                           leading: CircleAvatar(
                             backgroundColor: isSelected
                                 ? Colors.green.withOpacity(0.8) 
-                                : theme.shiokuriBlue.withOpacity(0.1),
+                                : theme.apptheme_Black.withOpacity(0.1),
                             child: Icon(
                               isSelected
                                   ? Icons.check_circle_outline_rounded 
                                   : Icons.local_mall_outlined,
                               color: isSelected
                                   ? Colors.white
-                                  : theme.shiokuriBlue,
+                                  : theme.apptheme_Black,
                                   size: 24,
                             ),
                           ),
@@ -631,13 +674,13 @@ class _BuyListState extends State<BuyList> {
                             style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16.5,
-                                color: isSelected ? theme.shiokuriBlue : Colors.black87,
+                                color: isSelected ? theme.apptheme_Black : Colors.black87,
                                 ),
                           ),
                           subtitle: Text(
                             'Price: RM ${item.price.toStringAsFixed(2)}',
                             style: TextStyle(
-                                color: isSelected ? theme.shiokuriBlue.withOpacity(0.8) : Colors.black54, fontSize: 14),
+                                color: isSelected ? theme.apptheme_Black.withOpacity(0.8) : Colors.black54, fontSize: 14),
                           ),
                           trailing: isSelected
                             ? Icon(Icons.done_all_rounded, color: Colors.green, size: 22)
@@ -650,6 +693,7 @@ class _BuyListState extends State<BuyList> {
               },
             ),
           ),
+          
         ],
       ),
     );

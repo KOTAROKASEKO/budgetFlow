@@ -1018,7 +1018,7 @@ Do not use markdown formatting. Output ONLY a valid JSON array.
 
   // Inside _ChatWithAIScreenState class
 
-  Widget _buildTaskCard(Map<String, dynamic> task, bool isSelected,
+  Widget buildTaskCard(Map<String, dynamic> task, bool isSelected,
       VoidCallback onTap, BuildContext context) {
     // We will NOT use Theme.of(context) for colors here, as requested.
     // final theme = Theme.of(context); // Remove this line if you're not using theme colors at all

@@ -67,7 +67,7 @@ class _todoPageState extends State<todoPage> {
             Container(
               width: screenSize.width,
               decoration: BoxDecoration(
-                color: theme.shiokuriBlue,
+                color: theme.apptheme_Black,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -129,7 +129,7 @@ class _todoPageState extends State<todoPage> {
                 todayTextStyle: TextStyle(color: Colors.black),
                 selectedTextStyle: TextStyle(color: Colors.white),
                 selectedDecoration: BoxDecoration(
-                  color: theme.shiokuriBlue,
+                  color: theme.apptheme_Black,
                   shape: BoxShape.circle,
                 ),
                 todayDecoration: BoxDecoration(
@@ -218,7 +218,7 @@ class _todoPageState extends State<todoPage> {
                           blurRadius: 10,
                         ),
                       ],
-                      color: theme.shiokuriBlue,
+                      color: theme.apptheme_Black,
                       borderRadius: BorderRadius.circular(40),
                     ),
                     child: Center(

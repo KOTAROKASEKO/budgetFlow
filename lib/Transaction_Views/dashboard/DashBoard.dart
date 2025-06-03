@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
+import 'package:moneymanager/Transaction_Views/analysis/View.dart';
 import 'package:moneymanager/feedback/feedback.dart';
 import 'package:moneymanager/main.dart'; // Or your auth screen like UserAuthScreen
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
@@ -374,7 +375,7 @@ class _DashboardState extends State<Dashboard> {
               hintText: "e.g., 50",
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.0)),
               focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: theme.shiokuriBlue, width: 2),
+                borderSide: BorderSide(color: theme.apptheme_Black, width: 2),
                 borderRadius: BorderRadius.circular(10.0),
               ),
             ),
@@ -389,7 +390,7 @@ class _DashboardState extends State<Dashboard> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: theme.shiokuriBlue,
+                backgroundColor: theme.apptheme_Black,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
@@ -460,13 +461,13 @@ class _DashboardState extends State<Dashboard> {
               children: <Widget>[
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
-                  decoration: BoxDecoration(color: theme.shiokuriBlue.withOpacity(0.15)),
+                  decoration: BoxDecoration(color: theme.apptheme_Black.withOpacity(0.15)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       CircleAvatar(
                         radius: 32,
-                        backgroundColor: theme.shiokuriBlue,
+                        backgroundColor: theme.apptheme_Black,
                         child: const Icon(Icons.account_balance_wallet_rounded, size: 30, color: Colors.white),
                       ),
                       const SizedBox(height: 16),
@@ -484,7 +485,7 @@ class _DashboardState extends State<Dashboard> {
                         context: context,
                         icon: Icons.exit_to_app_outlined,
                         text: 'Sign Out',
-                        accentColor: theme.shiokuriBlue,
+                        accentColor: theme.apptheme_Black,
                         onTap: () async {
                           Navigator.pop(context);
                           await signOut(context);
@@ -495,7 +496,7 @@ class _DashboardState extends State<Dashboard> {
                         context: context,
                         icon: Icons.feedback_outlined,
                         text: 'Send Feedback',
-                        accentColor: theme.shiokuriBlue,
+                        accentColor: theme.apptheme_Black,
                         onTap: () {
                           Navigator.pop(context);
                           showModalBottomSheet(
@@ -511,7 +512,7 @@ class _DashboardState extends State<Dashboard> {
                         context: context,
                         icon: Icons.info_outline_rounded,
                         text: 'About Us',
-                        accentColor: theme.shiokuriBlue,
+                        accentColor: theme.apptheme_Black,
                         onTap: () {
                           Navigator.pop(context);
                           showDialog(
@@ -521,7 +522,7 @@ class _DashboardState extends State<Dashboard> {
                                     applicationVersion: '1.6.1',
                                     applicationIcon: CircleAvatar(
                                       radius: 20,
-                                      backgroundColor: theme.shiokuriBlue,
+                                      backgroundColor: theme.apptheme_Black,
                                       child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
                                     ),
                                     applicationLegalese: '© ${DateTime.now().year} kotaro.sdn.bhd',
@@ -551,11 +552,23 @@ class _DashboardState extends State<Dashboard> {
       ),
       backgroundColor: theme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.shiokuriBlue,
+        backgroundColor: theme.apptheme_Black,
         elevation: 1,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
         title: Text("Finance Dashboard", style: theme.subtitle),
         centerTitle: true,
+        actions: [
+          GestureDetector(
+            onTap: (){
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AnalysisScreen()),
+                );
+            },
+            child:Icon(Icons.analytics_outlined)
+            ),
+            SizedBox(width: 20,)
+        ],
       ),
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -619,12 +632,12 @@ class _DashboardState extends State<Dashboard> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(35),
               child: LiquidPullToRefresh(
-                color: theme.shiokuriBlue.withAlpha(180),
+                color: theme.apptheme_Black.withAlpha(180),
                 backgroundColor: Colors.white,
                 springAnimationDurationInMilliseconds: 350,
                 onRefresh: _refresh,
                 child: _isLoading
-                    ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(theme.shiokuriBlue)))
+                    ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(theme.apptheme_Black)))
                     : _doesExist
                         ? _buildExpenseList()
                         : _buildNoRecordsMessage(isEmpty: true),
@@ -654,7 +667,7 @@ class _DashboardState extends State<Dashboard> {
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Retry Connection'),
               style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.shiokuriBlue,
+                  backgroundColor: theme.apptheme_Black,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                   textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
@@ -717,7 +730,7 @@ class _DashboardState extends State<Dashboard> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _buildSummaryCard("Daily Budget", _budget.toString(), Icons.account_balance_wallet_outlined, theme.shiokuriBlue, Colors.black87, onTap: _openBudgetDialog),
+                _buildSummaryCard("Daily Budget", _budget.toString(), Icons.account_balance_wallet_outlined, theme.apptheme_Black, Colors.black87, onTap: _openBudgetDialog),
                 _buildSummaryCard("Avg / Day", _avg.toString(), Icons.data_usage_rounded, Colors.orangeAccent.shade700, Colors.black87),
                 _buildSummaryCard('Total Expense', _total.toString(), Icons.arrow_downward_rounded, Colors.red.shade400, Colors.black87),
                 _buildSummaryCard('Total Income', _income.round().toString(), Icons.arrow_upward_rounded, Colors.green.shade500, Colors.black87),
@@ -815,7 +828,7 @@ class _DashboardState extends State<Dashboard> {
         orElse: () => CategoryIcon(
             itemName: "Others",
             itemIcon: Icon(Icons.label_outline_rounded, 
-                         color: (expense.type == "income") ? Colors.green : theme.shiokuriBlue))
+                         color: (expense.type == "income") ? Colors.green : theme.apptheme_Black))
     );
     
     bool isIncome = expense.type == "income";
@@ -833,9 +846,9 @@ class _DashboardState extends State<Dashboard> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: categoryIconData.itemIcon.color?.withOpacity(0.12) ?? theme.shiokuriBlue.withOpacity(0.12),
+          backgroundColor: categoryIconData.itemIcon.color?.withOpacity(0.12) ?? theme.apptheme_Black.withOpacity(0.12),
           child: IconTheme(
-              data: IconThemeData(color: categoryIconData.itemIcon.color ?? theme.shiokuriBlue, size: 22),
+              data: IconThemeData(color: categoryIconData.itemIcon.color ?? theme.apptheme_Black, size: 22),
               child: categoryIconData.itemIcon),
         ),
         title: Text(
@@ -1015,7 +1028,7 @@ class _DashboardState extends State<Dashboard> {
               const SizedBox(height: 18),
               Divider(height: 1, color: Colors.grey[200]),
               ListTile(
-                leading: Icon(Icons.edit_note_rounded, color: theme.shiokuriBlue, size: 26),
+                leading: Icon(Icons.edit_note_rounded, color: theme.apptheme_Black, size: 26),
                 title: Text(editTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 //edit edit edit
                 onTap: () {
@@ -1032,11 +1045,11 @@ class _DashboardState extends State<Dashboard> {
                       textColor: const Color.fromARGB(255, 0, 0, 0),
                       hintTextColor: Colors.grey[500]!,
                       inputBorderColor: Colors.grey[700]!,
-                      focusedInputBorderColor: isIncome ? Colors.greenAccent : theme.shiokuriBlue,
-                      primaryActionColor: isIncome ? Colors.green : theme.shiokuriBlue,
-                      categorySelectedBackgroundColor: isIncome ? Colors.green.withOpacity(0.2) : theme.shiokuriBlue.withOpacity(0.2),
-                      categorySelectedIconColor: isIncome ? Colors.green[300]! : theme.shiokuriBlue,
-                      categorySelectedTextColor: isIncome ? Colors.green[300]! : theme.shiokuriBlue,
+                      focusedInputBorderColor: isIncome ? Colors.greenAccent : theme.apptheme_Black,
+                      primaryActionColor: isIncome ? Colors.green : theme.apptheme_Black,
+                      categorySelectedBackgroundColor: isIncome ? Colors.green.withOpacity(0.2) : theme.apptheme_Black.withOpacity(0.2),
+                      categorySelectedIconColor: isIncome ? Colors.green[300]! : theme.apptheme_Black,
+                      categorySelectedTextColor: isIncome ? Colors.green[300]! : theme.apptheme_Black,
                       categoryUnselectedIconColor: Colors.grey[400]!,
                       categoryUnselectedTextColor: Colors.grey[400]!,
                     ),
@@ -1109,10 +1122,10 @@ class _DashboardState extends State<Dashboard> {
       textColor: Colors.white, // Keep text white as it should be visible on dark grey
       hintTextColor: Colors.grey[400]!, // Change hint text to a lighter grey
       inputBorderColor: Colors.grey[600]!, // Change border to a visible grey
-      focusedInputBorderColor: theme.shiokuriBlue, // Keep as is
+      focusedInputBorderColor: theme.apptheme_Black, // Keep as is
       primaryActionColor: Colors.deepPurple,
-      categorySelectedBackgroundColor: theme.shiokuriBlue.withOpacity(0.2),
-      categorySelectedIconColor: theme.shiokuriBlue,
+      categorySelectedBackgroundColor: theme.apptheme_Black.withOpacity(0.2),
+      categorySelectedIconColor: theme.apptheme_Black,
       categorySelectedTextColor: const Color.fromARGB(255, 196, 43, 216),
       categoryUnselectedIconColor: Colors.grey[400]!,
       categoryUnselectedTextColor: Colors.grey[400]!,
