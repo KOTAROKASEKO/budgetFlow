@@ -8,9 +8,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive/hive.dart';
 import 'package:moneymanager/View_BottomTab.dart';
-import 'package:moneymanager/aisupport/Database/localDatabase.dart';
 import 'package:moneymanager/Transaction_Views/analysis/ViewModel.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
+import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
+import 'package:moneymanager/aisupport/Goal_input/goal_input/goalInputViewModel.dart';
+import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +20,6 @@ import 'firebase_options.dart'; // FlutterFire CLIによって生成されるべ
 import 'package:google_fonts/google_fonts.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
-final LocalDatabaseService localDbService = LocalDatabaseService();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
     
@@ -38,18 +39,28 @@ Future<void> main() async {
   final appDocumentDir = await getApplicationDocumentsDirectory();
   Hive.init(appDocumentDir.path);
 
-  await localDbService.init();
+  final planRepository = PlanRepository();
+
+  await planRepository.initDb();
   await dashBoardDBManager.init();
     
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider<AnalysisViewModel>(
-            create: (_) => AnalysisViewModel()),
+        Provider.value(value: planRepository),
+        ChangeNotifierProvider<AnalysisViewModel>(  
+            create: (_) => AnalysisViewModel()
+            ),
+        ChangeNotifierProvider(
+          create: (context) => RoadmapViewModel(
+            planRepository: context.read<PlanRepository>(), // or Provider.of<PlanRepository>(context, listen: false)
+          ),
+        ),
+
+        ChangeNotifierProvider(create: (_) => GoalInputViewModel()),
       ],
       child: const MyApp(),
     ),

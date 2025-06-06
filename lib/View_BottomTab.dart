@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:moneymanager/Transaction_Views/buyLlist/BuyList.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/DashBoard.dart';
-import 'package:moneymanager/aisupport/AIfinanceMainView.dart';
+import 'package:moneymanager/aisupport/AIRoadMap_DashBoard/Repository_AIRoadMap.dart';
 import 'package:moneymanager/showUpdate.dart';
 import 'package:moneymanager/themeColor.dart';
 
@@ -20,7 +20,7 @@ class _BottomTabState extends State<BottomTab> {
   final List<Widget> _pages = [
     Dashboard(),
     BuyList(),
-    financialGoal(),
+    FinancialGoalPage(),
   ];
 
   @override

@@ -17,7 +17,9 @@ class BuyList extends StatefulWidget {
   _BuyListState createState() => _BuyListState();
 }
 
-class _BuyListState extends State<BuyList> {
+class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
+  @override
+  bool get wantKeepAlive => true;
   final DraggableScrollableController draggableController =
       DraggableScrollableController();
   final TextEditingController itemNameController = TextEditingController();
@@ -494,6 +496,7 @@ class _BuyListState extends State<BuyList> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: theme.backgroundColor,
       floatingActionButton: FloatingActionButton.extended(

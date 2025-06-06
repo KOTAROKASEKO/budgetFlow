@@ -29,7 +29,10 @@ class Dashboard extends StatefulWidget {
   _DashboardState createState() => _DashboardState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixin{
+
+  @override
+  bool get wantKeepAlive => true;
   // Hive Box Names
   static const String _expenseCacheBoxName = 'monthlyExpensesCache';
   static const String _userSettingsBoxName = 'userSettings';
@@ -445,6 +448,7 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     //print("Dashboard build method called. isLoading: $_isLoading, doesExist: $_doesExist, models: ${_expenseModels.length}");
     return Scaffold(
       drawer: GestureDetector(
