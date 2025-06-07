@@ -94,7 +94,7 @@ class TaskHiveModel extends HiveObject {
   // Factory to create from AI response
   factory TaskHiveModel.fromAIMap(Map<String, dynamic> map, TaskLevelName level, String? parentId, int taskOrder) {
     return TaskHiveModel(
-      id: map['id'] as String? ?? _uuid.v4(),
+      id:  _uuid.v4(), //map['id'] as String? ?? _uuid.v4() was original. changed for rubustness
       taskLevel: level,
       parentTaskId: parentId,
       title: map['title'] as String? ?? 'Untitled Task',

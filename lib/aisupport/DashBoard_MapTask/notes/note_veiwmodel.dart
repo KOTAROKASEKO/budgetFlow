@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:moneymanager/aisupport/AIRoadMap_DashBoard/notes/model/note_hive_model.dart';
-import 'package:moneymanager/aisupport/AIRoadMap_DashBoard/notes/note_repository.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/model/note_hive_model.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_repository.dart';
 
 class NoteViewModel extends ChangeNotifier {
   final NoteRepository _noteRepository;

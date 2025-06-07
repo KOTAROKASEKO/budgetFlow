@@ -1,5 +1,5 @@
 import 'package:hive/hive.dart';
-import 'package:moneymanager/aisupport/AIRoadMap_DashBoard/notes/model/note_hive_model.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/model/note_hive_model.dart';
 
 
 class NoteRepository {

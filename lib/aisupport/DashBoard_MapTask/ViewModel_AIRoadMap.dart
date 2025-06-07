@@ -1,7 +1,9 @@
+// lib/aisupport/DashBoard_MapTask/ViewModel_AIRoadMap.dart
+
 import 'package:flutter/material.dart';
-import 'package:moneymanager/aisupport/AIRoadMap_DashBoard/Repository_AIRoadMap.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
-import 'package:moneymanager/aisupport/AIRoadMap_DashBoard/notes/note_veiwmodel.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class AIFinanceViewModel extends ChangeNotifier {
@@ -64,7 +66,8 @@ class AIFinanceViewModel extends ChangeNotifier {
         final dateKey = DateTime.utc(task.dueDate!.year, task.dueDate!.month, task.dueDate!.day);
         newCalendarTasks.putIfAbsent(dateKey, () => []).add(task);
       }
-      if (!task.isDone && task.status != 'scheduled_on_calendar') {
+      // `isDone` や `status` に関係なく、日付が割り当てられていないタスクをドラッグ可能リストに追加
+      if (task.dueDate == null) {
         newDraggableTasks.add(task);
       }
     }
@@ -117,10 +120,25 @@ class AIFinanceViewModel extends ChangeNotifier {
     }
   }
 
+  /// **[NEW]** カレンダー上のタスクをドラッグ可能なリストに戻す
+  Future<void> returnTaskToDraggableList(TaskHiveModel task) async {
+    task.dueDate = null;
+    task.status = 'pending'; // or any other appropriate status
+    await _repository.updateTask(task);
+    if (_currentActiveGoal != null) {
+      await _loadTasksForGoal(_currentActiveGoal!.id);
+    }
+  }
+
   Future<void> toggleTaskCompletion(TaskHiveModel task) async {
     task.isDone = !task.isDone;
     task.status = task.isDone ? "completed" : "pending";
     await _repository.updateTask(task);
+    
+    // UIを即時反映させるために、カレンダーとリストを再構築
+    if (_currentActiveGoal != null) {
+      await _loadTasksForGoal(_currentActiveGoal!.id);
+    }
     notifyListeners();
   }
 

@@ -35,9 +35,6 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
   void _scrollToBottomIfNecessary() {
     Provider.of<PlanCreationViewModel>(context, listen: false);
     
-    // Heuristic: if task hierarchy grew or a new level was added
-    // This might need refinement based on specific ViewModel changes.
-    // For now, let's scroll after any notification if the scroll controller is attached.
     if (_scrollController.hasClients && mounted) {
        WidgetsBinding.instance.addPostFrameCallback((_) { // Ensure it happens after build
         if (_scrollController.position.maxScrollExtent > 0) {
@@ -209,7 +206,6 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<PlanCreationViewModel>();
@@ -360,6 +356,7 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
                                     final task = currentLevelTasks[taskIndex];
                                     bool isSelected = task.id == selectedTaskInThisLevel?.id;
                                     return _buildTaskCard(context, task, isSelected, () {
+                                      print('Tapped object is in ${task.taskLevel}');
                                     viewModel.selectTask(levelIndex, task);
                                     });
                                 },

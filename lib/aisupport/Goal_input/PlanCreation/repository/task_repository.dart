@@ -56,10 +56,12 @@ class PlanRepository {
   }
 
   Future<void> deleteTask(String taskId, {bool recursive = true}) async {
+    print('deleting...');
     final box = await _getBox();
     if (recursive) {
       final List<TaskHiveModel> children = await getSubTasks(taskId);
       for (final child in children) {
+        print('deleted ${child.id}');
         await deleteTask(child.id, recursive: true);
       }
     }

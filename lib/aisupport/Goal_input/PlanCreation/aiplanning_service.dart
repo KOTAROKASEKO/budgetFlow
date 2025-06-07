@@ -1,4 +1,5 @@
-// File: lib/aisupport/services/ai_planning_service.dart
+// lib/aisupport/services/ai_planning_service.dart
+
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -19,11 +20,11 @@ class AIPlanningService {
     required String currentSkill,
     required String preferToEarnMoney,
     required String note,
-  }) : _earnThisYear = earnThisYear,
-       _userPlanDuration = planDuration,
-       _currentSkill = currentSkill,
-       _preferToEarnMoney = preferToEarnMoney,
-       _userNote = note;
+  })  : _earnThisYear = earnThisYear,
+        _userPlanDuration = planDuration,
+        _currentSkill = currentSkill,
+        _preferToEarnMoney = preferToEarnMoney,
+        _userNote = note;
 
   int _parseDurationToMonths(String? durationStr) {
     if (durationStr == null || durationStr.isEmpty) return 6; // Default if unknown
@@ -40,35 +41,46 @@ class AIPlanningService {
   TaskLevelName _determineTargetLevelForInitialBreakdown() {
     int durationInMonths = _parseDurationToMonths(_userPlanDuration);
     if (durationInMonths <= 1) return TaskLevelName.Weekly;
-    if (durationInMonths <= 6) return TaskLevelName.Monthly;
+    if (durationInMonths <= 5) return TaskLevelName.Monthly;//below 5month, will have 5 monthly tasks
     return TaskLevelName.Phase;
   }
 
   TaskLevelName _determineTargetLevelForSubBreakdown(TaskLevelName parentLevel, String parentDuration) {
-    
     // If parent is Goal, use initial logic based on overall plan duration for the first breakdown
-    if (parentLevel == TaskLevelName.Goal) return _determineTargetLevelForInitialBreakdown();
-    _parseDurationToMonths(parentDuration);
+    if (parentLevel == TaskLevelName.Goal) {
+      return _determineTargetLevelForInitialBreakdown();
+    }
 
+    // FIX: The previous implementation had a confusing switch statement that was causing a loop.
+    // This revised logic ensures a clear, hierarchical breakdown.
     switch (parentLevel) {
-      case TaskLevelName.Phase: // Phase (e.g. 3-6 months) -> Monthly
+      case TaskLevelName.Phase:
         return TaskLevelName.Monthly;
-      case TaskLevelName.Monthly: // Monthly (e.g. 1 month) -> Weekly
+      case TaskLevelName.Monthly:
         return TaskLevelName.Weekly;
-      case TaskLevelName.Weekly: // Weekly (e.g. 1 week) -> Daily
+      case TaskLevelName.Weekly:
         return TaskLevelName.Daily;
-      default: // Daily or unknown
+      case TaskLevelName.Daily:
+        // Daily tasks are the lowest level and cannot be broken down further.
+        throw Exception("Cannot break down Daily tasks further.");
+      default:
+        // Handle any unknown or unexpected parent levels.
         throw Exception("Cannot break down $parentLevel further or parent duration is unsuitable.");
     }
   }
-  
+
   String _getExampleDuration(TaskLevelName level) {
     switch (level) {
-      case TaskLevelName.Phase: return "3 months";
-      case TaskLevelName.Monthly: return "1 month";
-      case TaskLevelName.Weekly: return "1 week";
-      case TaskLevelName.Daily: return "1 day";
-      default: return "N/A";
+      case TaskLevelName.Phase:
+        return "3 months";
+      case TaskLevelName.Monthly:
+        return "1 month";
+      case TaskLevelName.Weekly:
+        return "1 week";
+      case TaskLevelName.Daily:
+        return "1 day";
+      default:
+        return "N/A";
     }
   }
 
@@ -100,10 +112,9 @@ class AIPlanningService {
     if (additionalUserInstruction != null && additionalUserInstruction.isNotEmpty) {
       combinedNote += "\nAdditional instruction for this step: $additionalUserInstruction";
     }
-    
-    String taskNoun = targetOutputLevel.toString().split('.').last.toLowerCase();
-    if (taskNoun != "daily" && taskNoun != "phase" ) taskNoun += "s";
 
+    String taskNoun = targetOutputLevel.toString().split('.').last.toLowerCase();
+    if (taskNoun != "daily" && taskNoun != "phase") taskNoun += "s";
 
     String prompt = """
 You are an AI financial goal strategist.
@@ -145,7 +156,7 @@ Example for $taskNoun:
       if (responseText.startsWith("```json")) responseText = responseText.substring(7);
       if (responseText.endsWith("```")) responseText = responseText.substring(0, responseText.length - 3);
       responseText = responseText.trim();
-      
+
       final decodedJson = jsonDecode(responseText);
       if (decodedJson is! List) throw FormatException("AI response is not a JSON list.");
 

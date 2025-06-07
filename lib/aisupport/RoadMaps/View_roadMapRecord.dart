@@ -10,23 +10,21 @@ import 'package:provider/provider.dart';
 class PlanRoadmapScreen extends StatelessWidget {
   const PlanRoadmapScreen({super.key});
 
+  // --- 修正点 3: 長押しメニューをシンプルに ---
+  // メニューから「Bring to Chat/Refine」を削除。タップ操作と重複するため。
   void _showItemOptionsMenu(
     BuildContext context,
     RoadmapViewModel viewModel,
     TaskHiveModel taskItem,
     Offset globalPosition,
   ) {
-    final bool isGoalTask = taskItem.taskLevel == TaskLevelName.Goal && viewModel.navigationStack.isEmpty;
-
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
           globalPosition.dx, globalPosition.dy, MediaQuery.of(context).size.width - globalPosition.dx, MediaQuery.of(context).size.height - globalPosition.dy),
       items: [
-        const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text('Edit'))),
-        const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete), title: Text('Delete'))),
-        if (isGoalTask || taskItem.taskLevel == TaskLevelName.Goal) // Allow "Bring to Chat" only for Goal tasks
-          const PopupMenuItem(value: 'bringToChat', child: ListTile(leading: Icon(Icons.chat_bubble_outline), title: Text('Bring to Chat/Refine'))),
+        const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text('Edit Title'))),
+        const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete), title: Text('Delete Plan'))),
       ],
     ).then((value) {
       if (value == null) return;
@@ -36,39 +34,6 @@ class PlanRoadmapScreen extends StatelessWidget {
           break;
         case 'delete':
           _showDeleteConfirmDialog(context, viewModel, taskItem);
-          break;
-        case 'bringToChat':
-          // Ensure we get the root goal task if 'taskItem' is a sub-task but we are bringing the whole plan to chat.
-          // However, the menu item is only shown for Goal tasks currently based on `isGoalTask`.
-          // If `taskItem` is guaranteed to be the root Goal, then:
-           TaskHiveModel? rootGoalTask = taskItem;
-           if(taskItem.taskLevel != TaskLevelName.Goal && viewModel.currentlyViewedGoalRoot != null){
-             // This case should ideally not happen if the menu is restricted
-             // but as a fallback, use the currently viewed goal root if 'taskItem' is a child
-             rootGoalTask = viewModel.currentlyViewedGoalRoot;
-           } else if (taskItem.taskLevel != TaskLevelName.Goal) {
-             // If we can't find the root, show an error or disable "bring to chat" for non-goals
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Cannot refine. Root goal not identified."), backgroundColor: Colors.orange),
-              );
-              return;
-           }
-
-
-          if (rootGoalTask != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (ctx) => ChangeNotifierProvider(
-                  create: (_) => PlanCreationViewModel(
-                    planRepository: Provider.of<PlanRepository>(context, listen: false),
-                    existingPlanRootTask: rootGoalTask,
-                  ),
-                  child: const PlanCreationScreen(),
-                ),
-              ),
-            );
-          }
           break;
       }
     });
@@ -154,6 +119,7 @@ class PlanRoadmapScreen extends StatelessWidget {
     }
   }
 
+  // --- 修正点 1 & 2: カードのUIとタップ時のナビゲーション先を変更 ---
   Widget _buildGoalGrid(BuildContext context, RoadmapViewModel viewModel) {
     if (viewModel.goalTasks.isEmpty && !viewModel.isLoading) {
       return Center(child: Text(viewModel.errorMessage ?? "No financial plans set up yet. Create one with the AI planner!", style: const TextStyle(color: Colors.white54, fontSize: 16)));
@@ -162,10 +128,10 @@ class PlanRoadmapScreen extends StatelessWidget {
     return GridView.builder(
       padding: const EdgeInsets.all(16.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 1, // Or 2 if you prefer
+        crossAxisCount: 1,
         crossAxisSpacing: 16.0,
         mainAxisSpacing: 16.0,
-        childAspectRatio: 3 / 1.5, // Adjust as needed
+        childAspectRatio: 3 / 1.5,
       ),
       itemCount: viewModel.goalTasks.length,
       itemBuilder: (context, index) {
@@ -178,13 +144,28 @@ class PlanRoadmapScreen extends StatelessWidget {
             color: Colors.deepPurple,
             elevation: 4,
             child: InkWell(
-              onTap: () => viewModel.navigateToTaskChildren(goalTask),
+              // タップでPlanCreationScreenにナビゲート
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => ChangeNotifierProvider(
+                      create: (_) => PlanCreationViewModel(
+                        planRepository: Provider.of<PlanRepository>(context, listen: false),
+                        existingPlanRootTask: goalTask,
+                      ),
+                      child: const PlanCreationScreen(),
+                    ),
+                  ),
+                );
+              },
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column( // Changed to Column for better layout
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // プランのタイトルは残して識別しやすくする
                       Text(
                         goalTask.title,
                         textAlign: TextAlign.center,
@@ -192,13 +173,12 @@ class PlanRoadmapScreen extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         maxLines: 2,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Duration: ${goalTask.duration}",
-                        style: const TextStyle(fontSize: 14, color: Colors.white70),
+                      const SizedBox(height: 12),
+                      // 分かりやすいアクションテキストに変更
+                      const Text(
+                        "View & Refine Roadmap ->",
+                        style: TextStyle(fontSize: 16, color: Colors.white70),
                       ),
-                      const SizedBox(height: 10),
-                      const Icon(Icons.arrow_circle_right_rounded, color: Colors.white, size: 30)
                     ],
                   ),
                 ),
@@ -219,14 +199,14 @@ class PlanRoadmapScreen extends StatelessWidget {
       itemCount: viewModel.currentLevelItems.length,
       itemBuilder: (context, index) {
         final item = viewModel.currentLevelItems[index];
-        bool hasChildren = item.taskLevel != TaskLevelName.Daily; // Daily tasks are the lowest level
+        bool hasChildren = item.taskLevel != TaskLevelName.Daily;
 
         return GestureDetector(
           onLongPressStart: (details) {
             _showItemOptionsMenu(context, viewModel, item, details.globalPosition);
           },
           child: Card(
-            color: Colors.deepPurple.shade400, // Slightly different shade for sub-items
+            color: Colors.deepPurple.shade400,
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             elevation: 2,
             child: ListTile(
@@ -246,7 +226,6 @@ class PlanRoadmapScreen extends StatelessWidget {
                 if (hasChildren) {
                   viewModel.navigateToTaskChildren(item);
                 }
-                // Else: Tapped on a daily task, maybe show details or mark as complete in future
               },
             ),
           ),
@@ -257,33 +236,35 @@ class PlanRoadmapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // It's good practice to get the ViewModel instance once in the build method
-    // if you are not using Consumer/Selector for specific parts.
-    // However, for `WillPopScope` and other parts, direct access is fine if it's a StatelessWidget.
-    // If this were a StatefulWidget, you'd get it in initState or didChangeDependencies.
-    // For StatelessWidget with Provider, using Consumer or context.watch is common.
-    // Let's assume you might wrap parts of the UI with Consumer or use context.watch.
-    final viewModel = Provider.of<RoadmapViewModel>(context); // Or context.watch for auto-rebuild
+    final viewModel = Provider.of<RoadmapViewModel>(context);
 
+    // WillPopScopeはサブタスク表示からの「戻る」挙動のために必要
     return WillPopScope(
-      onWillPop: () => viewModel.goBack(),
+      onWillPop: () async {
+        if (viewModel.navigationStack.isNotEmpty) {
+          await viewModel.goBack();
+          return false; // ViewModelが戻る処理をしたので、システムによる画面終了はしない
+        }
+        return true; // スタックが空なので、システムによる画面終了を許可
+      },
       child: Scaffold(
-        backgroundColor: const Color(0xFF1A1A1A), // Dark background
+        backgroundColor: const Color(0xFF1A1A1A),
         appBar: AppBar(
           centerTitle: true,
           backgroundColor: const Color.fromARGB(255, 81, 81, 81),
           shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(30),
+              // bottomLeft and bottomRight remain unrounded
+            ),
           ),
           title: Text(
             viewModel.navigationStack.isEmpty ? 'My Roadmaps' : viewModel.navigationStack.last['name'],
             style: const TextStyle(color: Colors.white),
           ),
-          // Back button is implicitly handled by WillPopScope and Navigator
         ),
-        body: Builder( // Use Builder to ensure the context has the ViewModel for Consumers/Watch
+        body: Builder(
           builder: (context) {
-            // Re-watch here if you need to react to changes for the whole body
             final vm = context.watch<RoadmapViewModel>();
 
             if (vm.isLoading) {
@@ -297,6 +278,7 @@ class PlanRoadmapScreen extends StatelessWidget {
                 ),
               );
             }
+            // 修正: goalTasksが空でない場合のみ_buildGoalGridを表示
             return vm.navigationStack.isEmpty
                 ? _buildGoalGrid(context, vm)
                 : _buildItemsList(context, vm);

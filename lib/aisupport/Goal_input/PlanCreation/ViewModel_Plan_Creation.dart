@@ -113,7 +113,6 @@ class PlanCreationViewModel extends ChangeNotifier {
     _selectedTasksAtLevel = {};
     _childrenCache.clear(); // Clear cache for a new plan
 
-    // This will fetch tasks for level 0 and _updateHierarchyWithTasks will select the first one by default
     fetchOrBreakdownTasks(parentTask: _currentGoalTask!);
   }
 
@@ -137,43 +136,56 @@ class PlanCreationViewModel extends ChangeNotifier {
 
     _taskHierarchy.clear();
     _selectedTasksAtLevel.clear();
-    _childrenCache.clear(); // Clear cache when loading a new plan for refinement
+    _childrenCache.clear();
 
     List<TaskHiveModel> firstLevelChildren = await _planRepository.getSubTasks(rootGoalTask.id);
 
     if (firstLevelChildren.isNotEmpty) {
-      _childrenCache[rootGoalTask.id] = List.from(firstLevelChildren); // Populate cache
-      _updateHierarchyWithTasks(firstLevelChildren, null); 
+      _childrenCache[rootGoalTask.id] = List.from(firstLevelChildren);
+      _updateHierarchyWithTasks(firstLevelChildren, null);
     } else {
-      // If no children persisted, fetch from AI. This will also use _updateHierarchyWithTasks.
-      // fetchOrBreakdownTasks will populate the cache.
       await fetchOrBreakdownTasks(parentTask: _currentGoalTask!);
     }
     _setLoading(false);
   }
 
-  void selectTask(int level, TaskHiveModel? task) {
+  void _selectTaskInternal(int level, TaskHiveModel? task) {
     _selectedTasksAtLevel[level] = task;
-
+    
     int nextLevel = level + 1;
+    // **THE FIX IS HERE**
+    // When a selection changes, we must remove deeper levels from the hierarchy AND the cache.
     if (nextLevel < _taskHierarchy.length) {
+      // Iterate through all the deeper levels that are about to be removed.
+      for (int i = nextLevel; i < _taskHierarchy.length; i++) {
+        // For each task in those levels, remove it from the children cache.
+        for (var taskToRemove in _taskHierarchy[i]) {
+          _childrenCache.remove(taskToRemove.id);
+        }
+      }
+      // Now, remove the levels from the hierarchy itself.
       _taskHierarchy.removeRange(nextLevel, _taskHierarchy.length);
     }
+    
+    // Clean up the selections map as before.
     _selectedTasksAtLevel.keys.where((k) => k > level).toList().forEach(_selectedTasksAtLevel.remove);
 
     if (task == null) {
-        _selectedTasksAtLevel.remove(level);
+      _selectedTasksAtLevel.remove(level);
     }
+  }
+
+  void selectTask(int level, TaskHiveModel? task) {
+    _selectTaskInternal(level, task);
     notifyListeners();
   }
 
   Future<void> fetchOrBreakdownTasks({
     required TaskHiveModel parentTask,
     int? currentHierarchyLevel,
-    String? additionalInstruction, // If not null, regeneration is requested
+    String? additionalInstruction,
   }) async {
-
-    print('level : ${parentTask.taskLevel}');
+    print('Selected item is in level : ${parentTask.taskLevel}');
     if (_aiService == null) {
       _setError("AI Service not initialized.");
       return;
@@ -182,13 +194,12 @@ class PlanCreationViewModel extends ChangeNotifier {
        notifyListeners();
        return;
     }
+    
     _setLoading(true);
 
     try {
       List<TaskHiveModel> tasksForHierarchy;
-
       if (additionalInstruction != null) {
-        // Regeneration requested: Fetch from AI and update cache
         final List<TaskHiveModel> newSubTasks = await _aiService!.fetchAIPlan(
           parentTask: parentTask,
           additionalUserInstruction: additionalInstruction,
@@ -196,29 +207,36 @@ class PlanCreationViewModel extends ChangeNotifier {
         for (var subTask in newSubTasks) {
             subTask.parentTaskId = parentTask.id;
         }
-        _childrenCache[parentTask.id] = List.from(newSubTasks); // Update cache with new AI results
+        _childrenCache[parentTask.id] = List.from(newSubTasks);
         tasksForHierarchy = newSubTasks;
       } else {
-        // Not regenerating: Try cache, then DB, then AI
+        
+        print('[additional instruction was null]');
+
         if (_childrenCache.containsKey(parentTask.id)) {
-          // Load from cache
+          print('[ViewModel cache contained key]');
           tasksForHierarchy = _childrenCache[parentTask.id]!;
         } else {
-          // Not in cache, try DB
+          print('[ViewModel cache did not contain data. Checking Hive box]');
           List<TaskHiveModel> childrenFromDb = await _planRepository.getSubTasks(parentTask.id);
           if (childrenFromDb.isNotEmpty) {
-            _childrenCache[parentTask.id] = List.from(childrenFromDb); // Cache DB result
+            print('[Found plan in Hive]');
+            _childrenCache[parentTask.id] = List.from(childrenFromDb);
             tasksForHierarchy = childrenFromDb;
-          } else {
-            // Not in DB, fetch from AI
+          } else{
+            print('[Not anywhere in local machine. Fetch from AI]');
             final List<TaskHiveModel> newSubTasks = await _aiService!.fetchAIPlan(
               parentTask: parentTask,
-              additionalUserInstruction: null, // No specific instruction for first time
+              additionalUserInstruction: null,
             );
             for (var subTask in newSubTasks) {
                 subTask.parentTaskId = parentTask.id;
+                print('''{
+id : ${subTask.id},
+parentId : ${subTask.parentTaskId}
+}''');
             }
-            _childrenCache[parentTask.id] = List.from(newSubTasks); // Cache AI result
+            _childrenCache[parentTask.id] = List.from(newSubTasks);
             tasksForHierarchy = newSubTasks;
           }
         }
@@ -230,19 +248,19 @@ class PlanCreationViewModel extends ChangeNotifier {
         _setLoading(false);
     }
   }
-  
+
   void _updateHierarchyWithTasks(List<TaskHiveModel> newTasksForNextLevel, int? parentLevelInHierarchy) {
     int childLevel;
-    if (parentLevelInHierarchy == null) { 
+    if (parentLevelInHierarchy == null) {
         childLevel = 0;
-        _taskHierarchy.clear(); 
-        _selectedTasksAtLevel.clear(); 
+        _taskHierarchy.clear();
+        _selectedTasksAtLevel.clear();
         if (newTasksForNextLevel.isNotEmpty) {
             _taskHierarchy.add(newTasksForNextLevel);
         }
-    } else { 
+    } else {
         childLevel = parentLevelInHierarchy + 1;
-        
+
         if (childLevel < _taskHierarchy.length) {
             _taskHierarchy.removeRange(childLevel, _taskHierarchy.length);
         }
@@ -250,7 +268,7 @@ class PlanCreationViewModel extends ChangeNotifier {
 
         if (newTasksForNextLevel.isNotEmpty) {
              while (_taskHierarchy.length <= childLevel) {
-                _taskHierarchy.add([]); 
+                _taskHierarchy.add([]);
             }
             _taskHierarchy[childLevel] = newTasksForNextLevel;
         } else {
@@ -261,13 +279,11 @@ class PlanCreationViewModel extends ChangeNotifier {
     }
 
     if (childLevel < _taskHierarchy.length && _taskHierarchy[childLevel].isNotEmpty) {
-        _selectedTasksAtLevel[childLevel] = _taskHierarchy[childLevel].first;
+        _selectTaskInternal(childLevel, _taskHierarchy[childLevel].first);
     } else {
         _selectedTasksAtLevel.remove(childLevel);
     }
-    // notifyListeners() is handled by the calling method (_setLoading(false) or _setError or notifyListeners() in selectTask)
   }
-
 
   Future<bool> savePlan() async {
     if (_currentGoalTask == null) {
@@ -279,50 +295,55 @@ class PlanCreationViewModel extends ChangeNotifier {
       return false;
     }
     _setLoading(true);
-    _currentGoalTask!.title = _goalName.trim(); 
-
-    List<TaskHiveModel> allTasksToSave = [_currentGoalTask!];
-    
-    for (int i = 0; i < _taskHierarchy.length; i++) {
-        allTasksToSave.addAll(_taskHierarchy[i]);
-    }
-    
-    for(int level = 0; level < _taskHierarchy.length; level++){
-        TaskHiveModel? parentForThisLevel;
-        if(level == 0) { 
-            parentForThisLevel = _currentGoalTask;
-        } else { 
-            parentForThisLevel = _selectedTasksAtLevel[level-1];
-        }
-
-        if(parentForThisLevel != null && level < _taskHierarchy.length){ 
-            for(var taskInLevel in _taskHierarchy[level]){
-                taskInLevel.parentTaskId = parentForThisLevel.id;
-            }
-        }
-    }
-    
-    allTasksToSave = allTasksToSave.toSet().toList(); 
 
     try {
-      await _planRepository.saveAllTasks(allTasksToSave);
+      
+      final List<TaskHiveModel> tasksToUpsert = [];
+
+      _currentGoalTask!.title = _goalName.trim();
+      tasksToUpsert.add(_currentGoalTask!);
+
+      for (final parentId in _childrenCache.keys) {
+
+        final newChildren = _childrenCache[parentId]!;
+        final oldChildren = await _planRepository.getSubTasks(parentId);
+        final newChildrenIds = newChildren.map((c) => c.id).toSet();
+
+        for (final oldChild in oldChildren) {
+          if (!newChildrenIds.contains(oldChild.id)) {
+            // このタスクは削除されたので、その子供も含めて再帰的にDBから削除
+            await _planRepository.deleteTask(oldChild.id, recursive: true);
+          }
+        }
+
+        // 5. 新しい子供リストを保存（更新/作成）対象に追加
+        for (final newChild in newChildren) {
+          newChild.parentTaskId = parentId; // 親子関係を再確認
+        }
+        tasksToUpsert.addAll(newChildren);
+      }
+
+      await _planRepository.saveAllTasks(tasksToUpsert);
+
+      _childrenCache.clear();
       _setLoading(false);
       return true;
+
     } catch (e) {
       _setError("Failed to save plan: ${e.toString()}");
       return false;
     }
   }
-  
+
   Future<void> regenerateTasksForSelectedParent(String? instruction) async {
     int? selectedLevelForParentContext;
     TaskHiveModel? parentTaskToRegenerateChildrenFor;
 
     if (_selectedTasksAtLevel.isEmpty && _currentGoalTask != null) {
         parentTaskToRegenerateChildrenFor = _currentGoalTask;
-        selectedLevelForParentContext = null; 
+        selectedLevelForParentContext = null;
     } else {
-        for (int i = _taskHierarchy.length -1; i >= 0; i--) { // Iterate from deepest selected level upwards
+        for (int i = _taskHierarchy.length -1; i >= 0; i--) { 
             if (_selectedTasksAtLevel.containsKey(i) && _selectedTasksAtLevel[i] != null) {
                 parentTaskToRegenerateChildrenFor = _selectedTasksAtLevel[i];
                 selectedLevelForParentContext = i;
@@ -334,12 +355,12 @@ class PlanCreationViewModel extends ChangeNotifier {
             selectedLevelForParentContext = null;
         }
     }
-    
+
     if (parentTaskToRegenerateChildrenFor != null) {
       await fetchOrBreakdownTasks(
           parentTask: parentTaskToRegenerateChildrenFor,
           currentHierarchyLevel: selectedLevelForParentContext,
-          additionalInstruction: instruction // This signals regeneration
+          additionalInstruction: instruction
       );
     } else {
       _setError("No task context found to regenerate for, or no main goal initialized.");
