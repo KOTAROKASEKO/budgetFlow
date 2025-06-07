@@ -59,8 +59,6 @@ dependencies:
   google_mobile_ads: ^6.0.0
   collection: ^1.17.0
   isar: ^3.1.0+1
-  # google_mobile_ads: ^6.0.0
-  # google_mobile_ads: ^6.0.0
   # url_launcher: ^6.3.1 # コメントアウトされていますが、もし使うなら dependencies です
 
 dev_dependencies:
@@ -84,6 +82,7 @@ flutter:
     - assets/facebook.png
     - assets/apple.png
     - assets/placeholder_profile.png
+    - assets/marble.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -25,14 +25,6 @@ Future<void> main() async {
     
   MobileAds.instance.initialize();
 
-  BannerAd myBanner = BannerAd(
-    adUnitId: 'ca-app-pub-1761598891234951/7527486247',
-    size: AdSize.banner,
-    request: AdRequest(),
-    listener: BannerAdListener(),
-  );
-  myBanner.load();
-
   // Hide navigation bar, but allow it to show on user interaction
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 

@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // FilteringTextInputFormatter に必要
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+// import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart'; //
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart'; //
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart'; //
@@ -32,8 +32,8 @@ class _GoalInputPageState extends State<GoalInputPage> {
   final TextEditingController _durationNumericController = TextEditingController();
 
   // Ad variables
-  BannerAd? _bannerAd; //
-  bool _isBannerAdLoaded = false; //
+  // BannerAd? _bannerAd; //
+  // bool _isBannerAdLoaded = false; //
 
   // Theme colors (洗練されたダークテーマ)
   final Color primaryBgColor = const Color(0xFF1C1C2E); // 深いインディゴ
@@ -46,7 +46,7 @@ class _GoalInputPageState extends State<GoalInputPage> {
   @override
   void initState() {
     super.initState();
-    _loadBannerAd(); //
+    // _loadBannerAd(); //
 
     // 期間の数値コントローラーを初期化 (例: デフォルトで6ヶ月)
     _durationNumericController.text = "6";
@@ -81,29 +81,29 @@ class _GoalInputPageState extends State<GoalInputPage> {
     _noteController.dispose(); //
     _durationController.dispose();
     _durationNumericController.dispose();
-    _bannerAd?.dispose(); //
+    // _bannerAd?.dispose(); //
     super.dispose();
   }
 
-  void _loadBannerAd() {
-    _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Androidテスト広告ユニットID
-      request: const AdRequest(), //
-      size: AdSize.banner, //
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          if (!mounted) return;
-          setState(() {
-            _isBannerAdLoaded = true; //
-          });
-        },
-        onAdFailedToLoad: (ad, err) {
-          ad.dispose();
-          _isBannerAdLoaded = false; //
-        },
-      ),
-    )..load(); //
-  }
+  // void _loadBannerAd() {
+  //   _bannerAd = BannerAd(
+  //     adUnitId: 'ca-app-pub-1761598891234951/7527486247',
+  //     request: const AdRequest(), //
+  //     size: AdSize.banner, //
+  //     listener: BannerAdListener(
+  //       onAdLoaded: (ad) {
+  //         if (!mounted) return;
+  //         setState(() {
+  //           _isBannerAdLoaded = true; //
+  //         });
+  //       },
+  //       onAdFailedToLoad: (ad, err) {
+  //         ad.dispose();
+  //         _isBannerAdLoaded = false; //
+  //       },
+  //     ),
+  //   )..load(); //
+  // }
 
   // 数値の月を "X Month(s)" 形式の文字列に変換し、メインの期間コントローラーを更新
   void _updateMainDurationController(int months) {
@@ -364,13 +364,14 @@ class _GoalInputPageState extends State<GoalInputPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 children: [
                   const SizedBox(height: 16),
-                  if (_isBannerAdLoaded && _bannerAd != null) // バナー広告
-                    Container(
-                      alignment: Alignment.center,
-                      width: _bannerAd!.size.width.toDouble(),
-                      height: _bannerAd!.size.height.toDouble(),
-                      child: AdWidget(ad: _bannerAd!),
-                    ),
+                  // if (_isBannerAdLoaded && _bannerAd != null) // バナー広告
+                  //   Container(
+                  //     alignment: Alignment.center,
+                  //     width: _bannerAd!.size.width.toDouble(),
+                  //     height: _bannerAd!.size.height.toDouble(),
+                  //     child: AdWidget(ad: _bannerAd!),
+                  //   ),
+                  
                   const SizedBox(height: 24),
 
                   _buildInputSection(

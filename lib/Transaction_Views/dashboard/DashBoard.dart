@@ -449,7 +449,6 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    //print("Dashboard build method called. isLoading: $_isLoading, doesExist: $_doesExist, models: ${_expenseModels.length}");
     return Scaffold(
       drawer: GestureDetector(
         onTap: () {
@@ -554,7 +553,9 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
           ),
         ),
       ),
+     
       backgroundColor: theme.backgroundColor,
+     
       appBar: AppBar(
         backgroundColor: theme.apptheme_Black,
         elevation: 1,
@@ -574,6 +575,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
             SizedBox(width: 20,)
         ],
       ),
+     
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -615,7 +617,14 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     if (!_isOnline && _expenseModels.isEmpty && !_isLoading) {
       return _buildOfflineMessage();
     }
-    return Column(
+    return 
+    Container(
+      decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/marble.png'), // ここに大理石の画像パスを指定
+            fit: BoxFit.cover, // 画面全体を覆うように画像を拡大縮小
+          ),),
+      child:Column(
       children: [
         _buildSummarySection(),
         _buildMonthNavigator(),
@@ -651,7 +660,8 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
         ),
         const SizedBox(height: 60), // Space for FAB
       ],
-    );
+    ),
+  );
   }
 
   Widget _buildOfflineMessage() {

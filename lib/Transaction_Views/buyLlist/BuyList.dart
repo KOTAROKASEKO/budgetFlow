@@ -8,7 +8,7 @@ import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/uid/uid.dart';
 import 'package:uuid/uuid.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart'; // Import for ads
+// import 'package:google_mobile_ads/google_mobile_ads.dart'; // Import for ads
 
 class BuyList extends StatefulWidget {
   const BuyList({super.key});
@@ -36,8 +36,8 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
   double _simulatedTodaysAverageExpense = 0.0;
 
   // Ad variables
-  BannerAd? _bannerAd;
-  bool _isBannerAdLoaded = false;
+  // BannerAd? _bannerAd;
+  // bool _isBannerAdLoaded = false;
 
   @override
   void initState() {
@@ -63,33 +63,33 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
       }
     });
 
-    _loadBannerAd(); // Load the banner ad
+    // _loadBannerAd(); // Load the banner ad
   }
 
-  void _loadBannerAd() {
-    _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111', // Test Ad Unit ID
-      // Replace with your actual ad unit ID for production
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (Ad ad) {
-          if (mounted) {
-            setState(() {
-              _isBannerAdLoaded = true;
-            });
-          }
-        },
-        onAdFailedToLoad: (Ad ad, LoadAdError error) {
-          ad.dispose();
-          print('BannerAd failed to load: $error');
-        },
-        onAdOpened: (Ad ad) => print('BannerAd opened.'),
-        onAdClosed: (Ad ad) => print('BannerAd closed.'),
-        onAdImpression: (Ad ad) => print('BannerAd impression.'),
-      ),
-    )..load();
-  }
+  // void _loadBannerAd() {
+  //   _bannerAd = BannerAd(
+  //     adUnitId: 'ca-app-pub-1761598891234951/7527486247', // Test Ad Unit ID
+  //     // Replace with your actual ad unit ID for production
+  //     size: AdSize.banner,
+  //     request: const AdRequest(),
+  //     listener: BannerAdListener(
+  //       onAdLoaded: (Ad ad) {
+  //         if (mounted) {
+  //           setState(() {
+  //             _isBannerAdLoaded = true;
+  //           });
+  //         }
+  //       },
+  //       onAdFailedToLoad: (Ad ad, LoadAdError error) {
+  //         ad.dispose();
+  //         print('BannerAd failed to load: $error');
+  //       },
+  //       onAdOpened: (Ad ad) => print('BannerAd opened.'),
+  //       onAdClosed: (Ad ad) => print('BannerAd closed.'),
+  //       onAdImpression: (Ad ad) => print('BannerAd impression.'),
+  //     ),
+  //   )..load();
+  // }
 
 
   Future<void> _fetchActualTodaysBaseData() async {
@@ -182,7 +182,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
     draggableController.dispose();
     itemNameController.dispose();
     priceController.dispose();
-    _bannerAd?.dispose(); // Dispose the banner ad
+    // _bannerAd?.dispose(); // Dispose the banner ad
     super.dispose();
   }
 
@@ -537,15 +537,15 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
       ),
       body: Column(
         children: [
-          if (_isBannerAdLoaded && _bannerAd != null)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SizedBox(
-                width: _bannerAd!.size.width.toDouble(),
-                height: _bannerAd!.size.height.toDouble(),
-                child: AdWidget(ad: _bannerAd!),
-              ),
-            ),
+          // if (_isBannerAdLoaded && _bannerAd != null)
+          //   Align(
+          //     alignment: Alignment.bottomCenter,
+          //     child: SizedBox(
+          //       width: _bannerAd!.size.width.toDouble(),
+          //       height: _bannerAd!.size.height.toDouble(),
+          //       child: AdWidget(ad: _bannerAd!),
+          //     ),
+          //   ),
           _buildTodaysSimulatedExpenseCard(), // Added simulation card
           Expanded( // List takes remaining space
             child: ValueListenableBuilder<Box<BuyListItem>>(
@@ -575,7 +575,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                 }
 
                 return ListView.builder(
-                  padding: EdgeInsets.only(top: 2, bottom: 80 + (_isBannerAdLoaded ? _bannerAd!.size.height.toDouble() : 0.0)), // Adjusted bottom padding to accommodate ad
+                  padding: EdgeInsets.only(top: 2, bottom: 80 /*+ (_isBannerAdLoaded ? _bannerAd!.size.height.toDouble() : 0.0)*/), // Adjusted bottom padding to accommodate ad
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
