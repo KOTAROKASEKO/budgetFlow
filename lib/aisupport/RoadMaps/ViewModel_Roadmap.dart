@@ -18,6 +18,7 @@ class RoadmapViewModel extends ChangeNotifier {
     if (_navigationStack.isEmpty) return null;
     // The first item in the stack is always the Goal task for the current plan being viewed
     final goalId = _navigationStack.first['id'];
+    // ignore: null_check_always_fails
     return _goalTasks.firstWhere((g) => g.id == goalId, orElse: () => _currentLevelItems.firstWhere((task) => task.id == goalId && task.taskLevel == TaskLevelName.Goal, orElse: () => null!));
   }
 

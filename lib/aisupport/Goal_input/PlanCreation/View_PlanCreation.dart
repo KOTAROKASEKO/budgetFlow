@@ -33,7 +33,7 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
   }
 
   void _scrollToBottomIfNecessary() {
-    final viewModel = Provider.of<PlanCreationViewModel>(context, listen: false);
+    Provider.of<PlanCreationViewModel>(context, listen: false);
     
     // Heuristic: if task hierarchy grew or a new level was added
     // This might need refinement based on specific ViewModel changes.

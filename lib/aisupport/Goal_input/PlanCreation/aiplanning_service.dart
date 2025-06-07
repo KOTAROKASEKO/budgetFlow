@@ -48,7 +48,7 @@ class AIPlanningService {
     
     // If parent is Goal, use initial logic based on overall plan duration for the first breakdown
     if (parentLevel == TaskLevelName.Goal) return _determineTargetLevelForInitialBreakdown();
-    int parentDurationInMonths = _parseDurationToMonths(parentDuration);
+    _parseDurationToMonths(parentDuration);
 
     switch (parentLevel) {
       case TaskLevelName.Phase: // Phase (e.g. 3-6 months) -> Monthly
@@ -85,7 +85,6 @@ class AIPlanningService {
 
     TaskLevelName targetOutputLevel;
     String parentContext;
-    String effectiveParentDuration = parentTask?.duration ?? _userPlanDuration;
 
     if (parentTask == null) { // Initial breakdown for the main Goal
       targetOutputLevel = _determineTargetLevelForInitialBreakdown();
