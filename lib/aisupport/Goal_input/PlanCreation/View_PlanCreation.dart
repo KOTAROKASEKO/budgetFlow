@@ -153,7 +153,7 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
   }
 
   Future<void> _showSavePlanDialog(BuildContext context, PlanCreationViewModel viewModel) async {
-    _goalNameController.text = viewModel.goalName; // Pre-fill with current name
+    _goalNameController.text = viewModel.goalName;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -209,7 +209,7 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<PlanCreationViewModel>();
-    final theme = Theme.of(context); // For theme colors if needed later
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: AppTheme.baseBackground, // Or your preferred background

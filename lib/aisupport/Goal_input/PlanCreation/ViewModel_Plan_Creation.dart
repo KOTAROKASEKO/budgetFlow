@@ -24,7 +24,6 @@ class PlanCreationViewModel extends ChangeNotifier {
   String? _errorMessage;
   TaskHiveModel? _existingPlanRootForRefinement;
 
-
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<List<TaskHiveModel>> get taskHierarchy => _taskHierarchy;
@@ -326,6 +325,7 @@ parentId : ${subTask.parentTaskId}
       await _planRepository.saveAllTasks(tasksToUpsert);
 
       _childrenCache.clear();
+      // await _loadExistingPlanForRefinement();
       _setLoading(false);
       return true;
 
@@ -334,6 +334,8 @@ parentId : ${subTask.parentTaskId}
       return false;
     }
   }
+
+ 
 
   Future<void> regenerateTasksForSelectedParent(String? instruction) async {
     int? selectedLevelForParentContext;

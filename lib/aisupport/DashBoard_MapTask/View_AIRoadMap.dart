@@ -2,57 +2,33 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_AIRoadMap.dart';
 import 'package:moneymanager/aisupport/RoadMaps/View_roadMapRecord.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
-import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 import 'package:moneymanager/aisupport/Goal_input/goal_input/goalInput.dart';
-import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_repository.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
+
 
 class FinancialGoalPage extends StatelessWidget {
   const FinancialGoalPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // The providers are now responsible for creating the ViewModel and Repository
-    return MultiProvider(
-      providers: [
-        Provider(create: (context) => NoteRepository()),
-        ChangeNotifierProvider(
-          create: (context) => NoteViewModel(
-            noteRepository: context.read<NoteRepository>(),
-          ),
-        ),
-        Provider(
-          create: (context) => AIFinanceRepository(
-            localPlanRepository: context.read<PlanRepository>(),
-          ),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => AIFinanceViewModel(
-            repository: context.read<AIFinanceRepository>(),
-            noteViewModel: context.read<NoteViewModel>(),
-          ),
-        ),
-      ],
-      child: const _FinancialGoalView(),
-    );
+    // Providerはmain.dartで提供されているので、ここではシンプルにViewを返すだけ
+    return const FinancialGoalView();
   }
 }
 
-class _FinancialGoalView extends StatefulWidget {
-  const _FinancialGoalView();
-
+class FinancialGoalView extends StatefulWidget {
+  const FinancialGoalView();
   @override
-  State<_FinancialGoalView> createState() => _FinancialGoalViewState();
+  State<FinancialGoalView> createState() => _FinancialGoalViewState();
 }
 
-class _FinancialGoalViewState extends State<_FinancialGoalView> {
+class _FinancialGoalViewState extends State<FinancialGoalView> {
   final TextEditingController _noteController = TextEditingController();
   // **[NEW]** Scroll controller for auto-scrolling
   final ScrollController _scrollController = ScrollController();
@@ -269,7 +245,9 @@ class _FinancialGoalViewState extends State<_FinancialGoalView> {
         onPressed: () async {
           await Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const GoalInputPage()));
-          context.read<AIFinanceViewModel>().loadInitialData();
+          if (context.mounted) {
+            context.read<AIFinanceViewModel>().loadInitialData();
+          }
         },
         backgroundColor: Colors.deepPurpleAccent,
         child: const Icon(Icons.add, color: Colors.white),
@@ -472,8 +450,11 @@ class _FinancialGoalViewState extends State<_FinancialGoalView> {
                         ),
                       SizedBox(width: 20,),
                       GestureDetector(
-                        onTap: (){
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const PlanRoadmapScreen()));
+                        onTap: () async {
+                          await Navigator.push(context, MaterialPageRoute(builder: (context) => const PlanRoadmapScreen()));
+                          if (context.mounted) {
+                            context.read<AIFinanceViewModel>().loadInitialData();
+                          }
                         },
                         child:Container(
                         width: 40,

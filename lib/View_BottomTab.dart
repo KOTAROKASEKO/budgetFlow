@@ -88,7 +88,10 @@ class _BottomTabState extends State<BottomTab> {
     return SafeArea(
       child:Scaffold(
       backgroundColor: theme.backgroundColor,
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: Container(
         height: 80,
         decoration: BoxDecoration(

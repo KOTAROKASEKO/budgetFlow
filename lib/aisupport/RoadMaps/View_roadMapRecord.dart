@@ -47,30 +47,103 @@ class PlanRoadmapScreen extends StatelessWidget {
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Edit ${task.title}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title')),
-              TextField(controller: purposeController, decoration: const InputDecoration(labelText: 'Purpose'), maxLines: 3),
-              TextField(controller: durationController, decoration: const InputDecoration(labelText: 'Estimated Duration')),
-            ],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: const Color(0xFF23232B),
+      title: Row(
+        children: [
+        const Icon(Icons.edit, color: Colors.deepPurpleAccent),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+          'Edit ${task.title}',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          overflow: TextOverflow.ellipsis,
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop({
-                'title': titleController.text,
-                'purpose': purposeController.text,
-                'duration': durationController.text,
-              });
-            },
-            child: const Text('Save'),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+          controller: titleController,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: 'Title',
+            labelStyle: const TextStyle(color: Colors.white70),
+            filled: true,
+            fillColor: Colors.deepPurple.shade900.withOpacity(0.2),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.deepPurpleAccent),
+            ),
+          ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+          controller: purposeController,
+          style: const TextStyle(color: Colors.white),
+          maxLines: 3,
+          decoration: InputDecoration(
+            labelText: 'Purpose',
+            labelStyle: const TextStyle(color: Colors.white70),
+            filled: true,
+            fillColor: Colors.deepPurple.shade900.withOpacity(0.2),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.deepPurpleAccent),
+            ),
+          ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+          controller: durationController,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            labelText: 'Estimated Duration',
+            labelStyle: const TextStyle(color: Colors.white70),
+            filled: true,
+            fillColor: Colors.deepPurple.shade900.withOpacity(0.2),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.deepPurpleAccent),
+            ),
+          ),
           ),
         ],
+        ),
+      ),
+      actions: [
+        TextButton(
+        onPressed: () => Navigator.of(ctx).pop(),
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white70,
+          textStyle: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+        icon: const Icon(Icons.save, size: 18),
+        label: const Text('Save'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.deepPurpleAccent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          elevation: 0,
+        ),
+        onPressed: () {
+          Navigator.of(ctx).pop({
+          'title': titleController.text,
+          'purpose': purposeController.text,
+          'duration': durationController.text,
+          });
+        },
+        ),
+      ],
       ),
     );
 
