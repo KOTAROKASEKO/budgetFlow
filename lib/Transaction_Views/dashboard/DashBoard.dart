@@ -5,10 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:moneymanager/Transaction_Views/analysis/View.dart';
 import 'package:moneymanager/feedback/feedback.dart';
-import 'package:moneymanager/main.dart'; // Or your auth screen like UserAuthScreen
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
 import 'package:moneymanager/themeColor.dart';
-import 'package:moneymanager/uid/uid.dart'; // Ensure userId.uid is available
+import 'package:moneymanager/security/Authentication.dart';
+import 'package:moneymanager/security/uid.dart'; // Ensure userId.uid is available
 import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart'; // Import Hive
 
@@ -565,9 +565,20 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
         actions: [
           GestureDetector(
             onTap: (){
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => AnalysisScreen()),
+                Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => AnalysisScreen(),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.ease;
+                  final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                  },
+                ),
                 );
             },
             child:Icon(Icons.analytics_outlined)

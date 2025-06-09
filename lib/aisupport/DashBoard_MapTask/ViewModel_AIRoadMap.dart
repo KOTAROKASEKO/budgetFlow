@@ -36,6 +36,9 @@ class AIFinanceViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _goalAvailability = false;
+  bool get goalAvailability => _goalAvailability;
+
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
@@ -50,6 +53,14 @@ class AIFinanceViewModel extends ChangeNotifier {
       if (_selectedDay != null) {
         noteViewModel.loadNoteForDay(_selectedDay!, _currentActiveGoal!.id);
       }
+      toggleGoalCreationPossibility(false);
+    } else {
+      // **[MODIFY]** Clear all data if no goals exist (e.g., after deletion)
+      _currentActiveGoal = null;
+      _draggableDailyTasks.clear();
+      _calendarTasks.clear();
+      noteViewModel.clearCurrentNote(); // Clear any displayed note
+      toggleGoalCreationPossibility(true);
     }
     _setLoading(false);
   }
@@ -144,5 +155,11 @@ class AIFinanceViewModel extends ChangeNotifier {
 
   List<TaskHiveModel> getTasksForDay(DateTime day) {
     return _calendarTasks[DateTime.utc(day.year, day.month, day.day)] ?? [];
+  }
+  
+  void toggleGoalCreationPossibility(bool availability) {
+    _goalAvailability = availability;
+    print('availability : ${availability}');
+    notifyListeners();
   }
 }

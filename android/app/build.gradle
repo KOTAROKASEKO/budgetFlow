@@ -24,13 +24,11 @@ android {
             storePassword keystoreProperties["storePassword"]
             keyAlias keystoreProperties["keyAlias"]
             keyPassword keystoreProperties["keyPassword"]
-
-            
         }
     }
 
     namespace = "com.kotarokase.moneyTracker"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -34,6 +34,10 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
 
+  // --- NEW: State variable to track the expanded task ---
+  String? _expandedTaskId;
+
+
   @override
   void initState() {
     super.initState();
@@ -157,6 +161,24 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
                               onPageChanged: viewModel.onPageChanged,
                               eventLoader: viewModel.getTasksForDay,
                               calendarBuilders: CalendarBuilders(
+                                // --- NEW: Add markerBuilder to customize event dots ---
+                                markerBuilder: (context, day, events) {
+                                  if (events.isNotEmpty) {
+                                    return Positioned(
+                                      right: 1,
+                                      bottom: 1,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.deepPurpleAccent, // Your custom color
+                                        ),
+                                        width: 7.0,
+                                        height: 7.0,
+                                      ),
+                                    );
+                                  }
+                                  return null;
+                                },
                                 defaultBuilder: (context, day, focusedDay) =>
                                     _buildCalendarDayCell(context, day, focusedDay),
                                 todayBuilder: (context, day, focusedDay) =>
@@ -241,7 +263,8 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
+            
+      floatingActionButton:viewModel.goalAvailability? FloatingActionButton(
         onPressed: () async {
           await Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const GoalInputPage()));
@@ -251,7 +274,8 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
         },
         backgroundColor: Colors.deepPurpleAccent,
         child: const Icon(Icons.add, color: Colors.white),
-      ),
+      ):SizedBox(),
+    
     );
   }
 
@@ -286,53 +310,162 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
     );
   }
 
+  // --- MODIFIED: This entire widget is updated for the new expandable design ---
   Widget _buildSelectedDayTasks(
       BuildContext context, AIFinanceViewModel viewModel) {
     if (viewModel.selectedDay == null) return const SizedBox.shrink();
     final tasks = viewModel.getTasksForDay(viewModel.selectedDay!);
-    if (tasks.isEmpty)
+    if (tasks.isEmpty) {
       return const Center(
           child: Text('No tasks for this day.',
               style: TextStyle(color: Colors.white54, fontSize: 16)));
+    }
 
     return Column(
       children: tasks.map((task) {
-        final taskCard = Card(
-          color: const Color(0xFF2A2A2A),
-          child: ListTile(
-            title: Text(task.title,
+        final isExpanded = _expandedTaskId == task.id;
+
+        // The content of the expanded section
+        final expandedContent = Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.circular(12),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(color: Colors.white24),
+              const SizedBox(height: 8),
+              Text(
+                "Purpose:",
                 style: TextStyle(
-                    color: Colors.white,
-                    decoration: task.isDone
-                        ? TextDecoration.lineThrough
-                        : TextDecoration.none)),
-            trailing: Icon(
-                task.isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: task.isDone ? Colors.greenAccent : Colors.white54),
-            onTap: () => viewModel.toggleTaskCompletion(task),
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                task.purpose ?? 'No purpose defined for this task.',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  onPressed: () => viewModel.toggleTaskCompletion(task),
+                  icon: Icon(
+                    task.isDone
+                        ? Icons.close_rounded
+                        : Icons.check_circle_outline,
+                    size: 18,
+                  ),
+                  label: Text(task.isDone ? "Mark as Incomplete" : "Mark as Done"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: task.isDone
+                        ? Colors.grey.shade600
+                        : Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
 
-        return LongPressDraggable<TaskHiveModel>(
+        final taskCard = Material(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: isExpanded
+              ? const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                )
+              : BorderRadius.circular(12),
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedTaskId = null; // Collapse if tapped again
+                } else {
+                  _expandedTaskId = task.id; // Expand new task
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Column(
+              children: [
+                ListTile(
+                  title: Text(
+                    task.title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      decoration: task.isDone
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor: Colors.white54,
+                    ),
+                  ),
+                  trailing: Icon(
+                    isExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: Colors.white54,
+                  ),
+                ),
+                AnimatedCrossFade(
+                  firstChild: Container(), // Empty container when collapsed
+                  secondChild: expandedContent, // Show details when expanded
+                  crossFadeState: isExpanded
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  duration: const Duration(milliseconds: 300),
+                ),
+              ],
+            ),
+          ),
+        );
+        
+        final draggableItem = LongPressDraggable<TaskHiveModel>(
           data: task,
           feedback: Material(
             color: Colors.transparent,
             child: ConstrainedBox(
               constraints:
                   BoxConstraints(maxWidth: MediaQuery.of(context).size.width - 48),
-              child: taskCard,
+              child: Card(
+                color: const Color(0xFF2A2A2A),
+                child: ListTile(title: Text(task.title, style: const TextStyle(color: Colors.white))),
+              )
             ),
           ),
-          childWhenDragging: Opacity(opacity: 0.5, child: taskCard),
-          // **[NEW]** Stop scrolling when drag ends
+          childWhenDragging: Opacity(
+            opacity: 0.5,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: taskCard
+            )
+          ),
           onDragEnd: (details) {
             _stopScrolling();
           },
           child: taskCard,
         );
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: draggableItem,
+        );
+
       }).toList(),
     );
   }
+
 
   Widget _buildDraggableTasks(
       BuildContext context, AIFinanceViewModel viewModel) {
@@ -414,7 +547,6 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
                   decoration: BoxDecoration(
                       color: Colors.grey.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(14))),
-              // **[NEW]** Stop scrolling when drag ends
               onDragEnd: (details) {
                 _stopScrolling();
               },
@@ -448,27 +580,7 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
                       maxLines: 2,
                           style: TextStyle(color: Colors.white54)
                         ),
-                      SizedBox(width: 20,),
-                      GestureDetector(
-                        onTap: () async {
-                          await Navigator.push(context, MaterialPageRoute(builder: (context) => const PlanRoadmapScreen()));
-                          if (context.mounted) {
-                            context.read<AIFinanceViewModel>().loadInitialData();
-                          }
-                        },
-                        child:Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          
-                          gradient: LinearGradient(colors: [Colors.deepPurple, const Color.fromARGB(255, 148, 109, 255).withOpacity(0.85)])
-                        ),
-                        child: Center(
-                          child: Icon(Icons.add, color: Colors.white,),
-                        ),
-                      ),)
-                          ]))
+                     ]))
               : taskListView,
         );
       },
@@ -514,31 +626,33 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
       backgroundColor: Colors.black,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.9,
-          child: Scaffold(
-            backgroundColor: Colors.black,
-            body: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                    controller: _noteController,
-                    autofocus: true,
-                    expands: true,
-                    maxLines: null,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                    decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        hintText: "Your note...",
-                        hintStyle: TextStyle(color: Colors.white54)))),
-            bottomNavigationBar: Padding(
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Column(children:[Padding(
               padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton(
-                child: const Text("Save Note"),
-                onPressed: () {
-                  noteViewModel.saveNote(_noteController.text, day, goalId);
-                  Navigator.pop(ctx);
-                },
-              ),
+              child: Expanded(
+                child:TextField(
+                  controller: _noteController,
+                  autofocus: true,
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255), fontSize: 18),
+                  decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "Your note...",
+                      hintStyle: TextStyle(color: Colors.white54))
+                      )
+                      )
+                      ),]),
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              child: const Text("Save Note"),
+              onPressed: () {
+                noteViewModel.saveNote(_noteController.text, day, goalId);
+                Navigator.pop(ctx);
+              },
             ),
           ),
         ),
@@ -581,15 +695,21 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
 
   Widget _buildReviewPlanButton(BuildContext context) {
     return GestureDetector(
-      onTap: () => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => DraggableScrollableSheet(
-          initialChildSize: 0.9,
-          builder: (_, controller) => const PlanRoadmapScreen(),
-        ),
-      ),
+      onTap: () async {
+        await showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            builder: (_, controller) => const PlanRoadmapScreen(isModal: true),
+          ),
+        );
+        // After the modal is dismissed, reload data to reflect any changes (like deletion).
+        if (mounted) {
+          context.read<AIFinanceViewModel>().loadInitialData();
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         margin: const EdgeInsets.only(bottom: 8),

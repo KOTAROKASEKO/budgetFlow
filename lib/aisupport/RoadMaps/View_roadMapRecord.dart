@@ -7,11 +7,34 @@ import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 import 'package:provider/provider.dart';
 
-class PlanRoadmapScreen extends StatelessWidget {
-  const PlanRoadmapScreen({super.key});
+// --- MODIFIED: Converted to StatefulWidget and added isModal flag ---
+class PlanRoadmapScreen extends StatefulWidget {
+  final bool isModal;
+  const PlanRoadmapScreen({super.key, this.isModal = false});
 
-  // --- 修正点 3: 長押しメニューをシンプルに ---
-  // メニューから「Bring to Chat/Refine」を削除。タップ操作と重複するため。
+  @override
+  State<PlanRoadmapScreen> createState() => _PlanRoadmapScreenState();
+}
+
+class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
+  late final RoadmapViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = RoadmapViewModel(
+      planRepository: Provider.of<PlanRepository>(context, listen: false),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  // ... (All other helper methods like _showItemOptionsMenu, _showEditDialog, etc. remain unchanged) ...
+  
   void _showItemOptionsMenu(
     BuildContext context,
     RoadmapViewModel viewModel,
@@ -192,7 +215,6 @@ class PlanRoadmapScreen extends StatelessWidget {
     }
   }
 
-  // --- 修正点 1 & 2: カードのUIとタップ時のナビゲーション先を変更 ---
   Widget _buildGoalGrid(BuildContext context, RoadmapViewModel viewModel) {
     if (viewModel.goalTasks.isEmpty && !viewModel.isLoading) {
       return Center(child: Text(viewModel.errorMessage ?? "No financial plans set up yet. Create one with the AI planner!", style: const TextStyle(color: Colors.white54, fontSize: 16)));
@@ -217,7 +239,6 @@ class PlanRoadmapScreen extends StatelessWidget {
             color: Colors.deepPurple,
             elevation: 4,
             child: InkWell(
-              // タップでPlanCreationScreenにナビゲート
               onTap: () {
                 Navigator.push(
                   context,
@@ -238,7 +259,6 @@ class PlanRoadmapScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // プランのタイトルは残して識別しやすくする
                       Text(
                         goalTask.title,
                         textAlign: TextAlign.center,
@@ -247,7 +267,6 @@ class PlanRoadmapScreen extends StatelessWidget {
                         maxLines: 2,
                       ),
                       const SizedBox(height: 12),
-                      // 分かりやすいアクションテキストに変更
                       const Text(
                         "View & Refine Roadmap ->",
                         style: TextStyle(fontSize: 16, color: Colors.white70),
@@ -307,56 +326,73 @@ class PlanRoadmapScreen extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final viewModel = Provider.of<RoadmapViewModel>(context);
+  Widget _buildScaffold(BuildContext context, RoadmapViewModel viewModel) {
+    final mainContent = Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
+      appBar: AppBar(
+        centerTitle: true,
+        backgroundColor: const Color.fromARGB(255, 81, 81, 81),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(30),
+          ),
+        ),
+        title: Text(
+          viewModel.navigationStack.isEmpty
+              ? 'My Roadmaps'
+              : viewModel.navigationStack.last['name'],
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Builder(builder: (context) {
+        if (viewModel.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (viewModel.errorMessage != null &&
+            (viewModel.navigationStack.isEmpty
+                ? viewModel.goalTasks.isEmpty
+                : viewModel.currentLevelItems.isEmpty)) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(viewModel.errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 16),
+                  textAlign: TextAlign.center),
+            ),
+          );
+        }
+        return viewModel.navigationStack.isEmpty
+            ? _buildGoalGrid(context, viewModel)
+            : _buildItemsList(context, viewModel);
+      }),
+    );
 
-    // WillPopScopeはサブタスク表示からの「戻る」挙動のために必要
+    // --- NEW: Conditionally wrap with WillPopScope ---
+    if (widget.isModal) {
+      return mainContent; // If modal, don't use WillPopScope
+    }
+
     return WillPopScope(
       onWillPop: () async {
         if (viewModel.navigationStack.isNotEmpty) {
           await viewModel.goBack();
-          return false; // ViewModelが戻る処理をしたので、システムによる画面終了はしない
+          return false;
         }
-        return true; // スタックが空なので、システムによる画面終了を許可
+        return true;
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF1A1A1A),
-        appBar: AppBar(
-          centerTitle: true,
-          backgroundColor: const Color.fromARGB(255, 81, 81, 81),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(30),
-              // bottomLeft and bottomRight remain unrounded
-            ),
-          ),
-          title: Text(
-            viewModel.navigationStack.isEmpty ? 'My Roadmaps' : viewModel.navigationStack.last['name'],
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
-        body: Builder(
-          builder: (context) {
-            final vm = context.watch<RoadmapViewModel>();
+      child: mainContent,
+    );
+  }
 
-            if (vm.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (vm.errorMessage != null && (vm.navigationStack.isEmpty ? vm.goalTasks.isEmpty : vm.currentLevelItems.isEmpty) ) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(vm.errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center),
-                ),
-              );
-            }
-            // 修正: goalTasksが空でない場合のみ_buildGoalGridを表示
-            return vm.navigationStack.isEmpty
-                ? _buildGoalGrid(context, vm)
-                : _buildItemsList(context, vm);
-          }
-        ),
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<RoadmapViewModel>(
+        builder: (context, viewModel, child) {
+          // Build the UI, now conditionally wrapped by _buildScaffold
+          return _buildScaffold(context, viewModel);
+        },
       ),
     );
   }

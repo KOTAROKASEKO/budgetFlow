@@ -1,3 +1,5 @@
+// aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart
+
 import 'package:flutter/material.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/model/note_hive_model.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_repository.dart';
@@ -43,6 +45,12 @@ class NoteViewModel extends ChangeNotifier {
       await _noteRepository.saveNote(noteToSave);
       _noteForSelectedDay = noteToSave;
     }
+    notifyListeners();
+  }
+
+  /// **[ADD]** Clears the currently displayed note.
+  void clearCurrentNote() {
+    _noteForSelectedDay = null;
     notifyListeners();
   }
 }

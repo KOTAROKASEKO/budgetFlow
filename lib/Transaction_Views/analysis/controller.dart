@@ -3,7 +3,7 @@ import 'package:hive/hive.dart'; // Added Hive
 import 'package:intl/intl.dart';
 import 'package:moneymanager/Transaction_Views/analysis/ViewModel.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart';
-import 'package:moneymanager/uid/uid.dart'; // Assuming userId.uid is accessible
+import 'package:moneymanager/security/uid.dart'; // Assuming userId.uid is accessible
 
 class AnalysisController {
   final AnalysisViewModel viewModel;

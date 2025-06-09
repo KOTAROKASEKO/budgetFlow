@@ -26,6 +26,9 @@ class RoadmapViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // --- NEW ---
+  bool _isDisposed = false;
+
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -33,13 +36,22 @@ class RoadmapViewModel extends ChangeNotifier {
     loadGoalTasks();
   }
 
+  // --- NEW ---
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
   void _setLoading(bool loading) {
+    if (_isDisposed) return; // Prevent calls after dispose
     _isLoading = loading;
     if(loading) _errorMessage = null;
     notifyListeners();
   }
 
   void _setError(String message) {
+    if (_isDisposed) return; // Prevent calls after dispose
     _errorMessage = message;
     _isLoading = false;
     notifyListeners();
@@ -52,9 +64,10 @@ class RoadmapViewModel extends ChangeNotifier {
     try {
       _goalTasks = await _planRepository.getGoalTasks();
       if (_goalTasks.isEmpty) _errorMessage = "No financial plans found. Create one!";
-      _setLoading(false);
     } catch (e) {
       _setError("Failed to load plans: ${e.toString()}");
+    } finally {
+        _setLoading(false);
     }
   }
 
@@ -64,9 +77,10 @@ class RoadmapViewModel extends ChangeNotifier {
     try {
       _currentLevelItems = await _planRepository.getSubTasks(task.id);
       if (_currentLevelItems.isEmpty) _errorMessage = "This item has no sub-tasks.";
-      _setLoading(false);
     } catch (e) {
       _setError("Failed to load sub-tasks for ${task.title}: ${e.toString()}");
+    } finally {
+        _setLoading(false);
     }
   }
 
@@ -83,9 +97,10 @@ class RoadmapViewModel extends ChangeNotifier {
         try {
           _currentLevelItems = await _planRepository.getSubTasks(parent['id']);
            if (_currentLevelItems.isEmpty) _errorMessage = "No sub-tasks found for ${parent['name']}.";
-          _setLoading(false);
         } catch (e) {
           _setError("Failed to load items for ${parent['name']}: ${e.toString()}");
+        } finally {
+           _setLoading(false);
         }
       }
       return false; // Handled navigation
@@ -109,9 +124,10 @@ class RoadmapViewModel extends ChangeNotifier {
         final parentId = _navigationStack.last['id'];
         _currentLevelItems = await _planRepository.getSubTasks(parentId);
       }
-      _setLoading(false);
     } catch (e) {
       _setError("Failed to update task: ${e.toString()}");
+    } finally {
+        _setLoading(false);
     }
   }
 
@@ -121,6 +137,7 @@ class RoadmapViewModel extends ChangeNotifier {
       if (taskToDelete.taskLevel == TaskLevelName.Goal) {
         await _planRepository.deleteGoalAndAllSubTasks(taskToDelete.id);
         await loadGoalTasks(); // Refresh the main list of goals
+        
       } else {
         await _planRepository.deleteTask(taskToDelete.id, recursive: true);
         // Refresh the current view:
@@ -132,9 +149,10 @@ class RoadmapViewModel extends ChangeNotifier {
           await loadGoalTasks();
         }
       }
-      _setLoading(false);
     } catch (e) {
       _setError("Failed to delete task: ${e.toString()}");
+    } finally {
+      _setLoading(false);
     }
   }
 }

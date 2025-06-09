@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart'; // Import for ads
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:moneymanager/Transaction_Views/buyLlist/model/buy_list_item_model.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
 import 'package:moneymanager/themeColor.dart';
-import 'package:moneymanager/uid/uid.dart';
+import 'package:moneymanager/security/uid.dart';
 import 'package:uuid/uuid.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart';
-// import 'package:google_mobile_ads/google_mobile_ads.dart'; // Import for ads
 
 class BuyList extends StatefulWidget {
   const BuyList({super.key});
@@ -17,7 +17,7 @@ class BuyList extends StatefulWidget {
   _BuyListState createState() => _BuyListState();
 }
 
-class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
+class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
   final DraggableScrollableController draggableController =
@@ -36,8 +36,8 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
   double _simulatedTodaysAverageExpense = 0.0;
 
   // Ad variables
-  // BannerAd? _bannerAd;
-  // bool _isBannerAdLoaded = false;
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
 
   @override
   void initState() {
@@ -50,7 +50,8 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
       _calculateTotalPlannedExpense(); // Update AppBar total
 
       bool itemRemovedFromSelection = false;
-      if (event.deleted && _selectedBuyListItemIds.contains(event.key as String)) {
+      if (event.deleted &&
+          _selectedBuyListItemIds.contains(event.key as String)) {
         _selectedBuyListItemIds.remove(event.key as String);
         itemRemovedFromSelection = true;
       }
@@ -63,34 +64,32 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
       }
     });
 
-    // _loadBannerAd(); // Load the banner ad
+    _loadBannerAd(); // Load the banner ad
   }
 
-  // void _loadBannerAd() {
-  //   _bannerAd = BannerAd(
-  //     adUnitId: 'ca-app-pub-1761598891234951/7527486247', // Test Ad Unit ID
-  //     // Replace with your actual ad unit ID for production
-  //     size: AdSize.banner,
-  //     request: const AdRequest(),
-  //     listener: BannerAdListener(
-  //       onAdLoaded: (Ad ad) {
-  //         if (mounted) {
-  //           setState(() {
-  //             _isBannerAdLoaded = true;
-  //           });
-  //         }
-  //       },
-  //       onAdFailedToLoad: (Ad ad, LoadAdError error) {
-  //         ad.dispose();
-  //         print('BannerAd failed to load: $error');
-  //       },
-  //       onAdOpened: (Ad ad) => print('BannerAd opened.'),
-  //       onAdClosed: (Ad ad) => print('BannerAd closed.'),
-  //       onAdImpression: (Ad ad) => print('BannerAd impression.'),
-  //     ),
-  //   )..load();
-  // }
-
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-1761598891234951/7527486247', // Your Ad Unit ID
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (Ad ad) {
+          if (mounted) {
+            setState(() {
+              _isBannerAdLoaded = true;
+            });
+          }
+        },
+        onAdFailedToLoad: (Ad ad, LoadAdError error) {
+          ad.dispose();
+          print('BannerAd failed to load: $error');
+        },
+        onAdOpened: (Ad ad) => print('BannerAd opened.'),
+        onAdClosed: (Ad ad) => print('BannerAd closed.'),
+        onAdImpression: (Ad ad) => print('BannerAd impression.'),
+      ),
+    )..load();
+  }
 
   Future<void> _fetchActualTodaysBaseData() async {
     DateTime now = DateTime.now();
@@ -148,8 +147,6 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
     } else {
       _simulatedTodaysAverageExpense = 0.0;
     }
-
-    // No setState here, calling function will handle it or it's part of a build cycle
   }
 
   void _toggleBuyListItemSelection(String itemId) {
@@ -182,7 +179,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
     draggableController.dispose();
     itemNameController.dispose();
     priceController.dispose();
-    // _bannerAd?.dispose(); // Dispose the banner ad
+    _bannerAd?.dispose(); // Dispose the banner ad
     super.dispose();
   }
 
@@ -264,8 +261,8 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                BorderSide(color: theme.apptheme_Black, width: 2),
+                            borderSide: BorderSide(
+                                color: theme.apptheme_Black, width: 2),
                           ),
                           filled: true,
                           fillColor: Colors.grey[50],
@@ -294,8 +291,8 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                BorderSide(color: theme.apptheme_Black, width: 2),
+                            borderSide: BorderSide(
+                                color: theme.apptheme_Black, width: 2),
                           ),
                           filled: true,
                           fillColor: Colors.grey[50],
@@ -311,8 +308,8 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                       const SizedBox(height: 30),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.add_shopping_cart),
-                        label:
-                            const Text('Add Item', style: TextStyle(fontSize: 16)),
+                        label: const Text('Add Item',
+                            style: TextStyle(fontSize: 16)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: theme.apptheme_Black,
                           foregroundColor: Colors.white,
@@ -429,7 +426,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
   Widget _buildTodaysSimulatedExpenseCard() {
     return Card(
       elevation: 4,
-      margin: const EdgeInsets.fromLTRB(15, 15, 15, 8), // Adjusted margin
+      margin: const EdgeInsets.fromLTRB(15, 8, 15, 8), // Adjusted margin
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       color: Colors.white, // Card background color
       child: Padding(
@@ -466,12 +463,12 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
               ],
             ),
             const SizedBox(height: 12),
-             Divider(color: Colors.grey[300]),
+            Divider(color: Colors.grey[300]),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                 Text(
+                Text(
                   "Simulated Avg. Per Item",
                   style: TextStyle(
                     fontSize: 14,
@@ -537,17 +534,17 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
       ),
       body: Column(
         children: [
-          // if (_isBannerAdLoaded && _bannerAd != null)
-          //   Align(
-          //     alignment: Alignment.bottomCenter,
-          //     child: SizedBox(
-          //       width: _bannerAd!.size.width.toDouble(),
-          //       height: _bannerAd!.size.height.toDouble(),
-          //       child: AdWidget(ad: _bannerAd!),
-          //     ),
-          //   ),
-          _buildTodaysSimulatedExpenseCard(), // Added simulation card
-          Expanded( // List takes remaining space
+          // ** NEW BANNER AD LOCATION **
+          if (_isBannerAdLoaded && _bannerAd != null)
+            Container(
+              margin: const EdgeInsets.only(top: 15),
+              width: _bannerAd!.size.width.toDouble(),
+              height: _bannerAd!.size.height.toDouble(),
+              child: AdWidget(ad: _bannerAd!),
+            ),
+          _buildTodaysSimulatedExpenseCard(),
+          Expanded(
+            // List takes remaining space
             child: ValueListenableBuilder<Box<BuyListItem>>(
               valueListenable: _buyListBox.listenable(),
               builder: (context, box, _) {
@@ -575,7 +572,9 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                 }
 
                 return ListView.builder(
-                  padding: EdgeInsets.only(top: 2, bottom: 80 /*+ (_isBannerAdLoaded ? _bannerAd!.size.height.toDouble() : 0.0)*/), // Adjusted bottom padding to accommodate ad
+                  padding: const EdgeInsets.only(
+                      top: 2,
+                      bottom: 80), // Adjusted bottom padding
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -587,18 +586,19 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                       background: _buildSwipeActionLeft(),
                       secondaryBackground: _buildSwipeActionRight(),
                       onDismissed: (direction) async {
-                        String dismissedItemId = item.id; 
+                        String dismissedItemId = item.id;
                         if (direction == DismissDirection.startToEnd) {
                           try {
                             await addToExpense(context, item);
-                            await _buyListBox.delete(item.key); 
-                            
+                            await _buyListBox.delete(item.key);
+
                             if (mounted) {
                               setState(() {
-                                _selectedBuyListItemIds.remove(dismissedItemId); 
+                                _selectedBuyListItemIds
+                                    .remove(dismissedItemId);
                               });
                             }
-                            await _fetchActualTodaysBaseData(); 
+                            await _fetchActualTodaysBaseData();
 
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -616,22 +616,23 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                                     content: Text(
                                         'Failed to move to expenses. Item restored.')),
                               );
-                              setState(() {}); 
+                              setState(() {});
                             }
                           }
                         } else if (direction == DismissDirection.endToStart) {
-                          await _buyListBox.delete(item.key); 
-                           if (mounted) {
-                            setState(() { 
-                              bool wasSelected = _selectedBuyListItemIds.remove(dismissedItemId);
+                          await _buyListBox.delete(item.key);
+                          if (mounted) {
+                            setState(() {
+                              bool wasSelected = _selectedBuyListItemIds
+                                  .remove(dismissedItemId);
                               if (wasSelected) {
-                                _recalculateSimulatedExpenses(); 
+                                _recalculateSimulatedExpenses();
                               }
                             });
                             ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        '${item.itemName} removed from list.')),
+                              SnackBar(
+                                  content: Text(
+                                      '${item.itemName} removed from list.')),
                             );
                           }
                         }
@@ -642,52 +643,57 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
                             horizontal: 15, vertical: 7),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15)),
-                        color: isSelected 
+                        color: isSelected
                             ? Colors.blueGrey.withOpacity(0.9)
                             : Colors.white,
                         child: ListTile(
-                          onTap: () { // Tap to toggle if selection mode is active
+                          onTap: () {
                             if (_selectedBuyListItemIds.isNotEmpty) {
-                               _toggleBuyListItemSelection(item.id);
+                              _toggleBuyListItemSelection(item.id);
                             }
-                            // If selection mode is not active, tap does nothing for selection.
-                            // Long press is needed to initiate.
                           },
-                          onLongPress: () { // Long press always toggles selection
+                          onLongPress: () {
                             _toggleBuyListItemSelection(item.id);
                           },
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 18, vertical: 10),
                           leading: CircleAvatar(
                             backgroundColor: isSelected
-                                ? Colors.green.withOpacity(0.8) 
+                                ? Colors.green.withOpacity(0.8)
                                 : theme.apptheme_Black.withOpacity(0.1),
                             child: Icon(
                               isSelected
-                                  ? Icons.check_circle_outline_rounded 
+                                  ? Icons.check_circle_outline_rounded
                                   : Icons.local_mall_outlined,
                               color: isSelected
                                   ? Colors.white
                                   : theme.apptheme_Black,
-                                  size: 24,
+                              size: 24,
                             ),
                           ),
                           title: Text(
                             item.itemName,
                             style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16.5,
-                                color: isSelected ? theme.apptheme_Black : Colors.black87,
-                                ),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16.5,
+                              color: isSelected
+                                  ? theme.apptheme_Black
+                                  : Colors.black87,
+                            ),
                           ),
                           subtitle: Text(
                             'Price: RM ${item.price.toStringAsFixed(2)}',
                             style: TextStyle(
-                                color: isSelected ? theme.apptheme_Black.withOpacity(0.8) : Colors.black54, fontSize: 14),
+                                color: isSelected
+                                    ? theme.apptheme_Black.withOpacity(0.8)
+                                    : Colors.black54,
+                                fontSize: 14),
                           ),
                           trailing: isSelected
-                            ? Icon(Icons.done_all_rounded, color: Colors.green, size: 22)
-                            : Icon(Icons.drag_handle_rounded, color: Colors.grey[350], size: 22),
+                              ? Icon(Icons.done_all_rounded,
+                                  color: Colors.green, size: 22)
+                              : Icon(Icons.drag_handle_rounded,
+                                  color: Colors.grey[350], size: 22),
                         ),
                       ),
                     );
@@ -696,7 +702,6 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin  {
               },
             ),
           ),
-          
         ],
       ),
     );

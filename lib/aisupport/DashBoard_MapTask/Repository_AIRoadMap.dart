@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
-import 'package:moneymanager/uid/uid.dart'; // Assuming userId is available here
+import 'package:moneymanager/security/uid.dart'; // Assuming userId is available here
 
 class AIFinanceRepository {
   final PlanRepository _localPlanRepository;
