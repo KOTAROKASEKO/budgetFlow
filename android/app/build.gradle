@@ -44,10 +44,10 @@ android {
         applicationId = "com.kotarokase.moneyTracker"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
-        versionCode = 23
-        versionName = "1.7.1"
+        versionCode = 24
+        versionName = "1.7.2"
 
-        def admobAppId = properties.getProperty("admob.app.id") ?: "YOUR_FALLBACK_ADMOB_ID"
+        def admobAppId = properties.getProperty("admob.app.id") ?: "ca-app-pub-1761598891234951~2195268518"
         buildConfigField "String", "ADMOB_APP_ID", "\"${admobAppId}\""
         manifestPlaceholders = [admobAppId: admobAppId]
 
@@ -64,7 +64,7 @@ android {
         debug {
             manifestPlaceholders = [
                 admobAppId: "ca-app-pub-3940259994254470~3419835294", // AdMob test ID
-                applicationName: "io.flutter.app.FlutterApplication" // Consistent for debug
+                applicationName: "io.flutter.app.FlutterApplication"
             ]
         }
     }

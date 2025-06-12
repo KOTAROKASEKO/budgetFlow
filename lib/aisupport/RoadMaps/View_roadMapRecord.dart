@@ -1,5 +1,8 @@
 // File: lib/aisupport/ui/plan_roadmap_screen.dart
 import 'package:flutter/material.dart';
+// --- NEW: Import the google_mobile_ads package ---
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart';
 import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
@@ -7,7 +10,7 @@ import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 import 'package:provider/provider.dart';
 
-// --- MODIFIED: Converted to StatefulWidget and added isModal flag ---
+
 class PlanRoadmapScreen extends StatefulWidget {
   final bool isModal;
   const PlanRoadmapScreen({super.key, this.isModal = false});
@@ -18,23 +21,53 @@ class PlanRoadmapScreen extends StatefulWidget {
 
 class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
   late final RoadmapViewModel _viewModel;
+  
+  // --- NEW: AdMob Banner Ad variables ---
+  BannerAd? _bannerAd;
+  // Use your provided Ad Unit ID for the banner ad
+  final String _adUnitId = 'ca-app-pub-1761598891234951/7527486247';
+
 
   @override
   void initState() {
     super.initState();
     _viewModel = RoadmapViewModel(
-      planRepository: Provider.of<PlanRepository>(context, listen: false),
+      repository:  Provider.of<AIFinanceRepository>(context, listen: false),
     );
+    // --- NEW: Load the ad when the screen initializes ---
+    _loadAd();
   }
 
   @override
   void dispose() {
     _viewModel.dispose();
+    // --- NEW: Dispose the ad to free up resources ---
+    _bannerAd?.dispose();
     super.dispose();
   }
-
-  // ... (All other helper methods like _showItemOptionsMenu, _showEditDialog, etc. remain unchanged) ...
   
+  // --- NEW: Method to load the banner ad ---
+  void _loadAd() {
+    _bannerAd = BannerAd(
+      adUnitId: _adUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          debugPrint('$ad loaded.');
+          setState(() {
+            // Ad is ready to be displayed
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          debugPrint('BannerAd failed to load: $err');
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
+
   void _showItemOptionsMenu(
     BuildContext context,
     RoadmapViewModel viewModel,
@@ -215,70 +248,96 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
     }
   }
 
-  Widget _buildGoalGrid(BuildContext context, RoadmapViewModel viewModel) {
+  Widget _buildGoalView(BuildContext context, RoadmapViewModel viewModel) {
     if (viewModel.goalTasks.isEmpty && !viewModel.isLoading) {
-      return Center(child: Text(viewModel.errorMessage ?? "No financial plans set up yet. Create one with the AI planner!", style: const TextStyle(color: Colors.white54, fontSize: 16)));
+      return Center(
+          child: Text(
+              viewModel.errorMessage ?? "No financial plans set up yet. Create one with the AI planner!",
+              style: const TextStyle(color: Colors.white54, fontSize: 16)));
+    }
+    
+    if (viewModel.goalTasks.isEmpty) {
+        return Container();
     }
 
-    return GridView.builder(
+    final goalTask = viewModel.goalTasks.first;
+
+    return Padding(
       padding: const EdgeInsets.all(16.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 1,
-        crossAxisSpacing: 16.0,
-        mainAxisSpacing: 16.0,
-        childAspectRatio: 3 / 1.5,
-      ),
-      itemCount: viewModel.goalTasks.length,
-      itemBuilder: (context, index) {
-        final goalTask = viewModel.goalTasks[index];
-        return GestureDetector(
-          onLongPressStart: (details) {
-            _showItemOptionsMenu(context, viewModel, goalTask, details.globalPosition);
-          },
-          child: Card(
-            color: Colors.deepPurple,
-            elevation: 4,
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (ctx) => ChangeNotifierProvider(
-                      create: (_) => PlanCreationViewModel(
-                        planRepository: Provider.of<PlanRepository>(context, listen: false),
-                        existingPlanRootTask: goalTask,
+      child: Column(
+        children: [
+          GestureDetector(
+            onLongPressStart: (details) {
+              _showItemOptionsMenu(context, viewModel, goalTask, details.globalPosition);
+            },
+            child: Card(
+              color: Colors.deepPurple,
+              elevation: 4,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) => ChangeNotifierProvider(
+                        create: (_) => PlanCreationViewModel(
+                          repository: Provider.of<AIFinanceRepository>(context, listen: false),
+                          existingPlanRootTask: goalTask,
+                        ),
+                        child: const PlanCreationScreen(),
                       ),
-                      child: const PlanCreationScreen(),
                     ),
-                  ),
-                );
-              },
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        goalTask.title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(minHeight: 150),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            goalTask.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            "View & Refine Roadmap ->",
+                            style: TextStyle(fontSize: 16, color: Colors.white70),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        "View & Refine Roadmap ->",
-                        style: TextStyle(fontSize: 16, color: Colors.white70),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        );
-      },
+          const SizedBox(height: 20),
+          
+          // --- MODIFIED: Display the loaded ad ---
+          if (_bannerAd != null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                child: SizedBox(
+                  width: _bannerAd!.size.width.toDouble(),
+                  height: _bannerAd!.size.height.toDouble(),
+                  child: AdWidget(ad: _bannerAd!),
+                ),
+              ),
+            )
+          else
+             // Placeholder while the ad is loading
+            SizedBox(
+              height: AdSize.banner.height.toDouble(),
+            ),
+        ],
+      ),
     );
   }
 
@@ -362,14 +421,13 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
           );
         }
         return viewModel.navigationStack.isEmpty
-            ? _buildGoalGrid(context, viewModel)
+            ? _buildGoalView(context, viewModel)
             : _buildItemsList(context, viewModel);
       }),
     );
 
-    // --- NEW: Conditionally wrap with WillPopScope ---
     if (widget.isModal) {
-      return mainContent; // If modal, don't use WillPopScope
+      return mainContent;
     }
 
     return WillPopScope(
@@ -390,7 +448,6 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
       value: _viewModel,
       child: Consumer<RoadmapViewModel>(
         builder: (context, viewModel, child) {
-          // Build the UI, now conditionally wrapped by _buildScaffold
           return _buildScaffold(context, viewModel);
         },
       ),

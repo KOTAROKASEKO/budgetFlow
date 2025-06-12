@@ -164,7 +164,9 @@ Example for $taskNoun:
       int order = 0;
       for (var item in decodedJson) {
         if (item is! Map<String, dynamic>) throw FormatException("AI list item is not a JSON object.");
-        newTasks.add(TaskHiveModel.fromAIMap(item, targetOutputLevel, parentTask?.id, order++));
+        // [MODIFIED] Pass the goalId from the parent task.
+        final String? goalId = parentTask?.goalId;
+        newTasks.add(TaskHiveModel.fromAIMap(item, targetOutputLevel, parentTask?.id, order++, goalId));
       }
       return newTasks;
     } catch (e) {

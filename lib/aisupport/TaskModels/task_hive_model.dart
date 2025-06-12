@@ -6,7 +6,7 @@ part 'task_hive_model.g.dart'; // Remember to generate this file
 
 var _uuid = Uuid();
 
-@HiveType(typeId: 10) // Ensure unique typeId across your Hive models
+@HiveType(typeId: 10)
 enum TaskLevelName {
   @HiveField(0)
   Goal,
@@ -71,6 +71,11 @@ class TaskHiveModel extends HiveObject {
   @HiveField(15)
   String? userInputNote;
 
+  // [NEW] Add goalId to easily find the root goal for any task.
+  @HiveField(16)
+  String? goalId;
+
+
   TaskHiveModel({
     String? id,
     required this.taskLevel,
@@ -88,11 +93,12 @@ class TaskHiveModel extends HiveObject {
     this.userInputCurrentSkill,
     this.userInputPreferToEarnMoney,
     this.userInputNote,
+    this.goalId,
   })  : id = id ?? _uuid.v4(),
         createdAt = createdAt ?? DateTime.now();
 
   // Factory to create from AI response
-  factory TaskHiveModel.fromAIMap(Map<String, dynamic> map, TaskLevelName level, String? parentId, int taskOrder) {
+  factory TaskHiveModel.fromAIMap(Map<String, dynamic> map, TaskLevelName level, String? parentId, int taskOrder, String? goalId) {
     return TaskHiveModel(
       id:  _uuid.v4(),
       taskLevel: level,
@@ -101,6 +107,7 @@ class TaskHiveModel extends HiveObject {
       purpose: map['purpose'] as String?,
       duration: map['estimated_duration'] as String? ?? 'N/A',
       order: taskOrder,
+      goalId: goalId,
       // dueDate and status can be set later or based on AI output if available
     );
   }

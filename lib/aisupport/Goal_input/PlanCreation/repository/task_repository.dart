@@ -34,6 +34,16 @@ class PlanRepository {
     await box.putAll(taskMap);
   }
 
+  Future<List<TaskHiveModel>> getAllSubTasksRecursive(String parentTaskId) async {
+    final List<TaskHiveModel> allSubTasks = [];
+    final children = await getSubTasks(parentTaskId);
+    for (final child in children) {
+      allSubTasks.add(child);
+      allSubTasks.addAll(await getAllSubTasksRecursive(child.id));
+    }
+    return allSubTasks;
+  }
+
   Future<TaskHiveModel?> getTask(String taskId) async {
     final box = await _getBox();
     return box.get(taskId);

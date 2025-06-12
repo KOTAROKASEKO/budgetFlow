@@ -69,7 +69,7 @@ Future<void> main() async {
             ),
         ChangeNotifierProvider(
           create: (context) => RoadmapViewModel(
-            planRepository: context.read<PlanRepository>(), // or Provider.of<PlanRepository>(context, listen: false)
+            repository: context.read<AIFinanceRepository>(), // or Provider.of<PlanRepository>(context, listen: false)
           ),
         ),
 

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // FilteringTextInputFormatter に必要
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
 // import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart'; //
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart'; //
@@ -287,12 +288,12 @@ class _GoalInputPageState extends State<GoalInputPage> {
                 builder: (newContext) {
                   return ChangeNotifierProvider( //
                     create: (_) => PlanCreationViewModel( //
-                      planRepository: Provider.of<PlanRepository>(newContext, listen: false), //
-                      initialEarnThisYear: _earnThisYearController.text, //
-                      initialPlanDuration: _durationController.text, // 更新された期間コントローラーを使用
-                      initialCurrentSkill: _currentSkillController.text, //
-                      initialPreferToEarnMoney: _preferToEarnMoneyController.text, //
-                      initialNote: _noteController.text, //
+                    repository: Provider.of<AIFinanceRepository>(context, listen: false),
+                      initialEarnThisYear: _earnThisYearController.text,
+                      initialPlanDuration: _durationController.text,
+                      initialCurrentSkill: _currentSkillController.text,
+                      initialPreferToEarnMoney: _preferToEarnMoneyController.text,
+                      initialNote: _noteController.text,
                     ),
                     child: const PlanCreationScreen(), //
                   );

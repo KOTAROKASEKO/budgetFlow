@@ -1,11 +1,20 @@
-// File: lib/aisupport/viewmodel/plan_creation_viewmodel.dart
+// aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart
+
 import 'package:flutter/material.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/aiplanning_service.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
-import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
+
+// [REMOVED] No longer need to import PlanRepository directly
+// import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 
 class PlanCreationViewModel extends ChangeNotifier {
-  final PlanRepository _planRepository;
+  // [MODIFIED] Only the AIFinanceRepository is needed now.
+  final AIFinanceRepository _repository;
+  
+  // [REMOVED] The direct link to PlanRepository is gone.
+  // final PlanRepository _planRepository;
+
   AIPlanningService? _aiService;
 
   String _earnThisYear = '';
@@ -18,7 +27,7 @@ class PlanCreationViewModel extends ChangeNotifier {
   TaskHiveModel? _currentGoalTask; // The root Goal Task
   List<List<TaskHiveModel>> _taskHierarchy = [];
   Map<int, TaskHiveModel?> _selectedTasksAtLevel = {};
-  Map<String, List<TaskHiveModel>> _childrenCache = {}; // Temporary cache for task children
+  Map<String, List<TaskHiveModel>> _childrenCache = {};
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -33,7 +42,7 @@ class PlanCreationViewModel extends ChangeNotifier {
   set goalName(String name) {
     _goalName = name;
     if (_currentGoalTask != null) {
-      _currentGoalTask!.title = name; // Keep ViewModel's goal task title in sync
+      _currentGoalTask!.title = name;
     }
     notifyListeners();
   }
@@ -41,14 +50,15 @@ class PlanCreationViewModel extends ChangeNotifier {
 
 
   PlanCreationViewModel({
-    required PlanRepository planRepository,
-    TaskHiveModel? existingPlanRootTask, // For refinement
+    // [MODIFIED] Simplified constructor
+    required AIFinanceRepository repository,
+    TaskHiveModel? existingPlanRootTask,
     String? initialEarnThisYear,
     String? initialPlanDuration,
     String? initialCurrentSkill,
     String? initialPreferToEarnMoney,
     String? initialNote,
-  }) : _planRepository = planRepository,
+  }) : _repository = repository, // [MODIFIED]
        _existingPlanRootForRefinement = existingPlanRootTask {
     if (_existingPlanRootForRefinement != null) {
       _loadExistingPlanForRefinement(_existingPlanRootForRefinement!);
@@ -87,7 +97,7 @@ class PlanCreationViewModel extends ChangeNotifier {
     _currentSkill = currentSkill;
     _preferToEarnMoney = preferToEarnMoney;
     _note = note;
-    _goalName = "My Plan for $_planDuration"; // Default
+    _goalName = "My Plan for $_planDuration";
 
     _aiService = AIPlanningService(
       earnThisYear: _earnThisYear,
@@ -108,9 +118,12 @@ class PlanCreationViewModel extends ChangeNotifier {
       userInputPreferToEarnMoney: _preferToEarnMoney,
       userInputNote: _note,
     );
+    // [MODIFIED] A goal's goalId is its own id.
+    _currentGoalTask!.goalId = _currentGoalTask!.id;
+
     _taskHierarchy = [];
     _selectedTasksAtLevel = {};
-    _childrenCache.clear(); // Clear cache for a new plan
+    _childrenCache.clear();
 
     fetchOrBreakdownTasks(parentTask: _currentGoalTask!);
   }
@@ -137,7 +150,8 @@ class PlanCreationViewModel extends ChangeNotifier {
     _selectedTasksAtLevel.clear();
     _childrenCache.clear();
 
-    List<TaskHiveModel> firstLevelChildren = await _planRepository.getSubTasks(rootGoalTask.id);
+    // [MODIFIED] Call getSubTasks via the main repository
+    List<TaskHiveModel> firstLevelChildren = await _repository.getSubTasks(rootGoalTask.id);
 
     if (firstLevelChildren.isNotEmpty) {
       _childrenCache[rootGoalTask.id] = List.from(firstLevelChildren);
@@ -152,21 +166,14 @@ class PlanCreationViewModel extends ChangeNotifier {
     _selectedTasksAtLevel[level] = task;
     
     int nextLevel = level + 1;
-    // **THE FIX IS HERE**
-    // When a selection changes, we must remove deeper levels from the hierarchy AND the cache.
     if (nextLevel < _taskHierarchy.length) {
-      // Iterate through all the deeper levels that are about to be removed.
       for (int i = nextLevel; i < _taskHierarchy.length; i++) {
-        // For each task in those levels, remove it from the children cache.
         for (var taskToRemove in _taskHierarchy[i]) {
           _childrenCache.remove(taskToRemove.id);
         }
       }
-      // Now, remove the levels from the hierarchy itself.
       _taskHierarchy.removeRange(nextLevel, _taskHierarchy.length);
     }
-    
-    // Clean up the selections map as before.
     _selectedTasksAtLevel.keys.where((k) => k > level).toList().forEach(_selectedTasksAtLevel.remove);
 
     if (task == null) {
@@ -184,7 +191,6 @@ class PlanCreationViewModel extends ChangeNotifier {
     int? currentHierarchyLevel,
     String? additionalInstruction,
   }) async {
-    print('Selected item is in level : ${parentTask.taskLevel}');
     if (_aiService == null) {
       _setError("AI Service not initialized.");
       return;
@@ -209,31 +215,21 @@ class PlanCreationViewModel extends ChangeNotifier {
         _childrenCache[parentTask.id] = List.from(newSubTasks);
         tasksForHierarchy = newSubTasks;
       } else {
-        
-        print('[additional instruction was null]');
-
         if (_childrenCache.containsKey(parentTask.id)) {
-          print('[ViewModel cache contained key]');
           tasksForHierarchy = _childrenCache[parentTask.id]!;
         } else {
-          print('[ViewModel cache did not contain data. Checking Hive box]');
-          List<TaskHiveModel> childrenFromDb = await _planRepository.getSubTasks(parentTask.id);
+          // [MODIFIED] Call getSubTasks via the main repository
+          List<TaskHiveModel> childrenFromDb = await _repository.getSubTasks(parentTask.id);
           if (childrenFromDb.isNotEmpty) {
-            print('[Found plan in Hive]');
             _childrenCache[parentTask.id] = List.from(childrenFromDb);
             tasksForHierarchy = childrenFromDb;
           } else{
-            print('[Not anywhere in local machine. Fetch from AI]');
             final List<TaskHiveModel> newSubTasks = await _aiService!.fetchAIPlan(
               parentTask: parentTask,
               additionalUserInstruction: null,
             );
             for (var subTask in newSubTasks) {
                 subTask.parentTaskId = parentTask.id;
-                print('''{
-id : ${subTask.id},
-parentId : ${subTask.parentTaskId}
-}''');
             }
             _childrenCache[parentTask.id] = List.from(newSubTasks);
             tasksForHierarchy = newSubTasks;
@@ -284,6 +280,7 @@ parentId : ${subTask.parentTaskId}
     }
   }
 
+  // [MODIFIED] This entire function is updated for correctness.
   Future<bool> savePlan() async {
     if (_currentGoalTask == null) {
       _setError("No goal to save.");
@@ -296,46 +293,39 @@ parentId : ${subTask.parentTaskId}
     _setLoading(true);
 
     try {
-      
-      final List<TaskHiveModel> tasksToUpsert = [];
-
+      final List<TaskHiveModel> tasksToSave = [];
       _currentGoalTask!.title = _goalName.trim();
-      tasksToUpsert.add(_currentGoalTask!);
+      tasksToSave.add(_currentGoalTask!);
 
-      for (final parentId in _childrenCache.keys) {
-
-        final newChildren = _childrenCache[parentId]!;
-        final oldChildren = await _planRepository.getSubTasks(parentId);
-        final newChildrenIds = newChildren.map((c) => c.id).toSet();
-
-        for (final oldChild in oldChildren) {
-          if (!newChildrenIds.contains(oldChild.id)) {
-            // このタスクは削除されたので、その子供も含めて再帰的にDBから削除
-            await _planRepository.deleteTask(oldChild.id, recursive: true);
-          }
-        }
-
-        // 5. 新しい子供リストを保存（更新/作成）対象に追加
-        for (final newChild in newChildren) {
-          newChild.parentTaskId = parentId; // 親子関係を再確認
-        }
-        tasksToUpsert.addAll(newChildren);
+      // Gather all children from the cache to save
+      for (final children in _childrenCache.values) {
+        tasksToSave.addAll(children);
       }
+      
+      // 1. Save all tasks locally via the main repository
+      await _repository.saveAllTasks(tasksToSave);
 
-      await _planRepository.saveAllTasks(tasksToUpsert);
-
+      // 2. [ADDED] After local save succeeds, back up to Firebase
+      try {
+        await _repository.backupPlanToFirestore(tasksToSave);
+        print("Plan successfully backed up to Firebase.");
+      } catch (e) {
+        // Log the Firebase backup error but don't fail the whole operation.
+        // The local save was successful, which is the most important part.
+        print("Firebase backup failed, but local save succeeded: $e");
+        // Optionally, show a non-blocking message to the user
+      }
+      
       _childrenCache.clear();
-      // await _loadExistingPlanForRefinement();
       _setLoading(false);
       return true;
 
     } catch (e) {
       _setError("Failed to save plan: ${e.toString()}");
+      _setLoading(false);
       return false;
     }
   }
-
- 
 
   Future<void> regenerateTasksForSelectedParent(String? instruction) async {
     int? selectedLevelForParentContext;

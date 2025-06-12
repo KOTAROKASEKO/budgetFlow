@@ -1,10 +1,13 @@
 // File: lib/aisupport/viewmodel/roadmap_viewmodel.dart
 import 'package:flutter/material.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
-import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
+// [REMOVED] No longer importing PlanRepository directly
+// import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 
 class RoadmapViewModel extends ChangeNotifier {
-  final PlanRepository _planRepository;
+  // [MODIFIED] Use the main AIFinanceRepository
+  final AIFinanceRepository _repository;
 
   List<TaskHiveModel> _goalTasks = [];
   List<TaskHiveModel> get goalTasks => _goalTasks;
@@ -32,7 +35,8 @@ class RoadmapViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  RoadmapViewModel({required PlanRepository planRepository}) : _planRepository = planRepository {
+  // [MODIFIED] Constructor now requires AIFinanceRepository
+  RoadmapViewModel({required AIFinanceRepository repository}) : _repository = repository {
     loadGoalTasks();
   }
 
@@ -62,7 +66,8 @@ class RoadmapViewModel extends ChangeNotifier {
     _navigationStack.clear();
     _currentLevelItems.clear();
     try {
-      _goalTasks = await _planRepository.getGoalTasks();
+      // [MODIFIED] Use the new sync method from the main repository
+      _goalTasks = await _repository.syncAndGetGoalTasks();
       if (_goalTasks.isEmpty) _errorMessage = "No financial plans found. Create one!";
     } catch (e) {
       _setError("Failed to load plans: ${e.toString()}");
@@ -75,7 +80,8 @@ class RoadmapViewModel extends ChangeNotifier {
     _setLoading(true);
     _navigationStack.add({'id': task.id, 'name': task.title, 'levelName': task.taskLevel});
     try {
-      _currentLevelItems = await _planRepository.getSubTasks(task.id);
+      // [MODIFIED] Use the main repository
+      _currentLevelItems = await _repository.getSubTasks(task.id);
       if (_currentLevelItems.isEmpty) _errorMessage = "This item has no sub-tasks.";
     } catch (e) {
       _setError("Failed to load sub-tasks for ${task.title}: ${e.toString()}");
@@ -95,7 +101,8 @@ class RoadmapViewModel extends ChangeNotifier {
       } else {
         final parent = _navigationStack.last;
         try {
-          _currentLevelItems = await _planRepository.getSubTasks(parent['id']);
+          // [MODIFIED] Use the main repository
+          _currentLevelItems = await _repository.getSubTasks(parent['id']);
            if (_currentLevelItems.isEmpty) _errorMessage = "No sub-tasks found for ${parent['name']}.";
         } catch (e) {
           _setError("Failed to load items for ${parent['name']}: ${e.toString()}");
@@ -108,21 +115,21 @@ class RoadmapViewModel extends ChangeNotifier {
     return true; // Allow system back
   }
   
-
-
   Future<void> editTask(TaskHiveModel taskToEdit, String newTitle, String? newPurpose, String newDuration) async {
     _setLoading(true);
     taskToEdit.title = newTitle;
     taskToEdit.purpose = newPurpose;
     taskToEdit.duration = newDuration;
     try {
-      await _planRepository.updateTask(taskToEdit);
+      // [MODIFIED] Use the main repository
+      await _repository.updateTask(taskToEdit);
       // Refresh current level's items or goal list
       if (_navigationStack.isEmpty) { // Editing a top-level goal
         await loadGoalTasks();
       } else {
         final parentId = _navigationStack.last['id'];
-        _currentLevelItems = await _planRepository.getSubTasks(parentId);
+        // [MODIFIED] Use the main repository
+        _currentLevelItems = await _repository.getSubTasks(parentId);
       }
     } catch (e) {
       _setError("Failed to update task: ${e.toString()}");
@@ -131,19 +138,22 @@ class RoadmapViewModel extends ChangeNotifier {
     }
   }
 
+  // [MODIFIED] This whole method is updated to correctly handle deletion.
   Future<void> deleteTask(TaskHiveModel taskToDelete) async {
     _setLoading(true);
     try {
       if (taskToDelete.taskLevel == TaskLevelName.Goal) {
-        await _planRepository.deleteGoalAndAllSubTasks(taskToDelete.id);
+        // This handles recursive deletion locally and remotely for a whole plan.
+        await _repository.deleteGoalAndAllSubTasks(taskToDelete.id);
         await loadGoalTasks(); // Refresh the main list of goals
         
       } else {
-        await _planRepository.deleteTask(taskToDelete.id, recursive: true);
+        // This handles recursive deletion for a sub-task and its children.
+        await _repository.deleteTaskWithSubtasks(taskToDelete);
         // Refresh the current view:
         if (_navigationStack.isNotEmpty) {
           final parentId = _navigationStack.last['id'];
-          _currentLevelItems = await _planRepository.getSubTasks(parentId);
+          _currentLevelItems = await _repository.getSubTasks(parentId);
           if(_currentLevelItems.isEmpty) _errorMessage = "No items left at this level.";
         } else { // Should not be reachable if not a Goal, but safeguard
           await loadGoalTasks();
