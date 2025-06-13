@@ -12,7 +12,7 @@ import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_AIRoadMap.dar
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_repository.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
 import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
-import 'package:moneymanager/aisupport/Goal_input/goal_input/goalInputViewModel.dart';
+import 'package:moneymanager/aisupport/Goal_input/goal_input/ViewModel_goalInput.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 import 'package:moneymanager/security/Authentication.dart';
 import 'package:moneymanager/security/uid.dart';

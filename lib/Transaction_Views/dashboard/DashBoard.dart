@@ -629,50 +629,43 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
       return _buildOfflineMessage();
     }
     return 
-    Container(
-      decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/marble.png'), // ここに大理石の画像パスを指定
-            fit: BoxFit.cover, // 画面全体を覆うように画像を拡大縮小
-          ),),
-      child:Column(
-      children: [
-        _buildSummarySection(),
-        _buildMonthNavigator(),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.only(top: 5, bottom: 5), // Added bottom margin
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(35),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.15),
-                    spreadRadius: 0,
-                    blurRadius: 15,
-                    offset: const Offset(0, -5),
-                  )
-                ]),
-            child: ClipRRect(
+    Column(
+    children: [
+      _buildSummarySection(),
+      _buildMonthNavigator(),
+      Expanded(
+        child: Container(
+          margin: const EdgeInsets.only(top: 5, bottom: 5), // Added bottom margin
+          decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(35),
-              child: LiquidPullToRefresh(
-                color: theme.apptheme_Black.withAlpha(180),
-                backgroundColor: Colors.white,
-                springAnimationDurationInMilliseconds: 350,
-                onRefresh: _refresh,
-                child: _isLoading
-                    ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(theme.apptheme_Black)))
-                    : _doesExist
-                        ? _buildExpenseList()
-                        : _buildNoRecordsMessage(isEmpty: true),
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.15),
+                  spreadRadius: 0,
+                  blurRadius: 15,
+                  offset: const Offset(0, -5),
+                )
+              ]),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(35),
+            child: LiquidPullToRefresh(
+              color: theme.apptheme_Black.withAlpha(180),
+              backgroundColor: Colors.white,
+              springAnimationDurationInMilliseconds: 350,
+              onRefresh: _refresh,
+              child: _isLoading
+                  ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(theme.apptheme_Black)))
+                  : _doesExist
+                      ? _buildExpenseList()
+                      : _buildNoRecordsMessage(isEmpty: true),
             ),
           ),
         ),
-        const SizedBox(height: 60), // Space for FAB
-      ],
-    ),
-  );
+      ),
+      const SizedBox(height: 60), // Space for FAB
+    ],
+        );
   }
 
   Widget _buildOfflineMessage() {

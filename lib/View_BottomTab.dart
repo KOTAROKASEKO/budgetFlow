@@ -13,21 +13,29 @@ class BottomTab extends StatefulWidget {
 }
 
 class _BottomTabState extends State<BottomTab> {
-
   final ShowUpdate _updateChecker = ShowUpdate();
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
+    FinancialGoalPage(),
     Dashboard(),
     BuyList(),
-    FinancialGoalPage(),
   ];
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    _performUpdateCheck();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _performUpdateCheck();
+      }
+    });
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   void _performUpdateCheck() {
@@ -77,17 +85,11 @@ class _BottomTabState extends State<BottomTab> {
     });
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child:Scaffold(
-      backgroundColor: theme.backgroundColor,
+    return Scaffold(
+      // ★ 修正点: 背景色をダークに
+      backgroundColor: theme.apptheme_Black,
       body: IndexedStack(
         index: _selectedIndex,
         children: _pages,
@@ -95,49 +97,58 @@ class _BottomTabState extends State<BottomTab> {
       bottomNavigationBar: Container(
         height: 80,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 10,
-              offset: Offset(0, -2),
+          // ★ 修正点: ナビゲーションバーの背景もダークに
+          color: Colors.grey.shade900,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(Icons.home_outlined, Icons.home, "Home", 0),
+            _buildNavItem(Icons.monetization_on_outlined, Icons.monetization_on, "Dashboard", 1),
+            _buildNavItem(Icons.list_alt_outlined, Icons.list_alt, "List", 2),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, IconData activeIcon, String label, int index) {
+    final bool isSelected = _selectedIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onItemTapped(index),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.deepPurple : Colors.transparent,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                // ★ 修正点: 選択時は白、非選択時は薄いグレーに
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                // ★ 修正点: テキストの色もテーマに合わせて変更
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-          child: BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: _onItemTapped,
-            backgroundColor: Colors.white,
-            selectedItemColor: Colors.black,
-            unselectedItemColor: Colors.grey,
-            showSelectedLabels: false,
-            showUnselectedLabels: false,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.monetization_on),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.list),
-                label: 'List',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.smart_toy),
-                label: 'List',
-              ),
-            ],
-          ),
-        ),
       ),
-    ),
-  );}
+    );
+  }
 }

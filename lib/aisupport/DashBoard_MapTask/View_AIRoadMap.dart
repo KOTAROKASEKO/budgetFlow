@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_AIRoadMap.dart';
 import 'package:moneymanager/aisupport/RoadMaps/View_roadMapRecord.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
-import 'package:moneymanager/aisupport/Goal_input/goal_input/goalInput.dart';
+import 'package:moneymanager/aisupport/Goal_input/goal_input/View_goalInput.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:provider/provider.dart';
@@ -30,13 +30,9 @@ class FinancialGoalView extends StatefulWidget {
 
 class _FinancialGoalViewState extends State<FinancialGoalView> {
   final TextEditingController _noteController = TextEditingController();
-  // **[NEW]** Scroll controller for auto-scrolling
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
-
-  // --- NEW: State variable to track the expanded task ---
   String? _expandedTaskId;
-
 
   @override
   void initState() {
@@ -97,11 +93,16 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
         centerTitle: true,
-        title: const Text('Financial Goal',
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children:[
+            Image.asset('assets/ai.png', width: 40, height: 40,),
+            Text('Financial Goal',
             style: TextStyle(
                 color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.bold)),
+                ]),
         backgroundColor: Colors.black,
         elevation: 0,
       ),
@@ -485,12 +486,19 @@ class _FinancialGoalViewState extends State<FinancialGoalView> {
                   borderRadius: BorderRadius.circular(14)),
               child: Center(
                   child: Column(children: [
-                Text(task.title,
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: const Color.fromARGB(130, 77, 32, 118),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsetsGeometry.all(5),
+                    child:Text(task.title,
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.start,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
+                    overflow: TextOverflow.ellipsis),)),
                 const Divider(),
                 Text(task.purpose ?? 'no description',
                     style: const TextStyle(

@@ -3,14 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // FilteringTextInputFormatter に必要
 import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
-// import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart'; //
-import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart'; //
-import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart'; //
-import 'package:provider/provider.dart'; //
-
-// GoalInputViewModel は goal_input_viewmodel.dart からインポートされると仮定します
-// import 'package:moneymanager/aisupport/viewmodel/goal_input_viewmodel.dart';
+import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart';
+import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart';
+import 'package:provider/provider.dart';
 
 class GoalInputPage extends StatefulWidget {
   const GoalInputPage({super.key}); //
@@ -29,14 +24,8 @@ class _GoalInputPageState extends State<GoalInputPage> {
   // Duration controllers
   // _durationController は ViewModel に渡すための文字列（例："6 Months"）を保持します。
   final TextEditingController _durationController = TextEditingController();
-  // _durationNumericController はステッパーフィールドの数値（例："6"）を保持します。
   final TextEditingController _durationNumericController = TextEditingController();
 
-  // Ad variables
-  // BannerAd? _bannerAd; //
-  // bool _isBannerAdLoaded = false; //
-
-  // Theme colors (洗練されたダークテーマ)
   final Color primaryBgColor = const Color(0xFF1C1C2E); // 深いインディゴ
   final Color cardBgColor = const Color(0xFF2A2A3D);    // やや明るいインディゴ
   final Color accentColor = const Color(0xFF00C6B3);    // 鮮やかなティール
