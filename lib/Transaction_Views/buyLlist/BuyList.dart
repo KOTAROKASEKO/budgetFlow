@@ -5,8 +5,10 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:moneymanager/Transaction_Views/buyLlist/model/buy_list_item_model.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
+import 'package:moneymanager/ads/ViewModel_ads.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/security/uid.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart';
 
@@ -34,10 +36,10 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
   Set<String> _selectedBuyListItemIds = {};
   double _simulatedTodaysTotalExpense = 0.0;
   double _simulatedTodaysAverageExpense = 0.0;
+  String adKey = 'buyList_Ad';
 
   // Ad variables
   BannerAd? _bannerAd;
-  bool _isBannerAdLoaded = false;
 
   @override
   void initState() {
@@ -64,31 +66,9 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
       }
     });
 
-    _loadBannerAd(); // Load the banner ad
-  }
-
-  void _loadBannerAd() {
-    _bannerAd = BannerAd(
-      adUnitId: 'ca-app-pub-1761598891234951/7527486247', // Your Ad Unit ID
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (Ad ad) {
-          if (mounted) {
-            setState(() {
-              _isBannerAdLoaded = true;
-            });
-          }
-        },
-        onAdFailedToLoad: (Ad ad, LoadAdError error) {
-          ad.dispose();
-          print('BannerAd failed to load: $error');
-        },
-        onAdOpened: (Ad ad) => print('BannerAd opened.'),
-        onAdClosed: (Ad ad) => print('BannerAd closed.'),
-        onAdImpression: (Ad ad) => print('BannerAd impression.'),
-      ),
-    )..load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AdViewModel>(context, listen: false).loadAd(adKey);
+    });
   }
 
   Future<void> _fetchActualTodaysBaseData() async {
@@ -535,13 +515,8 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
       body: Column(
         children: [
           // ** NEW BANNER AD LOCATION **
-          if (_isBannerAdLoaded && _bannerAd != null)
-            Container(
-              margin: const EdgeInsets.only(top: 15),
-              width: _bannerAd!.size.width.toDouble(),
-              height: _bannerAd!.size.height.toDouble(),
-              child: AdWidget(ad: _bannerAd!),
-            ),
+          _buildAd(Provider.of<AdViewModel>(context),adKey),
+
           _buildTodaysSimulatedExpenseCard(),
           Expanded(
             // List takes remaining space
@@ -750,4 +725,36 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
       ),
     );
   }
+  
+  Widget _buildAd(AdViewModel adViewModel, String adId) {
+  // 1. isAdLoaded(adId) を使って、特定の広告のロード状態を確認します。
+  if (adViewModel.isAdLoaded(adId)) {
+    // 2. getAd(adId) を使って、特定の広告オブジェクトを取得します。
+    final bannerAd = adViewModel.getAd(adId);
+
+    // 広告がnullでないことを確認してから表示します。
+    if (bannerAd != null) {
+      return Container(
+        alignment: Alignment.center,
+        child: AdWidget(ad: bannerAd),
+        width: bannerAd.size.width.toDouble(),
+        height: bannerAd.size.height.toDouble(),
+      );
+    } else {
+      // 予期せず広告がnullだった場合の表示
+      return Container(
+        height: 50.0,
+        alignment: Alignment.center,
+        child: Text('Ad data not found.'),
+      );
+    }
+  } else {
+    // ロード中、またはロードに失敗した場合の表示
+    return Container(
+      height: 50.0, // バナー広告と同じ高さ
+      alignment: Alignment.center,
+      child: Text('Ad is loading...'),
+    );
+  }
+}
 }

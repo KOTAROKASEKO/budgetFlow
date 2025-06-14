@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 // --- NEW: Import the google_mobile_ads package ---
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
+import 'package:moneymanager/ads/ViewModel_ads.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_DashBoard.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart';
 import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
@@ -20,13 +21,7 @@ class PlanRoadmapScreen extends StatefulWidget {
 
 class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
   late final RoadmapViewModel _viewModel;
-  
-  // --- NEW: AdMob Banner Ad variables ---
-  BannerAd? _bannerAd;
-  // Use your provided Ad Unit ID for the banner ad
-  final String _adUnitId = 'ca-app-pub-1761598891234951/7527486247';
-
-
+  String adKey = 'View_roadMapRecord';
   @override
   void initState() {
     super.initState();
@@ -34,39 +29,20 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
       repository:  Provider.of<AIFinanceRepository>(context, listen: false),
     );
     // --- NEW: Load the ad when the screen initializes ---
-    _loadAd();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AdViewModel>(context, listen: false).loadAd(adKey);
+      });
   }
 
   @override
   void dispose() {
     _viewModel.dispose();
-    // --- NEW: Dispose the ad to free up resources ---
-    _bannerAd?.dispose();
+   
     super.dispose();
   }
   
   // --- NEW: Method to load the banner ad ---
-  void _loadAd() {
-    _bannerAd = BannerAd(
-      adUnitId: _adUnitId,
-      request: const AdRequest(),
-      size: AdSize.banner,
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-          debugPrint('$ad loaded.');
-          setState(() {
-            // Ad is ready to be displayed
-          });
-        },
-        onAdFailedToLoad: (ad, err) {
-          debugPrint('BannerAd failed to load: $err');
-          ad.dispose();
-        },
-      ),
-    )..load();
-  }
-
-
+  
   void _showItemOptionsMenu(
     BuildContext context,
     RoadmapViewModel viewModel,
@@ -319,22 +295,7 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
           const SizedBox(height: 20),
           
           // --- MODIFIED: Display the loaded ad ---
-          if (_bannerAd != null)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-                child: SizedBox(
-                  width: _bannerAd!.size.width.toDouble(),
-                  height: _bannerAd!.size.height.toDouble(),
-                  child: AdWidget(ad: _bannerAd!),
-                ),
-              ),
-            )
-          else
-             // Placeholder while the ad is loading
-            SizedBox(
-              height: AdSize.banner.height.toDouble(),
-            ),
+          _buildAd(Provider.of<AdViewModel>(context), adKey),
         ],
       ),
     );
@@ -452,4 +413,37 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
       ),
     );
   }
+  
+  Widget _buildAd(AdViewModel adViewModel, String adId) {
+    // 1. isAdLoaded(adId) を使って、特定の広告のロード状態を確認します。
+    if (adViewModel.isAdLoaded(adId)) {
+      // 2. getAd(adId) を使って、特定の広告オブジェクトを取得します。
+      final bannerAd = adViewModel.getAd(adId);
+
+      // 広告がnullでないことを確認してから表示します。
+      if (bannerAd != null) {
+        return Container(
+          alignment: Alignment.center,
+          child: AdWidget(ad: bannerAd),
+          width: bannerAd.size.width.toDouble(),
+          height: bannerAd.size.height.toDouble(),
+        );
+      } else {
+        // 予期せず広告がnullだった場合の表示
+        return Container(
+          height: 50.0,
+          alignment: Alignment.center,
+          child: Text('Ad data not found.'),
+        );
+      }
+    } else {
+      // ロード中、またはロードに失敗した場合の表示
+      return Container(
+        height: 50.0, // バナー広告と同じ高さ
+        alignment: Alignment.center,
+        child: Text('Ad is loading...'),
+      );
+    }
+  }
+
 }

@@ -9,8 +9,6 @@ def optimize_png_pillow(input_path, output_path, colors=256, max_size=(1024, 768
             # リサイズ
             img.thumbnail(max_size, Image.Resampling.LANCZOS) # LANCZOSは高品質なリサイズアルゴリズム
 
-            # 色数削減 (quantizeメソッドは減色処理を行います)
-            # 画像がすでにパレットモードの場合は、quantizeは適用されません
             if img.mode != 'P': # 'P'はパレットモード（256色以下）
                 img = img.quantize(colors=colors)
 
@@ -23,6 +21,6 @@ def optimize_png_pillow(input_path, output_path, colors=256, max_size=(1024, 768
         print(f"エラーが発生しました: {e}")
 
 # 使用例
-input_file = "marble.png"
-output_file = "compressedImage.png"
+input_file = "image7.png"
+output_file = "image7.png"
 optimize_png_pillow(input_file, output_file, colors=128, max_size=(800, 600))

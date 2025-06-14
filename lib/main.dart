@@ -7,10 +7,12 @@ import 'package:hive/hive.dart';
 import 'package:moneymanager/View_BottomTab.dart';
 import 'package:moneymanager/Transaction_Views/analysis/ViewModel.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
-import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
-import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_AIRoadMap.dart';
+import 'package:moneymanager/ads/ViewModel_ads.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_DashBoard.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_DashBoard.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_repository.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/streak/streak_repository.dart';
 import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
 import 'package:moneymanager/aisupport/Goal_input/goal_input/ViewModel_goalInput.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
@@ -44,6 +46,10 @@ Future<void> main() async {
       providers: [
         Provider(create: (context) => PlanRepository()),
         Provider(create: (context) => NoteRepository()),
+        
+        Provider<StreakRepository>(
+          create: (_) => StreakRepository(),
+        ),
         Provider(
           create: (context) => AIFinanceRepository(
             localPlanRepository: context.read<PlanRepository>(),
@@ -51,18 +57,28 @@ Future<void> main() async {
         ),
         // ViewModel
         ChangeNotifierProvider(
+          create: (_) => AdViewModel()
+          ),
+        ChangeNotifierProvider(
           create: (context) => NoteViewModel(
             noteRepository: context.read<NoteRepository>(),
           ),
         ),
+        
         ChangeNotifierProvider(
           create: (context) => AIFinanceViewModel(
+            streakRepository: context.read<StreakRepository>(),
             repository: context.read<AIFinanceRepository>(),
             noteViewModel: context.read<NoteViewModel>(),
           ),
         ),
-
-        
+        ChangeNotifierProvider(
+          create: (context) => AIFinanceViewModel(
+            streakRepository: context.read<StreakRepository>(),
+            repository: context.read<AIFinanceRepository>(),
+            noteViewModel: context.read<NoteViewModel>(),
+          ),
+        ),
         Provider.value(value: planRepository),
         ChangeNotifierProvider<AnalysisViewModel>(  
             create: (_) => AnalysisViewModel()

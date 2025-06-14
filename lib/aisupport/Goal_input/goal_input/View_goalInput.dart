@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // FilteringTextInputFormatter に必要
-import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_DashBoard.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart';
 import 'package:provider/provider.dart';
