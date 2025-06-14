@@ -34,13 +34,14 @@ class TaskHiveModelAdapter extends TypeAdapter<TaskHiveModel> {
       userInputPreferToEarnMoney: fields[14] as String?,
       userInputNote: fields[15] as String?,
       goalId: fields[16] as String?,
+      notificationTime: fields[17] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TaskHiveModel obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -74,7 +75,9 @@ class TaskHiveModelAdapter extends TypeAdapter<TaskHiveModel> {
       ..writeByte(15)
       ..write(obj.userInputNote)
       ..writeByte(16)
-      ..write(obj.goalId);
+      ..write(obj.goalId)
+      ..writeByte(17)
+      ..write(obj.notificationTime);
   }
 
   @override

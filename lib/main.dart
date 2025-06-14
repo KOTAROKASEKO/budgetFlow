@@ -16,6 +16,7 @@ import 'package:moneymanager/aisupport/DashBoard_MapTask/streak/streak_repositor
 import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
 import 'package:moneymanager/aisupport/Goal_input/goal_input/ViewModel_goalInput.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
+import 'package:moneymanager/notification_service/notification_service.dart';
 import 'package:moneymanager/security/Authentication.dart';
 import 'package:moneymanager/security/uid.dart';
 import 'package:path_provider/path_provider.dart';
@@ -37,7 +38,8 @@ Future<void> main() async {
 
   await planRepository.initDb();
   await dashBoardDBManager.init();
-    
+  await NotificationService().init();
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

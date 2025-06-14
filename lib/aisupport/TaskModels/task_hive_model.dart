@@ -75,6 +75,9 @@ class TaskHiveModel extends HiveObject {
   @HiveField(16)
   String? goalId;
 
+  @HiveField(17)
+  DateTime? notificationTime;
+
 
   TaskHiveModel({
     String? id,
@@ -94,6 +97,7 @@ class TaskHiveModel extends HiveObject {
     this.userInputPreferToEarnMoney,
     this.userInputNote,
     this.goalId,
+    this.notificationTime,
   })  : id = id ?? _uuid.v4(),
         createdAt = createdAt ?? DateTime.now();
 

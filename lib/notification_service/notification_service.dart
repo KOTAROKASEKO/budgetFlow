@@ -1,6 +1,8 @@
+import 'dart:io'; // Required for Platform.isIOS/isAndroid
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
-import 'package:timezone/data/latest_all.dart' as tz_data; 
+import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
@@ -8,13 +10,15 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
@@ -26,31 +30,57 @@ class NotificationService {
     );
 
     tz_data.initializeTimeZones();
+    try {
+      tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
+    } catch (e) {
+      print('Could not set local timezone: $e');
+    }
 
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
+  Future<bool> requestPermissions() async {
+    if (Platform.isIOS) {
+      return await _notificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                  IOSFlutterLocalNotificationsPlugin>()
+              ?.requestPermissions(
+                alert: true,
+                badge: true,
+                sound: true,
+              ) ??
+          false;
+    } else if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      final bool? granted =
+          await androidImplementation?.requestNotificationsPermission();
+      return granted ?? false;
+    }
+    return false;
+  }
+
   Future<void> scheduleTaskReminder({
     required TaskHiveModel task,
-    required DateTime scheduledDate,
   }) async {
-    final tz.TZDateTime scheduledNotificationDateTime = tz.TZDateTime(
-      tz.local,
-      scheduledDate.year,
-      scheduledDate.month,
-      scheduledDate.day,
-      9, // 朝9時
-    );
+    if (task.notificationTime == null) {
+      print('Notification time is not set; skipping schedule.');
+      return;
+    }
+
+    final tz.TZDateTime scheduledNotificationDateTime =
+        tz.TZDateTime.from(task.notificationTime!, tz.local);
 
     if (scheduledNotificationDateTime.isBefore(tz.TZDateTime.now(tz.local))) {
-      print('スケジュール日時が過去です。通知は設定されません。');
+      print('Scheduled time is in the past; skipping schedule.');
       return;
     }
 
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'task_reminder_channel',
       'Task Reminders',
-      channelDescription: 'タスクリマインダーの通知チャンネル',
+      channelDescription: 'Channel for task reminder notifications',
       importance: Importance.max,
       priority: Priority.high,
     );
@@ -64,18 +94,21 @@ class NotificationService {
 
     await _notificationsPlugin.zonedSchedule(
       task.id.hashCode,
-      'タスクリマインダー: ${task.title}',
-      '今日がタスク「${task.purpose ?? ''}」の期日です。',
+      'Task Reminder: ${task.title}',
+      'Your task "${task.purpose ?? ''}" is due today.',
       scheduledNotificationDateTime,
       platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exact,
+      // --- FIX for the PlatformException ---
+      // Changed from .exact to .inexactAllowWhileIdle to avoid requiring the
+      // special "Alarms & Reminders" permission on Android 12+
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
-    print('通知をスケジュールしました: ${task.title} at $scheduledNotificationDateTime');
+    print('Notification scheduled for: ${task.title} at $scheduledNotificationDateTime');
   }
 
   Future<void> cancelTaskReminder(String taskId) async {
     final notificationId = taskId.hashCode;
     await _notificationsPlugin.cancel(notificationId);
-    print('通知をキャンセルしました: Task ID Hash $notificationId');
+    print('Notification cancelled for: Task ID Hash $notificationId');
   }
 }

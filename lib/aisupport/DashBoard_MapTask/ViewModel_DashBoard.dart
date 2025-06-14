@@ -220,10 +220,8 @@ class AIFinanceViewModel extends ChangeNotifier {
     task.dueDate = DateTime.utc(date.year, date.month, date.day);
     task.status = 'scheduled_on_calendar';
     await _repository.updateTask(task);
-    await NotificationService().scheduleTaskReminder(
-      task: task,
-      scheduledDate: date,
-    );
+    // REMOVED: Automatic notification scheduling is removed.
+    // User will set it manually from the task details.
     if (_currentActiveGoal != null) {
       await _loadTasksForGoal(_currentActiveGoal!.id);
     }
@@ -233,6 +231,7 @@ class AIFinanceViewModel extends ChangeNotifier {
     await NotificationService().cancelTaskReminder(task.id);
     task.dueDate = null;
     task.status = 'pending';
+    task.notificationTime = null; // Also clear notification time
     await _repository.updateTask(task);
     if (_currentActiveGoal != null) {
       await _loadTasksForGoal(_currentActiveGoal!.id);
@@ -266,14 +265,11 @@ class AIFinanceViewModel extends ChangeNotifier {
     _streakData!.totalPoints += pointsToAdd;
     _streakData!.lastCompletionDate = today;
 
-    // Save locally first
     await _streakRepository.saveStreak(_streakData!);
-    //This is not await because streak data can be updated often
-       _streakRepository.saveStreakToFirestore(userId.uid, _streakData!)
+    _streakRepository.saveStreakToFirestore(userId.uid, _streakData!)
       .catchError((error) {
         print("BACKGROUND FIRESTORE BACKUP FAILED: $error");
       });
-    // ---------------------------------------------
 
     setAvatar(_streakData!.currentStreak);
 
@@ -293,6 +289,22 @@ class AIFinanceViewModel extends ChangeNotifier {
       await _updateStreakAndPoints();
     }
 
+    if (_currentActiveGoal != null) {
+      await _loadTasksForGoal(_currentActiveGoal!.id);
+    }
+  }
+
+  // --- NEW ---
+  Future<void> setTaskNotification(TaskHiveModel task, DateTime? notificationDateTime) async {
+    task.notificationTime = notificationDateTime;
+
+    if (notificationDateTime != null) {
+      await NotificationService().scheduleTaskReminder(task: task);
+    } else {
+      await NotificationService().cancelTaskReminder(task.id);
+    }
+    
+    await _repository.updateTask(task);
     if (_currentActiveGoal != null) {
       await _loadTasksForGoal(_currentActiveGoal!.id);
     }

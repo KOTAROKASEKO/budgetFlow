@@ -7,10 +7,10 @@ import 'package:moneymanager/aisupport/RoadMaps/View_roadMapRecord.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:moneymanager/aisupport/Goal_input/goal_input/View_goalInput.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
+import 'package:moneymanager/notification_service/notification_service.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-
 
 class FinancialGoalPage extends StatefulWidget {
   const FinancialGoalPage();
@@ -18,10 +18,11 @@ class FinancialGoalPage extends StatefulWidget {
   State<FinancialGoalPage> createState() => _FinancialGoalViewState();
 }
 
-class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTickerProviderStateMixin {
+class _FinancialGoalViewState extends State<FinancialGoalPage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _noteController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  Ticker? _ticker; 
+  Ticker? _ticker;
   String? _expandedTaskId;
   String adkey = 'View_DashBoard_Ad';
 
@@ -32,7 +33,9 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
     _noteController.text = noteViewModel.noteForSelectedDay?.content ?? '';
     noteViewModel.addListener(_onNoteChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AIFinanceViewModel>().onDaySelected(DateTime.now(), DateTime.now());
+      context
+          .read<AIFinanceViewModel>()
+          .onDaySelected(DateTime.now(), DateTime.now());
       Provider.of<AdViewModel>(context, listen: false).loadAd(adkey);
     });
   }
@@ -68,12 +71,11 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
     _ticker = null;
   }
 
-
   @override
   void dispose() {
     context.read<NoteViewModel>().removeListener(_onNoteChanged);
     _noteController.dispose();
-     _ticker?.dispose();
+    _ticker?.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -89,16 +91,18 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
         centerTitle: true,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children:[
-            Image.asset('assets/ai.png', width: 40, height: 40,),
-            Text('Financial Goal',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold)),
-                ]),
+        title: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Image.asset(
+            'assets/ai.png',
+            width: 40,
+            height: 40,
+          ),
+          Text('Financial Goal',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
+        ]),
         backgroundColor: Colors.black,
         elevation: 0,
       ),
@@ -113,7 +117,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
                     children: [
                       _buildAd(Provider.of<AdViewModel>(context), adkey),
                       _buildAvatar(context, viewModel),
-                      // --- NEW: Streak Tracker Widget ---
                       _buildStreakTracker(context, viewModel),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
@@ -130,12 +133,13 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              viewModel.currentActiveGoal?.title.isNotEmpty == true
+                              viewModel.currentActiveGoal?.title.isNotEmpty ==
+                                      true
                                   ? "Long-press a task to drag it to the calendar."
                                   : '',
                               maxLines: 2,
-                              style:
-                                  const TextStyle(color: Colors.white, fontSize: 13),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13),
                             ),
                           ],
                         ),
@@ -152,7 +156,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
                               lastDay: DateTime.utc(2030, 12, 31),
                               focusedDay: viewModel.focusedDay,
                               calendarFormat: viewModel.calendarFormat,
-                              availableGestures: AvailableGestures.horizontalSwipe,
+                              availableGestures:
+                                  AvailableGestures.horizontalSwipe,
                               selectedDayPredicate: (day) =>
                                   isSameDay(viewModel.selectedDay, day),
                               onDaySelected: viewModel.onDaySelected,
@@ -178,7 +183,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
                                   return null;
                                 },
                                 defaultBuilder: (context, day, focusedDay) =>
-                                    _buildCalendarDayCell(context, day, focusedDay),
+                                    _buildCalendarDayCell(
+                                        context, day, focusedDay),
                                 todayBuilder: (context, day, focusedDay) =>
                                     _buildCalendarDayCell(context, day, focusedDay,
                                         isToday: true),
@@ -201,7 +207,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
                                 formatButtonVisible: false,
                                 leftChevronIcon: const Icon(Icons.chevron_left,
                                     color: Color.fromARGB(255, 255, 255, 255)),
-                                rightChevronIcon: const Icon(Icons.chevron_right,
+                                rightChevronIcon: const Icon(
+                                    Icons.chevron_right,
                                     color: Color.fromARGB(255, 255, 255, 255)),
                               ),
                             ),
@@ -259,24 +266,24 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
                 ),
               ],
             ),
-            
-      floatingActionButton:viewModel.goalAvailability? FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const GoalInputPage()));
-          if (context.mounted) {
-            context.read<AIFinanceViewModel>().loadInitialData();
-          }
-        },
-        backgroundColor: Colors.deepPurpleAccent,
-        child: const Icon(Icons.add, color: Colors.white),
-      ):SizedBox(),
-    
+      floatingActionButton: viewModel.goalAvailability
+          ? FloatingActionButton(
+              onPressed: () async {
+                await Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const GoalInputPage()));
+                if (context.mounted) {
+                  context.read<AIFinanceViewModel>().loadInitialData();
+                }
+              },
+              backgroundColor: Colors.deepPurpleAccent,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : SizedBox(),
     );
   }
 
-  // --- NEW: Streak Tracker Widget ---
-  Widget _buildStreakTracker(BuildContext context, AIFinanceViewModel viewModel) {
+  Widget _buildStreakTracker(
+      BuildContext context, AIFinanceViewModel viewModel) {
     final streak = viewModel.streakData?.currentStreak ?? 0;
     final points = viewModel.streakData?.totalPoints ?? 0;
 
@@ -291,15 +298,25 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("CURRENT STREAK", style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  Text("$streak DAYS", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text("CURRENT STREAK",
+                      style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  Text("$streak DAYS",
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text("TOTAL POINTS", style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  Text("$points PTS", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text("TOTAL POINTS",
+                      style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  Text("$points PTS",
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
@@ -310,18 +327,28 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
             children: List.generate(7, (index) {
               final dayNumber = index + 1;
               final isCompleted = dayNumber <= streak;
-              // A simple logic to check if today's task is done to show a filled check
-              bool isTodayCompleted = isCompleted && isSameDay(viewModel.streakData?.lastCompletionDate, DateTime.now());
-              
+              bool isTodayCompleted = isCompleted &&
+                  isSameDay(
+                      viewModel.streakData?.lastCompletionDate, DateTime.now());
+
               return Column(
                 children: [
                   Icon(
-                    isCompleted ? Icons.check_circle : Icons.check_circle_outline,
-                    color: isCompleted ? (isTodayCompleted ? Colors.amberAccent : Colors.greenAccent) : Colors.white24,
+                    isCompleted
+                        ? Icons.check_circle
+                        : Icons.check_circle_outline,
+                    color: isCompleted
+                        ? (isTodayCompleted
+                            ? Colors.amberAccent
+                            : Colors.greenAccent)
+                        : Colors.white24,
                     size: 28,
                   ),
                   const SizedBox(height: 4),
-                  Text("Day $dayNumber", style: TextStyle(color: isCompleted ? Colors.white : Colors.white54, fontSize: 12)),
+                  Text("Day $dayNumber",
+                      style: TextStyle(
+                          color: isCompleted ? Colors.white : Colors.white54,
+                          fontSize: 12)),
                 ],
               );
             }),
@@ -372,67 +399,16 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
               style: TextStyle(color: Colors.white54, fontSize: 16)));
     }
 
-    // --- MODIFIED: check if the selected day is today ---
     final bool isToday = isSameDay(viewModel.selectedDay, DateTime.now());
 
     return Column(
       children: tasks.map((task) {
         final isExpanded = _expandedTaskId == task.id;
-        
-        final expandedContent = Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF2A2A2A),
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(12),
-              bottomRight: Radius.circular(12),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Divider(color: Colors.white24),
-              const SizedBox(height: 8),
-              Text(
-                "Purpose:",
-                style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                task.purpose ?? 'No purpose defined.',
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                  // --- MODIFIED: Disable button if not today ---
-                  onPressed: isToday ? () => viewModel.toggleTaskCompletion(task) : null,
-                  icon: Icon(
-                    task.isDone
-                        ? Icons.close_rounded
-                        : Icons.check_circle_outline,
-                    size: 18,
-                  ),
-                  label: Text(task.isDone ? "Mark as Incomplete" : "Mark as Done"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: task.isDone
-                        ? Colors.grey.shade600
-                        : Colors.green.shade600,
-                    foregroundColor: Colors.white,
-                    // --- MODIFIED: Visual feedback for disabled button ---
-                    disabledBackgroundColor: Colors.grey.shade800,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+
+        final expandedContent = _TaskCardExpandedContent(
+          task: task,
+          isToday: isToday,
+          viewModel: viewModel,
         );
 
         final taskCard = Material(
@@ -486,27 +462,26 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
             ),
           ),
         );
-        
+
         final draggableItem = LongPressDraggable<TaskHiveModel>(
           data: task,
           feedback: Material(
             color: Colors.transparent,
             child: ConstrainedBox(
-              constraints:
-                  BoxConstraints(maxWidth: MediaQuery.of(context).size.width - 48),
-              child: Card(
-                color: const Color(0xFF2A2A2A),
-                child: ListTile(title: Text(task.title, style: const TextStyle(color: Colors.white))),
-              )
-            ),
+                constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width - 48),
+                child: Card(
+                  color: const Color(0xFF2A2A2A),
+                  child: ListTile(
+                      title: Text(task.title,
+                          style: const TextStyle(color: Colors.white))),
+                )),
           ),
           childWhenDragging: Opacity(
-            opacity: 0.5,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: taskCard
-            )
-          ),
+              opacity: 0.5,
+              child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: taskCard)),
           onDragEnd: (details) {
             _stopScrolling();
           },
@@ -517,7 +492,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
           padding: const EdgeInsets.only(bottom: 8.0),
           child: draggableItem,
         );
-
       }).toList(),
     );
   }
@@ -546,13 +520,14 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
                     color: const Color.fromARGB(130, 77, 32, 118),
                   ),
                   child: Padding(
-                    padding: EdgeInsetsGeometry.all(5),
-                    child:Text(task.title,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.start,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),)),
+                      padding: EdgeInsetsGeometry.all(5),
+                      child: Text(task.title,
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.start,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis)),
+                ),
                 const Divider(),
                 Text(task.purpose ?? 'no description',
                     style: const TextStyle(
@@ -636,13 +611,12 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
               ? SizedBox(
                   height: 60,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children:[
-                      Text("No tasks to schedule.",
-                      maxLines: 2,
-                          style: TextStyle(color: Colors.white54)
-                        ),
-                     ]))
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("No tasks to schedule.",
+                            maxLines: 2,
+                            style: TextStyle(color: Colors.white54)),
+                      ]))
               : taskListView,
         );
       },
@@ -689,23 +663,24 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: Scaffold(
           backgroundColor: Colors.black,
-          body: Column(children:[Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Expanded(
-                child:TextField(
-                  controller: _noteController,
-                  autofocus: true,
-                  expands: true,
-                  maxLines: null,
-                  minLines: null,
-                  style: const TextStyle(color: Color.fromARGB(255, 255, 255, 255), fontSize: 18),
-                  decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: "Your note...",
-                      hintStyle: TextStyle(color: Colors.white54))
-                      )
-                      )
-                      ),]),
+          body: Column(children: [
+            Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Expanded(
+                    child: TextField(
+                        controller: _noteController,
+                        autofocus: true,
+                        expands: true,
+                        maxLines: null,
+                        minLines: null,
+                        style: const TextStyle(
+                            color: Color.fromARGB(255, 255, 255, 255),
+                            fontSize: 18),
+                        decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: "Your note...",
+                            hintStyle: TextStyle(color: Colors.white54)))))
+          ]),
           bottomNavigationBar: Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
@@ -790,46 +765,42 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
       ),
     );
   }
-  
+
   Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
-    
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(100),
           child: Image.network(
-        viewModel.picUrl,
-        width: 200,
-        height: 200,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: 200,
-          height: 200,
-          color: Colors.grey[800],
-          child: const Icon(Icons.person, color: Colors.white, size: 100),
-        ),
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
+            viewModel.picUrl,
             width: 200,
             height: 200,
-            alignment: Alignment.center,
-            child: const CircularProgressIndicator(),
-          );
-        },
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 200,
+              height: 200,
+              color: Colors.grey[800],
+              child: const Icon(Icons.person, color: Colors.white, size: 100),
+            ),
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: 200,
+                height: 200,
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(),
+              );
+            },
           ),
         ),
-    ],);
+      ],
+    );
   }
-  
-  Widget _buildAd(AdViewModel adViewModel, String adId) {
-    // 1. isAdLoaded(adId) を使って、特定の広告のロード状態を確認します。
-    if (adViewModel.isAdLoaded(adId)) {
-      // 2. getAd(adId) を使って、特定の広告オブジェクトを取得します。
-      final bannerAd = adViewModel.getAd(adId);
 
-      // 広告がnullでないことを確認してから表示します。
+  Widget _buildAd(AdViewModel adViewModel, String adId) {
+    if (adViewModel.isAdLoaded(adId)) {
+      final bannerAd = adViewModel.getAd(adId);
       if (bannerAd != null) {
         return Container(
           alignment: Alignment.center,
@@ -838,7 +809,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
           height: bannerAd.size.height.toDouble(),
         );
       } else {
-        // 予期せず広告がnullだった場合の表示
         return Container(
           height: 50.0,
           alignment: Alignment.center,
@@ -846,12 +816,247 @@ class _FinancialGoalViewState extends State<FinancialGoalPage> with SingleTicker
         );
       }
     } else {
-      // ロード中、またはロードに失敗した場合の表示
       return Container(
-        height: 50.0, // バナー広告と同じ高さ
+        height: 50.0,
         alignment: Alignment.center,
         child: Text('Ad is loading...'),
       );
     }
+  }
+}
+
+class _TaskCardExpandedContent extends StatefulWidget {
+  final TaskHiveModel task;
+  final bool isToday;
+  final AIFinanceViewModel viewModel;
+
+  const _TaskCardExpandedContent({
+    required this.task,
+    required this.isToday,
+    required this.viewModel,
+  });
+
+  @override
+  __TaskCardExpandedContentState createState() =>
+      __TaskCardExpandedContentState();
+}
+
+class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
+  late bool _sendNotification;
+  late TimeOfDay _notificationTime;
+  bool _isConfirmed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Use notificationDateTime for consistency as per previous updates
+    _sendNotification = widget.task.notificationTime != null;
+    if (widget.task.notificationTime != null) {
+      _notificationTime =
+          TimeOfDay.fromDateTime(widget.task.notificationTime!);
+    } else {
+      _notificationTime = const TimeOfDay(hour: 9, minute: 0);
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: _notificationTime,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Colors.deepPurpleAccent,
+              onPrimary: Colors.white,
+              surface: Color(0xFF2A2A2A),
+              onSurface: Colors.white,
+            ),
+            dialogBackgroundColor: const Color(0xFF1A1A1A),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (pickedTime != null && pickedTime != _notificationTime) {
+      setState(() {
+        _notificationTime = pickedTime;
+      });
+    }
+  }
+
+  Future<void> _confirmNotificationChanges() async {
+    if (widget.task.dueDate == null) return;
+
+    DateTime? finalNotificationDateTime;
+
+    if (_sendNotification) {
+      final bool hasPermission = await NotificationService().requestPermissions();
+      if (!mounted) return;
+
+      if (!hasPermission) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification permission is required for reminders.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final date = widget.task.dueDate!;
+      finalNotificationDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        _notificationTime.hour,
+        _notificationTime.minute,
+      );
+    } else {
+      finalNotificationDateTime = null;
+    }
+
+    // It's better to use notificationDateTime for consistency
+    await widget.viewModel
+        .setTaskNotification(widget.task, finalNotificationDateTime);
+
+    if (mounted) {
+      setState(() {
+        _isConfirmed = true;
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _isConfirmed = false;
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // --- NEW: Logic to check if the task date is in the past ---
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime? taskDate = widget.task.dueDate;
+    final bool isTaskDateInPast = taskDate != null && taskDate.isBefore(today);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(12),
+          bottomRight: Radius.circular(12),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(color: Colors.white24),
+          const SizedBox(height: 8),
+          Text(
+            "Purpose:",
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontWeight: FontWeight.bold,
+                fontSize: 15),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.task.purpose ?? 'No purpose defined.',
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white24, height: 1),
+          SwitchListTile(
+            title: Text("Send Notification",
+                style: TextStyle(
+                  // Visually indicate if the switch is disabled
+                  color: isTaskDateInPast ? Colors.white38 : Colors.white,
+                )),
+            value: _sendNotification,
+            // --- FIX: Disable the toggle if the date is in the past ---
+            onChanged: isTaskDateInPast
+                ? null
+                : (bool value) {
+                    setState(() {
+                      _sendNotification = value;
+                    });
+                  },
+            activeColor: Colors.deepPurpleAccent,
+            inactiveThumbColor: Colors.grey,
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (_sendNotification)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Notify at: ${_notificationTime.format(context)}',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  TextButton(
+                    // Disable the change button as well if the date is past
+                    onPressed: isTaskDateInPast ? null : _pickTime,
+                    child: const Text('Change Time'),
+                    style: TextButton.styleFrom(
+                        foregroundColor: Colors.amberAccent,
+                        disabledForegroundColor: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          if (_sendNotification)
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: _isConfirmed ? null : _confirmNotificationChanges,
+                child: _isConfirmed
+                    ? const Icon(Icons.check, size: 20)
+                    : const Text('Confirm Time'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isConfirmed
+                      ? Colors.green
+                      : Colors.blueAccent.shade700,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: widget.isToday
+                  ? () => widget.viewModel.toggleTaskCompletion(widget.task)
+                  : null,
+              icon: Icon(
+                widget.task.isDone
+                    ? Icons.close_rounded
+                    : Icons.check_circle_outline,
+                size: 18,
+              ),
+              label: Text(
+                  widget.task.isDone ? "Mark as Incomplete" : "Mark as Done"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.task.isDone
+                    ? Colors.grey.shade600
+                    : Colors.green.shade600,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey.shade800,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
