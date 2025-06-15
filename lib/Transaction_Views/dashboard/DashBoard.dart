@@ -4,10 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:moneymanager/Transaction_Views/analysis/View.dart';
-import 'package:moneymanager/feedback/feedback.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
 import 'package:moneymanager/themeColor.dart';
-import 'package:moneymanager/security/Authentication.dart';
 import 'package:moneymanager/security/uid.dart'; // Ensure userId.uid is available
 import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart'; // Import Hive
@@ -926,7 +924,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                     expenseBox: _expenseBox,
                     fetchDataCallback: fetchData,
                     themeColors: SheetThemeColors(
-                      backgroundColor: const Color.fromARGB(255, 52, 52, 52)!,
+                      backgroundColor: const Color.fromARGB(255, 52, 52, 52),
                       textColor: const Color.fromARGB(255, 200, 200, 200),
                       hintTextColor: Colors.grey[500]!,
                       inputBorderColor: Colors.grey[700]!,

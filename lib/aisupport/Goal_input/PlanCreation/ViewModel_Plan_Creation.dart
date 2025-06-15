@@ -61,7 +61,7 @@ class PlanCreationViewModel extends ChangeNotifier {
   }) : _repository = repository, // [MODIFIED]
        _existingPlanRootForRefinement = existingPlanRootTask {
     if (_existingPlanRootForRefinement != null) {
-      _loadExistingPlanForRefinement(_existingPlanRootForRefinement!);
+      _loadExistingPlanForRefinement(_existingPlanRootForRefinement);
     } else if (initialPlanDuration != null) {
       initializeWithInputs(
         earnThisYear: initialEarnThisYear!,
