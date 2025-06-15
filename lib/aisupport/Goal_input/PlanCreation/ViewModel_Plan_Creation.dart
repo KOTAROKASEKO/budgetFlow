@@ -27,11 +27,11 @@ class PlanCreationViewModel extends ChangeNotifier {
   TaskHiveModel? _currentGoalTask; // The root Goal Task
   List<List<TaskHiveModel>> _taskHierarchy = [];
   Map<int, TaskHiveModel?> _selectedTasksAtLevel = {};
-  Map<String, List<TaskHiveModel>> _childrenCache = {};
+  final Map<String, List<TaskHiveModel>> _childrenCache = {};
 
   bool _isLoading = false;
   String? _errorMessage;
-  TaskHiveModel? _existingPlanRootForRefinement;
+  final TaskHiveModel? _existingPlanRootForRefinement;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;

@@ -74,4 +74,18 @@ class StreakRepository {
         .doc(userId)
         .set(streak.toJson(streak));
   }
+  
+  Future<Map<String, String>> getMessage() async {
+    DocumentSnapshot snapshot = await FirebaseFirestore.instance
+        .collection('message')
+        .doc('message')
+        .get();
+
+    if (snapshot.exists && snapshot.data() != null) {
+      final data = snapshot.data() as Map<String, dynamic>;
+      // Convert dynamic values to String
+      return data.map((key, value) => MapEntry(key, value.toString()));
+    }
+    return {};
+  }
 }

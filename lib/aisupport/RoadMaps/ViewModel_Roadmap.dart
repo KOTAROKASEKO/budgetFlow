@@ -12,7 +12,7 @@ class RoadmapViewModel extends ChangeNotifier {
   List<TaskHiveModel> _goalTasks = [];
   List<TaskHiveModel> get goalTasks => _goalTasks;
 
-  List<Map<String, dynamic>> _navigationStack = []; // Stores {id: String, name: String, levelName: TaskLevelName}
+  final List<Map<String, dynamic>> _navigationStack = []; // Stores {id: String, name: String, levelName: TaskLevelName}
   List<TaskHiveModel> _currentLevelItems = [];
   
   List<TaskHiveModel> get currentLevelItems => _currentLevelItems;

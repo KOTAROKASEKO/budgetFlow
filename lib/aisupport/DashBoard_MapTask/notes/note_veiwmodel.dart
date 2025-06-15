@@ -6,13 +6,13 @@ import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_repository.d
 
 class NoteViewModel extends ChangeNotifier {
   final NoteRepository _noteRepository;
-  NoteHiveModel? _noteForSelectedDay;
+  List<NoteHiveModel> _notesForSelectedDay = [];
   bool _isLoading = false;
 
   NoteViewModel({required NoteRepository noteRepository})
       : _noteRepository = noteRepository;
 
-  NoteHiveModel? get noteForSelectedDay => _noteForSelectedDay;
+  List<NoteHiveModel> get notesForSelectedDay => _notesForSelectedDay;
   bool get isLoading => _isLoading;
 
   void _setLoading(bool loading) {
@@ -22,35 +22,52 @@ class NoteViewModel extends ChangeNotifier {
 
   Future<void> loadNoteForDay(DateTime day, String goalId) async {
     _setLoading(true);
-    _noteForSelectedDay = await _noteRepository.getNoteForDay(day, goalId);
+    _notesForSelectedDay = await _noteRepository.getNotesForDay(
+      goalId: goalId,
+      year: day.year,
+      month: day.month,
+      day: day.day,
+    );
     _setLoading(false);
   }
 
-  Future<void> saveNote(
-      String content, DateTime day, String goalId) async {
-    if (content.trim().isEmpty) {
-      // If content is empty, delete existing note if it exists
-      if (_noteForSelectedDay != null) {
-        await _noteRepository.deleteNote(_noteForSelectedDay!.id);
-        _noteForSelectedDay = null;
-      }
-    } else {
-      // If content is not empty, create or update note
-      final noteToSave = NoteHiveModel(
-        id: _noteForSelectedDay?.id, // Keep ID for updates
-        content: content,
-        date: day,
-        goalId: goalId,
-      );
-      await _noteRepository.saveNote(noteToSave);
-      _noteForSelectedDay = noteToSave;
+  Future<void> saveNote({
+    required String content,
+    required DateTime day,
+    required String goalId,
+    String? noteId,
+  }) async {
+    // If the content is empty for an existing note, delete it.
+    if (content.trim().isEmpty && noteId != null) {
+      await deleteNote(noteId: noteId, day: day, goalId: goalId);
+      return;
     }
-    notifyListeners();
+    // Do not save new empty notes.
+    if (content.trim().isEmpty) return;
+
+    // Create a new note object. The constructor will generate a new ID if `noteId` is null.
+    final noteToSave = NoteHiveModel(
+      id: noteId,
+      content: content,
+      date: day,
+      goalId: goalId,
+    );
+    await _noteRepository.saveNote(noteToSave);
+    await loadNoteForDay(day, goalId); // Refresh the list from storage
   }
 
-  /// **[ADD]** Clears the currently displayed note.
+  Future<void> deleteNote({
+    required String noteId,
+    required DateTime day,
+    required String goalId,
+  }) async {
+    await _noteRepository.deleteNote(noteId);
+    await loadNoteForDay(day, goalId); // Refresh the list
+  }
+
+  /// Clears the currently displayed notes.
   void clearCurrentNote() {
-    _noteForSelectedDay = null;
+    _notesForSelectedDay = [];
     notifyListeners();
   }
 }

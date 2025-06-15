@@ -51,6 +51,11 @@ class AIFinanceViewModel extends ChangeNotifier {
   StreakHiveModel? _streakData;
   StreakHiveModel? get streakData => _streakData;
 
+  // NEW: Property to hold the streak message
+  String _streakMessage = '';
+  String get streakMessage => _streakMessage;
+
+
   static const Map<int, int> _streakPoints = {
     1: 1,
     2: 1,
@@ -69,7 +74,20 @@ class AIFinanceViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // NEW: Method to get the correct message based on streak days
+  Future<void> _updateStreakMessage(int streakDay) async{
+    // Fetch streak messages from Firestore and update _streakMessage
+    final doc = await _streakRepository.getMessage();
+    _streakMessage = doc[streakDay.toString()]??"oops! something went wrong!";
+    notifyListeners();
+  }
+
+  //from management app, make a several line of compliment, update it everyweek
+  ///-> if user's streak got broken, it will show the same compliment if it is still not updated. so prepare several and put it in the list?
+  ///but if so, i'll make a random number within the range, and 
+
   void setAvatar(int streakDay) {
+    _updateStreakMessage(streakDay); // Set the message along with the avatar
     // [修正] アセットのパスを修正
     switch (streakDay) {
       case 1:
@@ -103,7 +121,7 @@ class AIFinanceViewModel extends ChangeNotifier {
     _setLoading(true);
     await _loadAndCheckStreak();
 
-    // [追加] 最初にアバターを設定する
+    // [MODIFIED] Set the avatar and message on initial load
     setAvatar(_streakData?.currentStreak ?? 0);
 
     final goals = await _repository.syncAndGetGoalTasks();

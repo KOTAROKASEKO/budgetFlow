@@ -64,7 +64,7 @@ class AIFinanceRepository {
   }
 
   TaskHiveModel _taskFromFirestoreMap(Map<String, dynamic> data, String docId) {
-    TaskLevelName _parseTaskLevel(String? levelStr) {
+    TaskLevelName parseTaskLevel(String? levelStr) {
       if (levelStr == null) return TaskLevelName.Daily;
       return TaskLevelName.values.firstWhere(
         (e) => e.toString().split('.').last == levelStr,
@@ -74,7 +74,7 @@ class AIFinanceRepository {
     
     return TaskHiveModel(
       id: docId,
-      taskLevel: _parseTaskLevel(data['taskLevel']),
+      taskLevel: parseTaskLevel(data['taskLevel']),
       parentTaskId: data['parentTaskId'],
       title: data['title'] ?? 'Untitled',
       purpose: data['purpose'],

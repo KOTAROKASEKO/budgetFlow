@@ -31,13 +31,11 @@ class AppTheme {
     colorScheme: const ColorScheme.dark(
       primary: shiokuriBlue,
       secondary: shiokuriBlue, // Can be another accent
-      surface: cardBackground, // Used by Cards, Dialogs
-      background: baseBackground,
+      surface: cardBackground,
       error: Colors.redAccent,
       onPrimary: primaryText,
       onSecondary: primaryText,
       onSurface: primaryText,
-      onBackground: primaryText,
       onError: primaryText,
     ),
     appBarTheme: const AppBarTheme(

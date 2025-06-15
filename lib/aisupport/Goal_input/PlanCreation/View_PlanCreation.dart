@@ -132,7 +132,7 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
                 hintText: "e.g., focus on skill development first",
                 border: const OutlineInputBorder(),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.background.withOpacity(0.5),
+                fillColor: Theme.of(context).colorScheme.surface.withOpacity(0.5),
               ),
               minLines: 2,
               maxLines: 4,
@@ -318,7 +318,7 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
                     }
                     
                     String levelDisplayName = currentLevelTasks.isNotEmpty
-                        ? currentLevelTasks.first.taskLevel.toString().split('.').last + "s"
+                        ? "${currentLevelTasks.first.taskLevel.toString().split('.').last}s"
                         : "Tasks";
 
 

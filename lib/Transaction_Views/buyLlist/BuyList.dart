@@ -33,10 +33,10 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
   // State variables for simulation
   double _actualTodaysBaseExpense = 0.0;
   int _actualTodaysExpenseCount = 0;
-  Set<String> _selectedBuyListItemIds = {};
+  final Set<String> _selectedBuyListItemIds = {};
   double _simulatedTodaysTotalExpense = 0.0;
   double _simulatedTodaysAverageExpense = 0.0;
-  String adKey = 'buyList_Ad';
+  String adKey = 'shoppingList_ad';
 
   // Ad variables
   BannerAd? _bannerAd;
@@ -49,7 +49,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
     _calculateTotalPlannedExpense(); // For AppBar
 
     _buyListBox.watch().listen((event) {
-      _calculateTotalPlannedExpense(); // Update AppBar total
+      _calculateTotalPlannedExpense();
 
       bool itemRemovedFromSelection = false;
       if (event.deleted &&
@@ -736,9 +736,9 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
     if (bannerAd != null) {
       return Container(
         alignment: Alignment.center,
-        child: AdWidget(ad: bannerAd),
         width: bannerAd.size.width.toDouble(),
         height: bannerAd.size.height.toDouble(),
+        child: AdWidget(ad: bannerAd),
       );
     } else {
       // 予期せず広告がnullだった場合の表示

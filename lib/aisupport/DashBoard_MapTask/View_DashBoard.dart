@@ -1,19 +1,24 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/ads/ViewModel_ads.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/NoteView.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_DashBoard.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/model/note_hive_model.dart';
 import 'package:moneymanager/aisupport/RoadMaps/View_roadMapRecord.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:moneymanager/aisupport/Goal_input/goal_input/View_goalInput.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
+import 'package:moneymanager/feedback/feedback.dart';
 import 'package:moneymanager/notification_service/notification_service.dart';
+import 'package:moneymanager/security/Authentication.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class FinancialGoalPage extends StatefulWidget {
-  const FinancialGoalPage();
+  const FinancialGoalPage({super.key});
   @override
   State<FinancialGoalPage> createState() => _FinancialGoalViewState();
 }
@@ -29,9 +34,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
   @override
   void initState() {
     super.initState();
-    final noteViewModel = context.read<NoteViewModel>();
-    _noteController.text = noteViewModel.noteForSelectedDay?.content ?? '';
-    noteViewModel.addListener(_onNoteChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context
           .read<AIFinanceViewModel>()
@@ -40,13 +42,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     });
   }
 
-  void _onNoteChanged() {
-    final noteViewModel = context.read<NoteViewModel>();
-    if (_noteController.text !=
-        (noteViewModel.noteForSelectedDay?.content ?? '')) {
-      _noteController.text = noteViewModel.noteForSelectedDay?.content ?? '';
-    }
-  }
 
   void _startScrolling(double speed) {
     _stopScrolling(); // 既存のTickerを停止
@@ -71,9 +66,28 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     _ticker = null;
   }
 
+  Future<void> signOut(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => UserAuthScreen()), // Replace with your actual Auth/Login Screen
+        (Route<dynamic> route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      print('Failed to sign out: ${e.message}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to sign out: ${e.message ?? "Unknown error"}'), backgroundColor: Colors.redAccent),
+      );
+    } catch (e) {
+      print('An unexpected error occurred during sign out: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('An unexpected error occurred. Please try again.'), backgroundColor: Colors.redAccent),
+      );
+    }
+  }
+
   @override
   void dispose() {
-    context.read<NoteViewModel>().removeListener(_onNoteChanged);
     _noteController.dispose();
     _ticker?.dispose();
     _scrollController.dispose();
@@ -87,6 +101,103 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
 
     return Scaffold(
       backgroundColor: theme.backgroundColor,
+      drawer:Drawer(
+          backgroundColor: const Color(0xFF1A1A1A),
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+                  decoration: BoxDecoration(color: theme.apptheme_Black.withOpacity(0.15)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundColor: theme.apptheme_Black,
+                        child: const Icon(Icons.account_balance_wallet_rounded, size: 30, color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text("Finance Planner", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      const SizedBox(height: 4),
+                      Text("Version 1.7.0", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    children: [
+                      _buildDrawerItem(
+                        context: context,
+                        icon: Icons.exit_to_app_outlined,
+                        text: 'Sign Out',
+                        accentColor: theme.apptheme_Black,
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await signOut(context);
+                        },
+                      ),
+                      const Divider(color: Colors.white12, indent: 20, endIndent: 20, height: 1),
+                      _buildDrawerItem(
+                        context: context,
+                        icon: Icons.feedback_outlined,
+                        text: 'Send Feedback',
+                        accentColor: theme.apptheme_Black,
+                        onTap: () {
+                          Navigator.pop(context);
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25.0))),
+                            builder: (BuildContext modalContext) => FeedbackForm(),
+                          );
+                        },
+                      ),
+                      _buildDrawerItem(
+                        context: context,
+                        icon: Icons.info_outline_rounded,
+                        text: 'About Us',
+                        accentColor: theme.apptheme_Black,
+                        onTap: () {
+                          Navigator.pop(context);
+                          showDialog(
+                              context: context,
+                              builder: (context) => AboutDialog(
+                                    applicationName: 'Finance Planner',
+                                    applicationVersion: '1.7.3',
+                                    applicationIcon: CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: theme.apptheme_Black,
+                                      child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
+                                    ),
+                                    applicationLegalese: '© ${DateTime.now().year} kotaro.sdn.bhd',
+                                    children: <Widget>[
+                                      const SizedBox(height: 15),
+                                      const Text('This app helps you manage your finances efficiently.'),
+                                    ],
+                                  ));
+                        },
+                      ),
+                      const Divider(color: Colors.white12, indent: 20, endIndent: 20, height: 1),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0, top: 12.0),
+                  child: Text(
+                    "Your finances, simplified.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12, fontStyle: FontStyle.italic),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+     
       appBar: AppBar(
         shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
@@ -106,6 +217,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
         backgroundColor: Colors.black,
         elevation: 0,
       ),
+      
       body: viewModel.isLoading && viewModel.currentActiveGoal == null
           ? const Center(child: CircularProgressIndicator())
           : Stack(
@@ -282,6 +394,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     );
   }
 
+  
   Widget _buildStreakTracker(
       BuildContext context, AIFinanceViewModel viewModel) {
     final streak = viewModel.streakData?.currentStreak ?? 0;
@@ -389,6 +502,106 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     );
   }
 
+Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
+    return Column( // Wrapped in a Column to place the message below the avatar
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(100),
+          child: Image.network(
+            viewModel.picUrl,
+            width: 200,
+            height: 200,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 200,
+              height: 200,
+              color: Colors.grey[800],
+              child: const Icon(Icons.person, color: Colors.white, size: 100),
+            ),
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                width: 200,
+                height: 200,
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16), // Spacing
+        // NEW: This container displays the dynamic streak message
+        if (viewModel.streakMessage.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              viewModel.streakMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'robot',
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAd(AdViewModel adViewModel, String adId) {
+    if (adViewModel.isAdLoaded(adId)) {
+      final bannerAd = adViewModel.getAd(adId);
+      if (bannerAd != null) {
+        return Container(
+          alignment: Alignment.center,
+          width: bannerAd.size.width.toDouble(),
+          height: bannerAd.size.height.toDouble(),
+          child: AdWidget(ad: bannerAd),
+        );
+      } else {
+        return Container(
+          height: 50.0,
+          alignment: Alignment.center,
+          child: Text('Ad data not found.'),
+        );
+      }
+    } else {
+      return Container(
+        height: 50.0,
+        alignment: Alignment.center,
+        child: Text('Ad is loading...'),
+      );
+    }
+  }
+  
+  Widget _buildDrawerItem({required BuildContext context, required IconData icon, required String text, required GestureTapCallback onTap, required Color accentColor}) {
+    return ListTile(
+      leading: Icon(icon, color: theme.foregroundColor, size: 24),
+      title: Text(text, style: TextStyle(fontSize: 15.5, color: Colors.white.withOpacity(0.87), fontWeight: FontWeight.w500)),
+      onTap: onTap,
+      horizontalTitleGap: 12.0,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 8.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      hoverColor: Colors.white.withOpacity(0.05),
+      splashColor: accentColor.withOpacity(0.1),
+    );
+  }
+
   Widget _buildSelectedDayTasks(
       BuildContext context, AIFinanceViewModel viewModel) {
     if (viewModel.selectedDay == null) return const SizedBox.shrink();
@@ -396,7 +609,9 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     if (tasks.isEmpty) {
       return const Center(
           child: Text('No tasks for this day.',
-              style: TextStyle(color: Colors.white54, fontSize: 16)));
+              style: TextStyle(color: Colors.white54, fontSize: 16)
+              )
+            );
     }
 
     final bool isToday = isSameDay(viewModel.selectedDay, DateTime.now());
@@ -406,6 +621,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
         final isExpanded = _expandedTaskId == task.id;
 
         final expandedContent = _TaskCardExpandedContent(
+          key: ValueKey(task.id),
           task: task,
           isToday: isToday,
           viewModel: viewModel,
@@ -629,106 +845,101 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
   }
 
   Widget _buildAddNoteField(
-      BuildContext context, NoteViewModel noteViewModel, TaskHiveModel? goal) {
-    return GestureDetector(
-      onTap: () {
-        if (goal != null &&
-            context.read<AIFinanceViewModel>().selectedDay != null) {
-          _showAddNoteModal(context, noteViewModel,
-              context.read<AIFinanceViewModel>().selectedDay!, goal.id);
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-            color: const Color(0xFF2A2A2A),
-            borderRadius: BorderRadius.circular(12)),
-        child: const Row(children: [
-          Icon(Icons.note_add_outlined, color: Colors.white70),
-          SizedBox(width: 12),
-          Text("Add a note for this day...",
-              style: TextStyle(color: Colors.white70, fontSize: 16))
-        ]),
-      ),
-    );
+    BuildContext context, NoteViewModel noteViewModel, TaskHiveModel? goal) {
+  return GestureDetector(
+    onTap: () {
+      if (goal != null &&
+          context.read<AIFinanceViewModel>().selectedDay != null) {
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                NoteEditorScreen(
+              noteViewModel: noteViewModel,
+              day: context.read<AIFinanceViewModel>().selectedDay!,
+              goalId: goal.id,
+              // For a new note, initialContent and noteId are null
+              initialContent: null,
+              noteId: null,
+            ),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 1.0);
+              const end = Offset.zero;
+              const curve = Curves.easeOut;
+              final tween =
+                  Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              return SlideTransition(position: animation.drive(tween), child: child);
+            },
+          ),
+        );
+      }
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(12)),
+      child: const Row(children: [
+        Icon(Icons.note_add_outlined, color: Colors.white70),
+        SizedBox(width: 12),
+        Text("Add a new note for this day...",
+            style: TextStyle(color: Colors.white70, fontSize: 16))
+      ]),
+    ),
+  );
+}
+  
+  Widget _buildDailyNoteDisplay(
+    BuildContext context, NoteViewModel noteViewModel) {
+  if (noteViewModel.isLoading) {
+    return const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Center(child: CircularProgressIndicator()));
   }
+  final notes = noteViewModel.notesForSelectedDay;
+  if (notes.isEmpty) return const SizedBox.shrink();
 
-  void _showAddNoteModal(BuildContext context, NoteViewModel noteViewModel,
-      DateTime day, String goalId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Scaffold(
-          backgroundColor: Colors.black,
-          body: Column(children: [
-            Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Expanded(
-                    child: TextField(
-                        controller: _noteController,
-                        autofocus: true,
-                        expands: true,
-                        maxLines: null,
-                        minLines: null,
-                        style: const TextStyle(
-                            color: Color.fromARGB(255, 255, 255, 255),
-                            fontSize: 18),
-                        decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: "Your note...",
-                            hintStyle: TextStyle(color: Colors.white54)))))
-          ]),
-          bottomNavigationBar: Padding(
+  return Padding(
+    padding: const EdgeInsets.only(top: 16.0),
+    child: ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: notes.length,
+      itemBuilder: (context, index) {
+        final note = notes[index];
+        return GestureDetector(
+          onLongPress: () {
+            _showNoteOptions(context, noteViewModel, note);
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8.0),
             padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
-              child: const Text("Save Note"),
-              onPressed: () {
-                noteViewModel.saveNote(_noteController.text, day, goalId);
-                Navigator.pop(ctx);
-              },
+            decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Note ${index + 1}:",
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                Text(note.content,
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 14)),
+              ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDailyNoteDisplay(
-      BuildContext context, NoteViewModel noteViewModel) {
-    final note = noteViewModel.noteForSelectedDay;
-    if (noteViewModel.isLoading)
-      return const Padding(
-          padding: EdgeInsets.all(8.0),
-          child: Center(child: CircularProgressIndicator()));
-    if (note == null || note.content.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
-      child: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-            color: const Color(0xFF2A2A2A),
-            borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Note for the day:",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16)),
-            const SizedBox(height: 8),
-            Text(note.content,
-                style: const TextStyle(color: Colors.white70, fontSize: 14)),
-          ],
-        ),
-      ),
-    );
-  }
-
+        );
+      },
+    ),
+  );
+}
+  
   Widget _buildReviewPlanButton(BuildContext context) {
     return GestureDetector(
       onTap: () async {
@@ -766,63 +977,60 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     );
   }
 
-  Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(100),
-          child: Image.network(
-            viewModel.picUrl,
-            width: 200,
-            height: 200,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              width: 200,
-              height: 200,
-              color: Colors.grey[800],
-              child: const Icon(Icons.person, color: Colors.white, size: 100),
-            ),
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                width: 200,
-                height: 200,
-                alignment: Alignment.center,
-                child: const CircularProgressIndicator(),
-              );
-            },
+  void _showNoteOptions(
+    BuildContext context, NoteViewModel noteViewModel, NoteHiveModel note) {
+  final aiViewModel = context.read<AIFinanceViewModel>();
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (modalContext) {
+      return Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF222222),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.white),
+                title: const Text('Edit', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(modalContext); // Close the bottom sheet
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => NoteEditorScreen(
+                        noteViewModel: noteViewModel,
+                        day: aiViewModel.selectedDay!,
+                        goalId: note.goalId,
+                        initialContent: note.content,
+                        noteId: note.id,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.redAccent),
+                title: const Text('Delete',
+                    style: TextStyle(color: Colors.redAccent)),
+                onTap: () async {
+                  Navigator.pop(modalContext); // Close the bottom sheet
+                  await noteViewModel.deleteNote(
+                    noteId: note.id,
+                    day: aiViewModel.selectedDay!,
+                    goalId: note.goalId,
+                  );
+                },
+              ),
+            ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildAd(AdViewModel adViewModel, String adId) {
-    if (adViewModel.isAdLoaded(adId)) {
-      final bannerAd = adViewModel.getAd(adId);
-      if (bannerAd != null) {
-        return Container(
-          alignment: Alignment.center,
-          child: AdWidget(ad: bannerAd),
-          width: bannerAd.size.width.toDouble(),
-          height: bannerAd.size.height.toDouble(),
-        );
-      } else {
-        return Container(
-          height: 50.0,
-          alignment: Alignment.center,
-          child: Text('Ad data not found.'),
-        );
-      }
-    } else {
-      return Container(
-        height: 50.0,
-        alignment: Alignment.center,
-        child: Text('Ad is loading...'),
       );
-    }
-  }
+    },
+  );
+}
 }
 
 class _TaskCardExpandedContent extends StatefulWidget {
@@ -831,6 +1039,7 @@ class _TaskCardExpandedContent extends StatefulWidget {
   final AIFinanceViewModel viewModel;
 
   const _TaskCardExpandedContent({
+    super.key,
     required this.task,
     required this.isToday,
     required this.viewModel,
@@ -844,18 +1053,19 @@ class _TaskCardExpandedContent extends StatefulWidget {
 class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
   late bool _sendNotification;
   late TimeOfDay _notificationTime;
+  late TimeOfDay _originalNotificationTime;
   bool _isConfirmed = false;
 
   @override
   void initState() {
     super.initState();
-    // Use notificationDateTime for consistency as per previous updates
     _sendNotification = widget.task.notificationTime != null;
     if (widget.task.notificationTime != null) {
-      _notificationTime =
-          TimeOfDay.fromDateTime(widget.task.notificationTime!);
+      _notificationTime = TimeOfDay.fromDateTime(widget.task.notificationTime!);
+      _originalNotificationTime = TimeOfDay.fromDateTime(widget.task.notificationTime!);
     } else {
       _notificationTime = const TimeOfDay(hour: 9, minute: 0);
+      _originalNotificationTime = const TimeOfDay(hour: 9, minute: 0);
     }
   }
 
@@ -871,8 +1081,7 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
               onPrimary: Colors.white,
               surface: Color(0xFF2A2A2A),
               onSurface: Colors.white,
-            ),
-            dialogBackgroundColor: const Color(0xFF1A1A1A),
+            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1A1A1A)),
           ),
           child: child!,
         );
@@ -916,13 +1125,13 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
       finalNotificationDateTime = null;
     }
 
-    // It's better to use notificationDateTime for consistency
     await widget.viewModel
         .setTaskNotification(widget.task, finalNotificationDateTime);
 
     if (mounted) {
       setState(() {
         _isConfirmed = true;
+        _originalNotificationTime = _notificationTime;
       });
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
@@ -936,11 +1145,11 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
 
   @override
   Widget build(BuildContext context) {
-    // --- NEW: Logic to check if the task date is in the past ---
     final DateTime now = DateTime.now();
     final DateTime today = DateTime(now.year, now.month, now.day);
     final DateTime? taskDate = widget.task.dueDate;
     final bool isTaskDateInPast = taskDate != null && taskDate.isBefore(today);
+    final bool hasTimeChanged = _notificationTime != _originalNotificationTime;
 
     return Container(
       decoration: const BoxDecoration(
@@ -973,11 +1182,9 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
           SwitchListTile(
             title: Text("Send Notification",
                 style: TextStyle(
-                  // Visually indicate if the switch is disabled
                   color: isTaskDateInPast ? Colors.white38 : Colors.white,
                 )),
             value: _sendNotification,
-            // --- FIX: Disable the toggle if the date is in the past ---
             onChanged: isTaskDateInPast
                 ? null
                 : (bool value) {
@@ -1000,12 +1207,11 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                   TextButton(
-                    // Disable the change button as well if the date is past
                     onPressed: isTaskDateInPast ? null : _pickTime,
-                    child: const Text('Change Time'),
                     style: TextButton.styleFrom(
                         foregroundColor: Colors.amberAccent,
                         disabledForegroundColor: Colors.grey),
+                    child: const Text('Change Time'),
                   ),
                 ],
               ),
@@ -1014,18 +1220,23 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton(
-                onPressed: _isConfirmed ? null : _confirmNotificationChanges,
-                child: _isConfirmed
-                    ? const Icon(Icons.check, size: 20)
-                    : const Text('Confirm Time'),
+                onPressed: _isConfirmed || !hasTimeChanged
+                    ? null
+                    : _confirmNotificationChanges,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _isConfirmed
                       ? Colors.green
                       : Colors.blueAccent.shade700,
+                  disabledBackgroundColor: _isConfirmed
+                      ? Colors.green
+                      : Colors.grey.shade700,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
                 ),
+                child: _isConfirmed
+                    ? const Icon(Icons.check, size: 20)
+                    : const Text('Confirm Time'),
               ),
             ),
           const SizedBox(height: 16),

@@ -25,4 +25,15 @@ class NoteHiveModel extends HiveObject {
     required this.content,
     required this.goalId,
   }) : id = id ?? _uuid.v4();
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'date': date.toIso8601String(),
+      'content': content,
+      'goalId': goalId,
+    };
+  }
+
+  static fromJson(Map<String, dynamic> map) {}
 }

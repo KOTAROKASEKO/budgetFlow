@@ -202,8 +202,8 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -424,9 +424,9 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
       if (bannerAd != null) {
         return Container(
           alignment: Alignment.center,
-          child: AdWidget(ad: bannerAd),
           width: bannerAd.size.width.toDouble(),
           height: bannerAd.size.height.toDouble(),
+          child: AdWidget(ad: bannerAd),
         );
       } else {
         // 予期せず広告がnullだった場合の表示

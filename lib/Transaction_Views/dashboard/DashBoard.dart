@@ -23,7 +23,7 @@ class CategoryIcon {
 }
 
 class Dashboard extends StatefulWidget {
-  const Dashboard({Key? key}) : super(key: key);
+  const Dashboard({super.key});
 
   @override
   _DashboardState createState() => _DashboardState();
@@ -56,7 +56,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
   late TextEditingController _expenseDescriptionController;
   late DraggableScrollableController _draggableController;
 
-  bool _isOnline = true; // Consider using a connectivity plugin for real-time status
+  final bool _isOnline = true; // Consider using a connectivity plugin for real-time status
 
   double _income = 0;
 
@@ -450,109 +450,6 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      drawer: GestureDetector(
-        onTap: () {
-          if (Navigator.canPop(context)) {
-            Navigator.of(context).pop();
-          }
-        },
-        child: Drawer(
-          backgroundColor: const Color(0xFF1A1A1A),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
-                  decoration: BoxDecoration(color: theme.apptheme_Black.withOpacity(0.15)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 32,
-                        backgroundColor: theme.apptheme_Black,
-                        child: const Icon(Icons.account_balance_wallet_rounded, size: 30, color: Colors.white),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text("Finance Planner", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                      const SizedBox(height: 4),
-                      Text("Version 1.7.0", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    children: [
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.exit_to_app_outlined,
-                        text: 'Sign Out',
-                        accentColor: theme.apptheme_Black,
-                        onTap: () async {
-                          Navigator.pop(context);
-                          await signOut(context);
-                        },
-                      ),
-                      const Divider(color: Colors.white12, indent: 20, endIndent: 20, height: 1),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.feedback_outlined,
-                        text: 'Send Feedback',
-                        accentColor: theme.apptheme_Black,
-                        onTap: () {
-                          Navigator.pop(context);
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25.0))),
-                            builder: (BuildContext modalContext) => FeedbackForm(),
-                          );
-                        },
-                      ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.info_outline_rounded,
-                        text: 'About Us',
-                        accentColor: theme.apptheme_Black,
-                        onTap: () {
-                          Navigator.pop(context);
-                          showDialog(
-                              context: context,
-                              builder: (context) => AboutDialog(
-                                    applicationName: 'Finance Planner',
-                                    applicationVersion: '1.6.1',
-                                    applicationIcon: CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: theme.apptheme_Black,
-                                      child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
-                                    ),
-                                    applicationLegalese: '© ${DateTime.now().year} kotaro.sdn.bhd',
-                                    children: <Widget>[
-                                      const SizedBox(height: 15),
-                                      const Text('This app helps you manage your finances efficiently.'),
-                                    ],
-                                  ));
-                        },
-                      ),
-                      const Divider(color: Colors.white12, indent: 20, endIndent: 20, height: 1),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24.0, top: 12.0),
-                  child: Text(
-                    "Your finances, simplified.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12, fontStyle: FontStyle.italic),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
      
       backgroundColor: theme.backgroundColor,
      
@@ -811,8 +708,9 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
 
 
         String daySuffix = "th";
-        if (day % 10 == 1 && day % 100 != 11) daySuffix = "st";
-        else if (day % 10 == 2 && day % 100 != 12) daySuffix = "nd";
+        if (day % 10 == 1 && day % 100 != 11) {
+          daySuffix = "st";
+        } else if (day % 10 == 2 && day % 100 != 12) daySuffix = "nd";
         else if (day % 10 == 3 && day % 100 != 13) daySuffix = "rd";
 
         return Padding(
@@ -827,7 +725,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
                 ),
               ),
-              ...dayExpenses.map((expense) => _buildExpenseTile(expense)).toList(),
+              ...dayExpenses.map((expense) => _buildExpenseTile(expense)),
             ],
           ),
         );
@@ -883,26 +781,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Future<void> signOut(BuildContext context) async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => UserAuthScreen()), // Replace with your actual Auth/Login Screen
-        (Route<dynamic> route) => false,
-      );
-    } on FirebaseAuthException catch (e) {
-      print('Failed to sign out: ${e.message}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to sign out: ${e.message ?? "Unknown error"}'), backgroundColor: Colors.redAccent),
-      );
-    } catch (e) {
-      print('An unexpected error occurred during sign out: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('An unexpected error occurred. Please try again.'), backgroundColor: Colors.redAccent),
-      );
-    }
-  }
-
+  
   void _confirmDeleteTransaction(expenseModel transaction) {
     bool isIncome = transaction.type == "income";
     String itemType = isIncome ? "income" : "expense";
@@ -963,19 +842,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Widget _buildDrawerItem({required BuildContext context, required IconData icon, required String text, required GestureTapCallback onTap, required Color accentColor}) {
-    return ListTile(
-      leading: Icon(icon, color: theme.foregroundColor, size: 24),
-      title: Text(text, style: TextStyle(fontSize: 15.5, color: Colors.white.withOpacity(0.87), fontWeight: FontWeight.w500)),
-      onTap: onTap,
-      horizontalTitleGap: 12.0,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 8.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      hoverColor: Colors.white.withOpacity(0.05),
-      splashColor: accentColor.withOpacity(0.1),
-    );
-  }
-
+  
   Widget _buildNoRecordsMessage({bool isEmpty = false}) {
     String message = isEmpty
         ? 'No transactions recorded for ${DateFormat('MMMM yyyy').format(DateTime(_year, _month))}.'
@@ -1045,7 +912,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
               ),
               const SizedBox(height: 18),
               Divider(height: 1, color: Colors.grey[200]),
-              ListTile(
+              ListTile( 
                 leading: Icon(Icons.edit_note_rounded, color: theme.apptheme_Black, size: 26),
                 title: Text(editTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 //edit edit edit
@@ -1059,15 +926,15 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                     expenseBox: _expenseBox,
                     fetchDataCallback: fetchData,
                     themeColors: SheetThemeColors(
-                      backgroundColor: Colors.grey[900]!,
-                      textColor: const Color.fromARGB(255, 0, 0, 0),
+                      backgroundColor: const Color.fromARGB(255, 52, 52, 52)!,
+                      textColor: const Color.fromARGB(255, 200, 200, 200),
                       hintTextColor: Colors.grey[500]!,
                       inputBorderColor: Colors.grey[700]!,
                       focusedInputBorderColor: isIncome ? Colors.greenAccent : theme.apptheme_Black,
-                      primaryActionColor: isIncome ? Colors.green : theme.apptheme_Black,
-                      categorySelectedBackgroundColor: isIncome ? Colors.green.withOpacity(0.2) : theme.apptheme_Black.withOpacity(0.2),
-                      categorySelectedIconColor: isIncome ? Colors.green[300]! : theme.apptheme_Black,
-                      categorySelectedTextColor: isIncome ? Colors.green[300]! : theme.apptheme_Black,
+                      primaryActionColor: isIncome ? Colors.green : Colors.blue,
+                      categorySelectedBackgroundColor: isIncome ? Colors.green.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+                      categorySelectedIconColor: isIncome ? Colors.green[300]! : Colors.blue,
+                      categorySelectedTextColor: isIncome ? Colors.green[300]! : Colors.blue,
                       categoryUnselectedIconColor: Colors.grey[400]!,
                       categoryUnselectedTextColor: Colors.grey[400]!,
                     ),
@@ -1102,7 +969,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
 /// Add/Edit Expense Sheet Content
 ///=================================
 
-   void _showIncomeInputSheet() {
+  void _showIncomeInputSheet() {
     _showTransactionInputSheet(
       context: context,
       transactionType: TransactionType.income,
@@ -1443,7 +1310,7 @@ class _TransactionInputSheetContentState extends State<_TransactionInputSheetCon
       
       Navigator.pop(context); // Close sheet (uses the modal's context)
       
-      ScaffoldMessenger.of(this.context).showSnackBar( // Use this.context if it's the sheet's context
+      ScaffoldMessenger.of(context).showSnackBar( // Use this.context if it's the sheet's context
         SnackBar(
           content: Text('${widget.transactionType == TransactionType.expense ? "Expense" : "Income"} ${widget.isEditing ? "updated" : "saved"} successfully!'),
           backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
@@ -1454,7 +1321,7 @@ class _TransactionInputSheetContentState extends State<_TransactionInputSheetCon
       
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(this.context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save ${widget.transactionType == TransactionType.expense ? "expense" : "income"}: $e'),
             backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating),
