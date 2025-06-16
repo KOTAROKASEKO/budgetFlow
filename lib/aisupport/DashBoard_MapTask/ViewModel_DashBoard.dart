@@ -7,6 +7,7 @@ import 'package:moneymanager/aisupport/DashBoard_MapTask/streak/streak_repositor
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
 import 'package:moneymanager/notification_service/notification_service.dart';
+import 'package:moneymanager/print/print.dart';
 import 'package:moneymanager/security/uid.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -66,7 +67,7 @@ class AIFinanceViewModel extends ChangeNotifier {
     7: 100
   };
 
-  String _picUrl = 'https://firebasestorage.googleapis.com/v0/b/assignment-64e6a.firebasestorage.app/o/image0.png?alt=media&token=f2e3b0df-dfc7-4343-b990-7786a21877f5'; // [修正] パスを修正
+  String _picUrl = 'https://firebasestorage.googleapis.com/v0/b/assignment-64e6a.firebasestorage.app/o/image12.png?alt=media&token=c9e1f111-0316-4fcc-9917-ef58dfebbc6f'; // [修正] パスを修正
   String get picUrl => _picUrl;
 
   void _setLoading(bool loading) {
@@ -78,7 +79,7 @@ class AIFinanceViewModel extends ChangeNotifier {
   Future<void> _updateStreakMessage(int streakDay) async{
     // Fetch streak messages from Firestore and update _streakMessage
     final doc = await _streakRepository.getMessage();
-    _streakMessage = doc[streakDay.toString()]??"oops! something went wrong!";
+    _streakMessage = doc[streakDay.toString()]??"Hey welcome!!\nHow's your day going?";
     notifyListeners();
   }
 
@@ -90,6 +91,8 @@ class AIFinanceViewModel extends ChangeNotifier {
     _updateStreakMessage(streakDay); // Set the message along with the avatar
     // [修正] アセットのパスを修正
     switch (streakDay) {
+      case 0:
+        _picUrl = 'https://firebasestorage.googleapis.com/v0/b/assignment-64e6a.firebasestorage.app/o/image12.png?alt=media&token=c9e1f111-0316-4fcc-9917-ef58dfebbc6f';
       case 1:
         _picUrl = 'https://firebasestorage.googleapis.com/v0/b/assignment-64e6a.firebasestorage.app/o/image0.png?alt=media&token=f2e3b0df-dfc7-4343-b990-7786a21877f5';
         break;
@@ -271,12 +274,15 @@ class AIFinanceViewModel extends ChangeNotifier {
 
     if (lastDate != null && isSameDay(lastDate, yesterday)) {
       _streakData!.currentStreak++;
+      D.p('Updated Streak : ${_streakData!.currentStreak}');
     } else {
       _streakData!.currentStreak = 1;
+      
     }
 
     if (_streakData!.currentStreak > 7) {
       _streakData!.currentStreak = 1;
+      D.p('Updated Streak because the streak was a: ${_streakData!.currentStreak}');
     }
 
     final pointsToAdd = _streakPoints[_streakData!.currentStreak] ?? 0;
@@ -286,7 +292,7 @@ class AIFinanceViewModel extends ChangeNotifier {
     await _streakRepository.saveStreak(_streakData!);
     _streakRepository.saveStreakToFirestore(userId.uid, _streakData!)
       .catchError((error) {
-        print("BACKGROUND FIRESTORE BACKUP FAILED: $error");
+        D.p("BACKGROUND FIRESTORE BACKUP FAILED: $error");
       });
 
     setAvatar(_streakData!.currentStreak);

@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:moneymanager/Transaction_Views/buyLlist/model/buy_list_item_model.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
+import 'package:moneymanager/Transaction_Views/setting.dart';
 import 'package:moneymanager/ads/ViewModel_ads.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/security/uid.dart';
@@ -164,6 +165,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
   }
 
   void _showAddItemSheet() {
+    final setting = Provider.of<Setting>(context, listen: false);
     itemNameController.clear();
     priceController.clear();
     showModalBottomSheet(
@@ -262,7 +264,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
                             const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.done,
                         decoration: InputDecoration(
-                          labelText: 'Price (RM)',
+                          labelText: 'Price (${setting.currency})',
                           hintText: 'e.g., 25.50',
                           prefixIcon: const Icon(Icons.attach_money),
                           border: OutlineInputBorder(
@@ -403,7 +405,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  Widget _buildTodaysSimulatedExpenseCard() {
+  Widget _buildTodaysSimulatedExpenseCard(Setting setting) {
     return Card(
       elevation: 4,
       margin: const EdgeInsets.fromLTRB(15, 8, 15, 8), // Adjusted margin
@@ -429,7 +431,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "RM ${_simulatedTodaysTotalExpense.toStringAsFixed(2)}",
+                      "${setting.currency} ${_simulatedTodaysTotalExpense.toStringAsFixed(2)}",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -456,7 +458,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
                   ),
                 ),
                 Text(
-                  "RM ${_simulatedTodaysAverageExpense.toStringAsFixed(2)}",
+                  "${setting.currency} ${_simulatedTodaysAverageExpense.toStringAsFixed(2)}",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -474,6 +476,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final setting = Provider.of<Setting>(context);
     return Scaffold(
       backgroundColor: theme.backgroundColor,
       floatingActionButton: FloatingActionButton.extended(
@@ -505,7 +508,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
                   .copyWith(color: Colors.white, fontWeight: FontWeight.bold),
             ),
             Text(
-              "Total Plan: RM ${_totalPlannedExpense.toStringAsFixed(2)}",
+              "Total Plan: ${setting.currency} ${_totalPlannedExpense.toStringAsFixed(2)}",
               style: theme.normal.copyWith(color: Colors.white70, fontSize: 14),
             ),
           ],
@@ -517,7 +520,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
           // ** NEW BANNER AD LOCATION **
           _buildAd(Provider.of<AdViewModel>(context),adKey),
 
-          _buildTodaysSimulatedExpenseCard(),
+          _buildTodaysSimulatedExpenseCard(setting),
           Expanded(
             // List takes remaining space
             child: ValueListenableBuilder<Box<BuyListItem>>(
@@ -657,7 +660,7 @@ class _BuyListState extends State<BuyList> with AutomaticKeepAliveClientMixin {
                             ),
                           ),
                           subtitle: Text(
-                            'Price: RM ${item.price.toStringAsFixed(2)}',
+                            'Price: ${setting.currency} ${item.price.toStringAsFixed(2)}',
                             style: TextStyle(
                                 color: isSelected
                                     ? theme.apptheme_Black.withOpacity(0.8)

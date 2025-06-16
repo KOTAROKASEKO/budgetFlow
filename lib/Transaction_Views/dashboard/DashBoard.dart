@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:moneymanager/Transaction_Views/analysis/View.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart'; // Ensure this path is correct and model is Hive-adapted
+import 'package:moneymanager/Transaction_Views/setting.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:moneymanager/security/uid.dart'; // Ensure userId.uid is available
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart'; // Import Hive
 
@@ -360,6 +362,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
   }
 
   void _openBudgetDialog() {
+    final setting = Provider.of<Setting>(context, listen: false);
     _budgetInputController.text = _budget.toString();
     showDialog(
       context: context,
@@ -372,7 +375,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
             keyboardType: TextInputType.number,
             textAlign: TextAlign.center,
             decoration: InputDecoration(
-              prefixText: "RM ",
+              prefixText: "${setting.currency} ",
               hintText: "e.g., 50",
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.0)),
               focusedBorder: OutlineInputBorder(
@@ -414,7 +417,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                       Navigator.pop(dialogContext);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('Daily budget updated to RM $newBudget.'),
+                            content: Text('Daily budget updated to ${setting.currency} $newBudget.'),
                             backgroundColor: Colors.green),
                       );
                     }
@@ -447,17 +450,95 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final setting = Provider.of<Setting>(context);
     return Scaffold(
      
       backgroundColor: theme.backgroundColor,
-     
       appBar: AppBar(
+        
         backgroundColor: theme.apptheme_Black,
         elevation: 1,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
         title: Text("Finance Dashboard", style: theme.subtitle),
         centerTitle: true,
         actions: [
+          GestureDetector(
+            onTap: () async {
+              final setting = Provider.of<Setting>(context, listen: false);
+              final TextEditingController currencyController = TextEditingController(text: setting.currency);
+
+              await showDialog(
+              context: context,
+              builder: (BuildContext dialogContext) {
+                return AlertDialog(
+                backgroundColor: const Color(0xFF23272F),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                title: const Text(
+                  "Set Currency",
+                  style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 19,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                content: TextField(
+                  controller: currencyController,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 18),
+                  decoration: InputDecoration(
+                  hintText: "e.g. RM, USD, €",
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  prefixIcon: Icon(Icons.attach_money, color: Colors.blue[200]),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey[700]!),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.blueAccent, width: 2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFF2C313A),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLength: 5,
+                ),
+                actions: [
+                  TextButton(
+                  child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  onPressed: () => Navigator.pop(dialogContext),
+                  ),
+                  ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text("Save", style: TextStyle(fontSize: 16)),
+                  onPressed: () {
+                    String newCurrency = currencyController.text.trim();
+                    if (newCurrency.isNotEmpty) {
+                    setting.setCurrency(newCurrency);
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                      content: Text('Currency updated to "$newCurrency".'),
+                      backgroundColor: Colors.blueAccent,
+                      ),
+                    );
+                    }
+                  },
+                  ),
+                ],
+                );
+              },
+              );
+            },
+           
+            child: Padding(
+              padding:EdgeInsetsGeometry.only(right:10),
+            child:Icon(Icons.settings, color: Colors.white))
+          ),
           GestureDetector(
             onTap: (){
                 Navigator.of(context).push(
@@ -476,7 +557,10 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                 ),
                 );
             },
-            child:Icon(Icons.analytics_outlined)
+            child:Icon(
+              Icons.analytics_rounded,
+              color: const Color.fromARGB(255, 255, 255, 255),
+              ),
             ),
             SizedBox(width: 20,)
         ],
@@ -515,18 +599,18 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      body: _buildBody(),
+      body: _buildBody(setting),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(Setting setting) {
     if (!_isOnline && _expenseModels.isEmpty && !_isLoading) {
       return _buildOfflineMessage();
     }
     return 
     Column(
     children: [
-      _buildSummarySection(),
+      _buildSummarySection(setting),
       _buildMonthNavigator(),
       Expanded(
         child: Container(
@@ -552,7 +636,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
               child: _isLoading
                   ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(theme.apptheme_Black)))
                   : _doesExist
-                      ? _buildExpenseList()
+                      ? _buildExpenseList(setting)
                       : _buildNoRecordsMessage(isEmpty: true),
             ),
           ),
@@ -596,7 +680,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color iconColor, Color valueColor, {VoidCallback? onTap}) {
+  Widget _buildSummaryCard(Setting setting, String title, String value, IconData icon, Color iconColor, Color valueColor, {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18.0),
@@ -618,7 +702,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                 ],
               ),
               const SizedBox(height: 10),
-              Text("RM $value", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: valueColor)),
+              Text("${setting.currency} $value", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: valueColor)),
             ],
           ),
         ),
@@ -626,16 +710,16 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Widget _buildPaceCard() {
+  Widget _buildPaceCard(Setting setting) {
     bool isSaving = _pace >= 0;
     Color paceColor = isSaving ? Colors.green.shade600 : Colors.red.shade600;
     IconData paceIcon = isSaving ? Icons.trending_up_rounded : Icons.trending_down_rounded;
     String paceTitle = isSaving ? "On Track (Saving)" : "Overspent";
 
-    return _buildSummaryCard(paceTitle, _pace.abs().toString(), paceIcon, paceColor, paceColor);
+    return _buildSummaryCard(setting, paceTitle, _pace.abs().toString(), paceIcon, paceColor, paceColor);
   }
 
-  Widget _buildSummarySection() {
+  Widget _buildSummarySection(Setting setting) {
     return Padding(
         padding: const EdgeInsets.fromLTRB(10, 12.0, 10, 8.0), // Added horizontal padding
         child: SizedBox( // Used SizedBox instead of ConstrainedBox for ListView
@@ -643,11 +727,11 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                _buildSummaryCard("Daily Budget", _budget.toString(), Icons.account_balance_wallet_outlined, theme.apptheme_Black, Colors.black87, onTap: _openBudgetDialog),
-                _buildSummaryCard("Avg / Day", _avg.toString(), Icons.data_usage_rounded, Colors.orangeAccent.shade700, Colors.black87),
-                _buildSummaryCard('Total Expense', _total.toString(), Icons.arrow_downward_rounded, Colors.red.shade400, Colors.black87),
-                _buildSummaryCard('Total Income', _income.round().toString(), Icons.arrow_upward_rounded, Colors.green.shade500, Colors.black87),
-                _buildPaceCard(),
+                _buildSummaryCard(setting, "Daily Budget", _budget.toString(), Icons.account_balance_wallet_outlined, theme.apptheme_Black, Colors.black87, onTap: _openBudgetDialog),
+                _buildSummaryCard(setting, "Avg / Day", _avg.toString(), Icons.data_usage_rounded, Colors.orangeAccent.shade700, Colors.black87),
+                _buildSummaryCard(setting, 'Total Expense', _total.toString(), Icons.arrow_downward_rounded, Colors.red.shade400, Colors.black87),
+                _buildSummaryCard(setting, 'Total Income', _income.round().toString(), Icons.arrow_upward_rounded, Colors.green.shade500, Colors.black87),
+                _buildPaceCard(setting),
               ].map((widget) => Padding(padding: const EdgeInsets.only(right:8.0), child: widget)).toList(), // Add spacing between cards
             )));
   }
@@ -679,7 +763,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Widget _buildExpenseList() {
+  Widget _buildExpenseList(Setting setting) {
     if (_expenseModels.isEmpty) return _buildNoRecordsMessage(isEmpty: true);
 
     Map<int, List<expenseModel>> groupedExpenses = {};
@@ -723,7 +807,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade700),
                 ),
               ),
-              ...dayExpenses.map((expense) => _buildExpenseTile(expense)),
+              ...dayExpenses.map((expense) => _buildExpenseTile(expense, setting)),
             ],
           ),
         );
@@ -731,7 +815,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Widget _buildExpenseTile(expenseModel expense) {
+  Widget _buildExpenseTile(expenseModel expense, Setting setting) {
     // Determine which category list to use based on expense type
     final currentCategorySet = (expense.type == "income") 
                                 ? _getIncomeCategoriesWithIcons() 
@@ -748,8 +832,8 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
     bool isIncome = expense.type == "income";
     // Amount is stored signed in expenseModel: negative for expense, positive for income
     String displayAmount = isIncome 
-        ? "+ RM ${expense.amount.toStringAsFixed(2)}" 
-        : "  RM ${expense.amount.abs().toStringAsFixed(2)}"; // Show positive for expense display
+        ? "+ ${setting.currency} ${expense.amount.toStringAsFixed(2)}" 
+        : "  ${setting.currency} ${expense.amount.abs().toStringAsFixed(2)}"; // Show positive for expense display
 
     Color amountColor = isIncome ? Colors.green.shade700 : Colors.red.shade700;
 
@@ -876,6 +960,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
   }
 
   void _showExpenseOptionsSheet(expenseModel expense) {
+    final setting = Provider.of<Setting>(context, listen: false);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -905,7 +990,7 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
               ),
               const SizedBox(height: 4),
               Text(
-                "RM ${expense.amount.abs().toStringAsFixed(2)}  •  Category: ${expense.category ?? 'N/A'}",
+                "${setting.currency} ${expense.amount.abs().toStringAsFixed(2)}  •  Category: ${expense.category ?? 'N/A'}",
                 style: TextStyle(fontSize: 15, color: Colors.grey[600]),
               ),
               const SizedBox(height: 18),

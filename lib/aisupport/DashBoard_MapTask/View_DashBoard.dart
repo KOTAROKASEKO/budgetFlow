@@ -42,7 +42,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     });
   }
 
-
   void _startScrolling(double speed) {
     _stopScrolling(); // 既存のTickerを停止
     _ticker = createTicker((elapsed) {
@@ -236,7 +235,9 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              viewModel.currentActiveGoal?.title ?? "No Goal Set",
+                                viewModel.currentActiveGoal?.title != null && viewModel.currentActiveGoal!.title.isNotEmpty
+                                  ? "${viewModel.currentActiveGoal!.title}'s DailyTasks"
+                                  : "No Goal Set",
                               style: TextStyle(
                                   color: Colors.white.withOpacity(0.9),
                                   fontSize: 20,
@@ -244,15 +245,23 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                               textAlign: TextAlign.start,
                             ),
                             const SizedBox(height: 8),
-                            Text(
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.deepPurple
+                              ),
+                              child:Padding(
+                                padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
+                                child:Text(
                               viewModel.currentActiveGoal?.title.isNotEmpty ==
                                       true
-                                  ? "Long-press a task to drag it to the calendar."
+                                  ? "Drag -> allocate on day"
                                   : '',
                               maxLines: 2,
                               style: const TextStyle(
-                                  color: Colors.white, fontSize: 13),
-                            ),
+                                fontWeight: FontWeight.bold,
+                                  color: Color.fromARGB(255, 255, 255, 255),
+                            ),),))
                           ],
                         ),
                       ),
@@ -394,7 +403,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     );
   }
 
-  
   Widget _buildStreakTracker(
       BuildContext context, AIFinanceViewModel viewModel) {
     final streak = viewModel.streakData?.currentStreak ?? 0;
@@ -502,66 +510,66 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     );
   }
 
-Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
-    return Column( // Wrapped in a Column to place the message below the avatar
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(100),
-          child: Image.network(
-            viewModel.picUrl,
-            width: 200,
-            height: 200,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
+  Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
+      return Column( // Wrapped in a Column to place the message below the avatar
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(100),
+            child: Image.network(
+              viewModel.picUrl,
               width: 200,
               height: 200,
-              color: Colors.grey[800],
-              child: const Icon(Icons.person, color: Colors.white, size: 100),
-            ),
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
                 width: 200,
                 height: 200,
-                alignment: Alignment.center,
-                child: const CircularProgressIndicator(),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16), // Spacing
-        // NEW: This container displays the dynamic streak message
-        if (viewModel.streakMessage.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  spreadRadius: 1,
-                  blurRadius: 3,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+                color: Colors.grey[800],
+                child: const Icon(Icons.person, color: Colors.white, size: 100),
+              ),
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  width: 200,
+                  height: 200,
+                  alignment: Alignment.center,
+                  child: const CircularProgressIndicator(),
+                );
+              },
             ),
-            child: Text(
-              viewModel.streakMessage,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'robot',
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+          ),
+          const SizedBox(height: 16), // Spacing
+          // NEW: This container displays the dynamic streak message
+          if (viewModel.streakMessage.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                viewModel.streakMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'robot',
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
-          ),
-      ],
-    );
-  }
+        ],
+      );
+    }
 
   Widget _buildAd(AdViewModel adViewModel, String adId) {
     if (adViewModel.isAdLoaded(adId)) {
@@ -751,9 +759,10 @@ Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
                         color: Colors.white,
                         fontWeight: FontWeight.normal),
                     textAlign: TextAlign.start,
-                    maxLines: 4,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis)
               ])));
+
           return GestureDetector(
             onTap: () {
               showModalBottomSheet(
@@ -809,6 +818,7 @@ Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
               ),
             ),
           );
+        
         },
       ),
     );

@@ -19,7 +19,6 @@ class AnalysisViewModel extends ChangeNotifier {
   // Formatted getters for convenience
   String get formattedCurrentMonthForDisplay => DateFormat('MMMM yyyy').format(_currentMonth);
   String get formattedCurrentMonthForCard => DateFormat('MMMM').format(_currentMonth);
-  String get formattedTotalExpenses => NumberFormat.currency(locale: 'en_US', symbol: '\$').format(_totalExpenses);
   int get daysInCurrentMonth => DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
 
 

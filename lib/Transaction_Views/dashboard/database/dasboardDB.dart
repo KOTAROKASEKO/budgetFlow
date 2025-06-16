@@ -2,13 +2,14 @@
 import 'package:hive/hive.dart';
 import 'package:moneymanager/Transaction_Views/buyLlist/model/buy_list_item_model.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/model/expenseModel.dart'; // Assuming this is the correct path
-import 'package:moneymanager/Transaction_Views/dashboard/model/userSettingsModel.dart'; // Assuming this is the correct path
+import 'package:moneymanager/Transaction_Views/dashboard/model/userSettingsModel.dart';
+import 'package:moneymanager/Transaction_Views/setting.dart'; // Assuming this is the correct path
 
 class dashBoardDBManager {
   static const String buyListItemsBoxName = 'buyListItemsBox';
   static const String expenseCacheBoxName = 'monthlyExpensesCache'; // Already defined in DashBoard.dart
   static const String _userSettingsBoxName = 'userSettings'; // Already defined in DashBoard.dart
-
+  static const String currencySettingBoxName = SettingRepository.boxName;
 
   static Future<void> init() async {
     print("[DBManager] init() called.");
@@ -85,6 +86,15 @@ class dashBoardDBManager {
     } else {
       print("[DBManager] Box '$buyListItemsBoxName' was already open.");
     }
+
+     if (!Hive.isBoxOpen(currencySettingBoxName)) {
+      await Hive.openBox(currencySettingBoxName);
+      print("[DBManager] Box '$currencySettingBoxName' opened.");
+    } else {
+      print("[DBManager] Box '$currencySettingBoxName' was already open.");
+    }
+
+    
     print("[DBManager] init() finished.");
   }
 }

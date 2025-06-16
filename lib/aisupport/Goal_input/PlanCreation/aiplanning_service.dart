@@ -92,7 +92,7 @@ class AIPlanningService {
     final apiKey = dotenv.env['GOOGLE_API_KEY'];
     if (apiKey == null) throw Exception('GOOGLE_API_KEY not found.');
 
-    final model = GenerativeModel(model: 'gemini-1.5-flash-latest', apiKey: apiKey);
+    final model = GenerativeModel(model: 'models/gemini-1.5-pro', apiKey: apiKey);
     final generationConfig = GenerationConfig(maxOutputTokens: 8192, temperature: 0.2);
 
     TaskLevelName targetOutputLevel;

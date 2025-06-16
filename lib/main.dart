@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hive/hive.dart';
+import 'package:moneymanager/Transaction_Views/setting.dart';
 import 'package:moneymanager/View_BottomTab.dart';
 import 'package:moneymanager/Transaction_Views/analysis/ViewModel.dart';
 import 'package:moneymanager/Transaction_Views/dashboard/database/dasboardDB.dart';
@@ -92,6 +93,10 @@ Future<void> main() async {
         ),
 
         ChangeNotifierProvider(create: (_) => GoalInputViewModel()),
+        ChangeNotifierProvider(
+          create: (context) => Setting(), // <-- The ONE instance is created here
+          child: const MyApp(),
+        )
       ],
       child: const MyApp(),
     ),

@@ -3,17 +3,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:moneymanager/Transaction_Views/analysis/ViewModel.dart';
 import 'package:moneymanager/Transaction_Views/analysis/controller.dart';
+import 'package:moneymanager/Transaction_Views/setting.dart';
 import 'package:moneymanager/apptheme.dart';
 import 'package:moneymanager/themeColor.dart';
 import 'package:provider/provider.dart';
-// ViewModel and Controller Imports
-
-
-// CategoryIcon and helper functions (getMasterExpenseCategoriesWithIcons, getIconForCategory)
-// should ideally be in a separate utility file (e.g., 'category_utils.dart') and imported.
-// For brevity, their definitions are assumed to be the same as in your original file and accessible.
-// Example: import 'utils/category_utils.dart';
-
 
 class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({super.key});
@@ -25,29 +18,31 @@ class AnalysisScreen extends StatefulWidget {
 class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   late AnalysisController _analysisController;
-  // ViewModel will be accessed via Provider
+  
+  // MODIFIED: Add a flag to track the initial data load.
+  bool _isInitialLoad = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
-    // ViewModel is accessed via Provider, so no direct initialization here.
-    // Controller will be initialized in didChangeDependencies or passed if needed.
   }
 
+  // MODIFIED: This method is updated to safely fetch data after the first build.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Obtain the ViewModel from Provider. listen: false is important for one-time setup.
     final viewModel = Provider.of<AnalysisViewModel>(context, listen: false);
-    // Initialize the Controller with the ViewModel
     _analysisController = AnalysisController(viewModel: viewModel);
-    
-    // Initial data fetch only if it hasn't been fetched yet (e.g., on first load)
-    // ViewModel's isLoading can be used as a proxy for this.
-    if (viewModel.isLoading && viewModel.totalExpenses == 0.0) { // Or a more specific "initialLoad" flag
+
+    // Only fetch data on the very first load.
+    if (_isInitialLoad) {
+      // This schedules the fetch to happen right after the build is complete, preventing the error.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         _analysisController.fetchExpensesForCurrentMonth();
+      });
+      // Set the flag to false so this doesn't run again.
+      _isInitialLoad = false;
     }
   }
 
@@ -59,11 +54,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    // Use Consumer to listen to ViewModel changes and rebuild relevant parts
+    final setting = Provider.of<Setting>(context);
     return Consumer<AnalysisViewModel>(
       builder: (context, viewModel, child) {
         return Scaffold(
-          backgroundColor: theme.backgroundColor, // Assuming 'theme' is accessible
+          backgroundColor: theme.backgroundColor,
           appBar: AppBar(
             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(22))),
             backgroundColor: Colors.black,
@@ -73,7 +68,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
               IconButton(
                 icon: const Icon(Icons.refresh, color: AppTheme.shiokuriBlue),
                 onPressed: () {
-                  // Trigger a refresh of the data
                   _analysisController.fetchExpensesForCurrentMonth();
                 },
               ),
@@ -87,15 +81,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
                 children: [
                   _buildMonthNavigator(viewModel, _analysisController),
                   const SizedBox(height: 20),
-                  _buildTotalExpensesCard(viewModel),
+                  _buildTotalExpensesCard(viewModel, setting),
                   const SizedBox(height: 20),
-                  _buildChartTabs(), // Uses the local _tabController
+                  _buildChartTabs(),
                   Expanded(
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildPieChartSection(viewModel),
-                        _buildLineChartSection(viewModel),
+                        _buildPieChartSection(viewModel, setting),
+                        _buildLineChartSection(viewModel, setting),
                       ],
                     ),
                   ),
@@ -107,6 +101,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
       },
     );
   }
+  
+  // ... no other changes are needed in the rest of the file ...
 
   Widget _buildMonthNavigator(AnalysisViewModel viewModel, AnalysisController controller) {
     return Row(
@@ -128,7 +124,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildTotalExpensesCard(AnalysisViewModel viewModel) {
+  Widget _buildTotalExpensesCard(AnalysisViewModel viewModel, Setting setting) {
     return Card(
       color: AppTheme.cardBackground,
       child: Padding(
@@ -144,7 +140,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
             viewModel.isLoading
                 ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.shiokuriBlue)))
                 : Text(
-                    viewModel.formattedTotalExpenses,
+                    NumberFormat.currency(locale: 'en_US', symbol: setting.currency).format(viewModel.totalExpenses),
                     style: AppTheme.darkTheme.textTheme.displayLarge?.copyWith(color: AppTheme.primaryText),
                   ),
           ],
@@ -156,7 +152,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
   Widget _buildChartTabs() {
     return TabBar(
       unselectedLabelColor: AppTheme.primaryText,
-      controller: _tabController, // Managed by _AnalysisScreenState
+      controller: _tabController,
       tabs: const [
         Tab(text: 'BY CATEGORY'),
         Tab(text: 'DAILY TREND'),
@@ -164,7 +160,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildPieChartSection(AnalysisViewModel viewModel) {
+  Widget _buildPieChartSection(AnalysisViewModel viewModel, Setting setting) {
     if (viewModel.isLoading) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.shiokuriBlue));
     }
@@ -187,9 +183,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
         color: AppTheme.chartColors[colorIndex % AppTheme.chartColors.length],
         value: entry.value,
         title: '${percentage.toStringAsFixed(1)}%',
-        radius: 50.0, // Original radius
+        radius: 50.0,
         titleStyle: TextStyle(
-          fontSize: 12.0, // Original fontSize
+          fontSize: 12.0,
           fontWeight: FontWeight.bold,
           color: AppTheme.primaryText.withOpacity(0.9),
           shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
@@ -208,7 +204,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
               PieChartData(
                 pieTouchData: PieTouchData(
                   touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                    // Optional: Handle touch events, possibly by calling controller/viewModel
+                    // Optional: Handle touch events
                   },
                 ),
                 borderData: FlBorderData(show: false),
@@ -219,17 +215,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
             ),
           ),
           const SizedBox(height: 24),
-          _buildPieChartLegend(viewModel),
+          _buildPieChartLegend(viewModel, setting),
         ],
       ),
     );
   }
 
-  Widget _buildPieChartLegend(AnalysisViewModel viewModel) {
-    // ... (Keep your existing _buildPieChartLegend implementation, ensuring it uses viewModel)
-    // Example change: Replace _categoryTotals with viewModel.categoryTotals
-    // Replace _totalExpenses with viewModel.totalExpenses
-    // Replace getIconForCategory with the imported version if moved
+  Widget _buildPieChartLegend(AnalysisViewModel viewModel, Setting setting) {
     if (viewModel.categoryTotals.isEmpty) return const SizedBox.shrink();
     int colorIndex = 0;
 
@@ -253,7 +245,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
               SizedBox(
                 width: 24,
                 height: 24,
-                child: getIconForCategory(entry.key), // Assumes getIconForCategory is accessible
+                child: getIconForCategory(entry.key),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -269,7 +261,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
               ),
               const SizedBox(width: 8),
               Text(
-                 NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2).format(entry.value),
+                 NumberFormat.currency(locale: 'en_US', symbol: setting.currency, decimalDigits: 2).format(entry.value),
                 style: AppTheme.darkTheme.textTheme.bodyLarge?.copyWith(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ],
@@ -279,11 +271,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildLineChartSection(AnalysisViewModel viewModel) {
-    // ... (Keep your existing _buildLineChartSection implementation, ensuring it uses viewModel)
-    // Example change: Replace _dailyExpenseSpots with viewModel.dailyExpenseSpots
-    // Replace _currentMonth with viewModel.currentMonth
-    // Replace _isLoading with viewModel.isLoading
+  Widget _buildLineChartSection(AnalysisViewModel viewModel, Setting setting) {
      if (viewModel.isLoading) {
       return const Center(child: CircularProgressIndicator(color: AppTheme.shiokuriBlue));
     }
@@ -294,7 +282,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
     }
 
     double maxYValue = viewModel.dailyExpenseSpots.map((spot) => spot.y).fold(0.0, (prev, curr) => curr > prev ? curr : prev);
-    if (maxYValue == 0) maxYValue = 100; // Default max Y if all values are 0
+    if (maxYValue == 0) maxYValue = 100;
 
     return Padding(
       padding: const EdgeInsets.only(top: 24.0, right: 16, bottom: 12),
@@ -383,7 +371,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
                 return touchedBarSpots.map((barSpot) {
                   final flSpot = barSpot;
                   return LineTooltipItem(
-                    'Day ${flSpot.x.toInt()}: \$${flSpot.y.toStringAsFixed(2)}\n',
+                    'Day ${flSpot.x.toInt()}: ${setting.currency}${flSpot.y.toStringAsFixed(2)}\n',
                     AppTheme.darkTheme.textTheme.bodyMedium!.copyWith(color: AppTheme.primaryText, fontSize: 12),
                   );
                 }).toList();
@@ -396,7 +384,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> with TickerProviderStat
   }
 }
 
-// Reminder: Move these helper classes/functions to a separate utility file.
 class CategoryIcon {
   final String itemName;
   final Icon itemIcon;

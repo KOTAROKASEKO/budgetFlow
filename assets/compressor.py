@@ -21,6 +21,6 @@ def optimize_png_pillow(input_path, output_path, colors=256, max_size=(1024, 768
         print(f"エラーが発生しました: {e}")
 
 # 使用例
-input_file = "image7.png"
-output_file = "image7.png"
+input_file = "aibackground.png"
+output_file = "aibackground.png"
 optimize_png_pillow(input_file, output_file, colors=128, max_size=(800, 600))
