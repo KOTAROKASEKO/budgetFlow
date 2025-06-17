@@ -79,7 +79,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/robotChan.gif
+    - assets/fireworks.gif
     - .env
     - assets/google.png
     - assets/facebook.png

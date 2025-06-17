@@ -15,8 +15,8 @@ def resize_image(input_image, output_image, size):
 
 # Example usage
 input_image = 'icon.png'  # Replace with your input image file path
-sizes = [(48, 48), (72, 72), (96, 96), (144, 144), (192, 192)]  # Sizes for mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi
-paths = ['mipmap-mdpi', 'mipmap-hdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi']
+sizes = [(48, 48), (72, 72), (96, 96), (144, 144), (192, 192),(512,512)]  # Sizes for mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi
+paths = ['mipmap-mdpi', 'mipmap-hdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi','storelisting']
 
 for index, size in enumerate(sizes):
     folder = paths[index]

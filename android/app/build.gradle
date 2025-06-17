@@ -45,8 +45,8 @@ android {
         applicationId = "com.kotarokase.moneyTracker"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
-        versionCode = 24
-        versionName = "1.7.2"
+        versionCode = 27
+        versionName = "1.7.5"
 
         def admobAppId = properties.getProperty("admob.app.id") ?: "ca-app-pub-1761598891234951~2195268518"
         buildConfigField "String", "ADMOB_APP_ID", "\"${admobAppId}\""

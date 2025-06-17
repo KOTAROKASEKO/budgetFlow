@@ -56,6 +56,9 @@ class AIFinanceViewModel extends ChangeNotifier {
   String _streakMessage = '';
   String get streakMessage => _streakMessage;
 
+  bool _showCelebration = false;
+  bool get showCelebration => _showCelebration;
+
 
   static const Map<int, int> _streakPoints = {
     1: 1,
@@ -67,7 +70,9 @@ class AIFinanceViewModel extends ChangeNotifier {
     7: 100
   };
 
-  String _picUrl = 'https://firebasestorage.googleapis.com/v0/b/assignment-64e6a.firebasestorage.app/o/image12.png?alt=media&token=c9e1f111-0316-4fcc-9917-ef58dfebbc6f'; // [修正] パスを修正
+  String _picUrl = 'https://firebasestorage.googleapis.com/v0/b/assignment-64e6a.firebasestorage.app/o/image12.png?alt=media&token=c9e1f111-0316-4fcc-9917-ef58dfebbc6f';
+  
+
   String get picUrl => _picUrl;
 
   void _setLoading(bool loading) {
@@ -134,13 +139,13 @@ class AIFinanceViewModel extends ChangeNotifier {
       if (_selectedDay != null) {
         noteViewModel.loadNoteForDay(_selectedDay!, _currentActiveGoal!.id);
       }
-      toggleGoalCreationPossibility(false);
+      toggleGoalCreationAvailability(false);
     } else {
       _currentActiveGoal = null;
       _draggableDailyTasks.clear();
       _calendarTasks.clear();
       noteViewModel.clearCurrentNote();
-      toggleGoalCreationPossibility(true);
+      toggleGoalCreationAvailability(true);
     }
     _setLoading(false);
   }
@@ -274,13 +279,21 @@ class AIFinanceViewModel extends ChangeNotifier {
 
     if (lastDate != null && isSameDay(lastDate, yesterday)) {
       _streakData!.currentStreak++;
+      if(_streakData!.currentStreak == 7){
+        _showCelebration = true;
+      notifyListeners();
+      Future.delayed(const Duration(seconds: 8), () {
+        _showCelebration = false;
+        notifyListeners();
+      });
+      }
       D.p('Updated Streak : ${_streakData!.currentStreak}');
     } else {
       _streakData!.currentStreak = 1;
-      
     }
 
     if (_streakData!.currentStreak > 7) {
+      
       _streakData!.currentStreak = 1;
       D.p('Updated Streak because the streak was a: ${_streakData!.currentStreak}');
     }
@@ -301,6 +314,7 @@ class AIFinanceViewModel extends ChangeNotifier {
   }
   
   Future<void> toggleTaskCompletion(TaskHiveModel task) async {
+
     if (task.dueDate == null || !isSameDay(task.dueDate!, DateTime.now())) {
       return;
     }
@@ -310,6 +324,8 @@ class AIFinanceViewModel extends ChangeNotifier {
     await _repository.updateTask(task);
 
     if (task.isDone) {
+      // --- ADDED CELEBRATION LOGIC ---
+      
       await _updateStreakAndPoints();
     }
 
@@ -338,7 +354,7 @@ class AIFinanceViewModel extends ChangeNotifier {
     return _calendarTasks[DateTime.utc(day.year, day.month, day.day)] ?? [];
   }
 
-  void toggleGoalCreationPossibility(bool availability) {
+  void toggleGoalCreationAvailability(bool availability) {
     _goalAvailability = availability;
     notifyListeners();
   }

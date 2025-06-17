@@ -98,8 +98,19 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     final viewModel = context.watch<AIFinanceViewModel>();
     final noteViewModel = context.watch<NoteViewModel>();
 
-    return Scaffold(
-      backgroundColor: theme.backgroundColor,
+    return Stack(
+      children: [
+        if (viewModel.showCelebration)
+        Positioned.fill(
+          child: Image.asset(
+            'assets/fireworks.gif', // あなたの花火GIFのパスに置き換えてください
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          ),
+        ),
+      Scaffold(
+
+      backgroundColor: const Color.fromARGB(126, 70, 70, 70),
       drawer:Drawer(
           backgroundColor: const Color(0xFF1A1A1A),
           child: SafeArea(
@@ -245,13 +256,18 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                               textAlign: TextAlign.start,
                             ),
                             const SizedBox(height: 8),
-                            Container(
+                            Padding(
+                              padding: EdgeInsetsGeometry.symmetric(vertical: 10),
+                              child:Container(
                               decoration: BoxDecoration(
+                                border: BoxBorder.all(
+                                  color: Colors.deepPurple,
+                                ),
                                 borderRadius: BorderRadius.circular(10),
-                                color: Colors.deepPurple
+                                color: const Color.fromARGB(157, 104, 58, 183)
                               ),
                               child:Padding(
-                                padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
+                                padding: EdgeInsetsGeometry.fromLTRB(10,0,10,0),
                                 child:Text(
                               viewModel.currentActiveGoal?.title.isNotEmpty ==
                                       true
@@ -261,8 +277,10 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                   color: Color.fromARGB(255, 255, 255, 255),
-                            ),),))
-                          ],
+                            ),),
+
+                            ))
+                        )],
                         ),
                       ),
                       _buildDraggableTasks(context, viewModel),
@@ -400,7 +418,10 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
               child: const Icon(Icons.add, color: Colors.white),
             )
           : SizedBox(),
-    );
+          
+    ),
+       
+    ]);
   }
 
   Widget _buildStreakTracker(
@@ -567,6 +588,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                 ),
               ),
             ),
+            SizedBox(height: 16,)
         ],
       );
     }
@@ -734,10 +756,15 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
               width: 200,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: const Color(0xFF2D2D44),
+                border: BoxBorder.all(
+                  color: Colors.deepPurple,
+                  width: 1.0,
+                ),
+                  color: const Color.fromARGB(255, 45, 45, 68),
                   borderRadius: BorderRadius.circular(14)),
               child: Center(
-                  child: Column(children: [
+                  child: Column(
+                    children: [
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
@@ -745,7 +772,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                   ),
                   child: Padding(
                       padding: EdgeInsetsGeometry.all(5),
-                      child: Text(task.title,
+                      child: Text(
+                        task.title,
                           style: const TextStyle(
                               color: Colors.white, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.start,
@@ -856,48 +884,48 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
 
   Widget _buildAddNoteField(
     BuildContext context, NoteViewModel noteViewModel, TaskHiveModel? goal) {
-  return GestureDetector(
-    onTap: () {
-      if (goal != null &&
-          context.read<AIFinanceViewModel>().selectedDay != null) {
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                NoteEditorScreen(
-              noteViewModel: noteViewModel,
-              day: context.read<AIFinanceViewModel>().selectedDay!,
-              goalId: goal.id,
-              // For a new note, initialContent and noteId are null
-              initialContent: null,
-              noteId: null,
+    return GestureDetector(
+      onTap: () {
+        if (goal != null &&
+            context.read<AIFinanceViewModel>().selectedDay != null) {
+          Navigator.of(context).push(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  NoteEditorScreen(
+                noteViewModel: noteViewModel,
+                day: context.read<AIFinanceViewModel>().selectedDay!,
+                goalId: goal.id,
+                // For a new note, initialContent and noteId are null
+                initialContent: null,
+                noteId: null,
+              ),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                const begin = Offset(0.0, 1.0);
+                const end = Offset.zero;
+                const curve = Curves.easeOut;
+                final tween =
+                    Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                return SlideTransition(position: animation.drive(tween), child: child);
+              },
             ),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.easeOut;
-              final tween =
-                  Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              return SlideTransition(position: animation.drive(tween), child: child);
-            },
-          ),
-        );
-      }
-    },
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
-          borderRadius: BorderRadius.circular(12)),
-      child: const Row(children: [
-        Icon(Icons.note_add_outlined, color: Colors.white70),
-        SizedBox(width: 12),
-        Text("Add a new note for this day...",
-            style: TextStyle(color: Colors.white70, fontSize: 16))
-      ]),
-    ),
-  );
-}
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+            color: const Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.circular(12)),
+        child: const Row(children: [
+          Icon(Icons.note_add_outlined, color: Colors.white70),
+          SizedBox(width: 12),
+          Text("Add a new note for this day...",
+              style: TextStyle(color: Colors.white70, fontSize: 16))
+        ]),
+      ),
+    );
+  }
   
   Widget _buildDailyNoteDisplay(
     BuildContext context, NoteViewModel noteViewModel) {

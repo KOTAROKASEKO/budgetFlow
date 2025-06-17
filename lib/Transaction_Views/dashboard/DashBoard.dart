@@ -499,9 +499,13 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                   ),
                   filled: true,
                   fillColor: const Color(0xFF2C313A),
+                  counterText: "",
                   ),
                   textAlign: TextAlign.center,
-                  maxLength: 5,
+                  maxLength: 4,
+                  inputFormatters: [
+                  // Only allow up to 4 characters
+                  ],
                 ),
                 actions: [
                   TextButton(
@@ -517,13 +521,20 @@ class _DashboardState extends State<Dashboard> with AutomaticKeepAliveClientMixi
                   child: const Text("Save", style: TextStyle(fontSize: 16)),
                   onPressed: () {
                     String newCurrency = currencyController.text.trim();
-                    if (newCurrency.isNotEmpty) {
+                    if (newCurrency.isNotEmpty && newCurrency.length <= 4) {
                     setting.setCurrency(newCurrency);
                     Navigator.pop(dialogContext);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                       content: Text('Currency updated to "$newCurrency".'),
                       backgroundColor: Colors.blueAccent,
+                      ),
+                    );
+                    } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                      content: Text('Currency must be 1-4 characters.'),
+                      backgroundColor: Colors.redAccent,
                       ),
                     );
                     }
