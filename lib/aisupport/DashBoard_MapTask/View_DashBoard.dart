@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/ads/ViewModel_ads.dart';
-import 'package:moneymanager/aisupport/DashBoard_MapTask/NoteView.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_DashBoard.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/NoteView.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/model/note_hive_model.dart';
 import 'package:moneymanager/aisupport/RoadMaps/View_roadMapRecord.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
@@ -240,8 +240,38 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                       _buildAd(Provider.of<AdViewModel>(context), adkey),
                       _buildAvatar(context, viewModel),
                       _buildStreakTracker(context, viewModel),
+                        // --- NEW: TODAY'S TASKS ---
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: const Color.fromARGB(134, 104, 58, 183),
+                          border: BoxBorder.all(
+                            color: Colors.deepPurple,
+                          )
+                        ),
+                        child:Padding(
+                        padding: EdgeInsets.fromLTRB(24, 24, 24, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Today's Tasks",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 24.0),
+                              child: _buildDayTasks(context, viewModel, DateTime.now()),
+                            ),
+                          ],
+                        ),
+                      ),),
+                      // --- END NEW ---
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -352,7 +382,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                               ),
                             ),
                             const SizedBox(height: 16),
-                            _buildSelectedDayTasks(context, viewModel),
+                            _buildDayTasks(context, viewModel, viewModel.selectedDay),
                             const SizedBox(height: 16),
                             _buildAddNoteField(context, noteViewModel,
                                 viewModel.currentActiveGoal),
@@ -428,6 +458,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
       BuildContext context, AIFinanceViewModel viewModel) {
     final streak = viewModel.streakData?.currentStreak ?? 0;
     final points = viewModel.streakData?.totalPoints ?? 0;
+    const streakPoints = {1: 1, 2: 1, 3: 3, 4: 1, 5: 6, 6: 10, 7: 100};
+
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -454,7 +486,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                 children: [
                   const Text("TOTAL POINTS",
                       style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  Text("$points PTS",
+                  Text("$points PT",
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -491,6 +523,15 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                       style: TextStyle(
                           color: isCompleted ? Colors.white : Colors.white54,
                           fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(
+                    "+${streakPoints[dayNumber]} PTS",
+                    style: TextStyle(
+                      color: isCompleted ? Colors.amberAccent.withOpacity(0.8) : Colors.white38,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold
+                    ),
+                  ),
                 ],
               );
             }),
@@ -632,19 +673,23 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     );
   }
 
-  Widget _buildSelectedDayTasks(
-      BuildContext context, AIFinanceViewModel viewModel) {
-    if (viewModel.selectedDay == null) return const SizedBox.shrink();
-    final tasks = viewModel.getTasksForDay(viewModel.selectedDay!);
+  // --- RENAMED and REFACTORED ---
+  Widget _buildDayTasks(
+      BuildContext context, AIFinanceViewModel viewModel, DateTime? day) {
+    if (day == null) return const SizedBox.shrink();
+    final tasks = viewModel.getTasksForDay(day);
     if (tasks.isEmpty) {
       return const Center(
-          child: Text('No tasks for this day.',
-              style: TextStyle(color: Colors.white54, fontSize: 16)
-              )
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.0),
+            child: Text('No tasks for this day.',
+                style: TextStyle(color: Colors.white54, fontSize: 16)
+                ),
+          )
             );
     }
 
-    final bool isToday = isSameDay(viewModel.selectedDay, DateTime.now());
+    final bool isToday = isSameDay(day, DateTime.now());
 
     return Column(
       children: tasks.map((task) {
