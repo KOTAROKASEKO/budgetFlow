@@ -3,7 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 
 class PlanRepository {
-  static const String _boxName = 'aiUserPlans_v3'; // Use a new box name
+  static const String boxName = 'aiUserPlans_v3'; // Use a new box name
 
   Future<Box<TaskHiveModel>> _getBox() async {
     // Ensure adapters are registered before opening the box
@@ -13,10 +13,10 @@ class PlanRepository {
     if (!Hive.isAdapterRegistered(TaskLevelNameAdapter().typeId)) {
       Hive.registerAdapter(TaskLevelNameAdapter());
     }
-    if (!Hive.isBoxOpen(_boxName)) {
-      return await Hive.openBox<TaskHiveModel>(_boxName);
+    if (!Hive.isBoxOpen(boxName)) {
+      return await Hive.openBox<TaskHiveModel>(boxName);
     }
-    return Hive.box<TaskHiveModel>(_boxName);
+    return Hive.box<TaskHiveModel>(boxName);
   }
 
   Future<void> initDb() async {
@@ -33,6 +33,7 @@ class PlanRepository {
     final Map<String, TaskHiveModel> taskMap = {for (var task in tasks) task.id: task};
     await box.putAll(taskMap);
   }
+
 
   Future<List<TaskHiveModel>> getAllSubTasksRecursive(String parentTaskId) async {
     final List<TaskHiveModel> allSubTasks = [];

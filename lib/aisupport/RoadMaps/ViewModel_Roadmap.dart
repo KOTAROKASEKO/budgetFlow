@@ -68,7 +68,7 @@ class RoadmapViewModel extends ChangeNotifier {
     try {
       // [MODIFIED] Use the new sync method from the main repository
       _goalTasks = await _repository.syncAndGetGoalTasks();
-      if (_goalTasks.isEmpty) _errorMessage = "No financial plans found. Create one!";
+      if (_goalTasks.isEmpty) _errorMessage = "No data found";
     } catch (e) {
       _setError("Failed to load plans: ${e.toString()}");
     } finally {

@@ -103,9 +103,9 @@ class _BottomTabState extends State<BottomTab> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(Icons.home_outlined, Icons.home, "Home", 0),
-            _buildNavItem(Icons.monetization_on_outlined, Icons.monetization_on, "Dashboard", 1),
-            _buildNavItem(Icons.list_alt_outlined, Icons.list_alt, "List", 2),
+            _buildNavItem(Icons.home_outlined, Icons.home, "RoadMap", 0),
+            _buildNavItem(Icons.monetization_on_outlined, Icons.monetization_on, "Budgeting", 1),
+            _buildNavItem(Icons.list_alt_outlined, Icons.list_alt, "Shopping", 2),
           ],
         ),
       ),
@@ -131,7 +131,6 @@ class _BottomTabState extends State<BottomTab> {
               ),
               child: Icon(
                 isSelected ? activeIcon : icon,
-                // ★ 修正点: 選択時は白、非選択時は薄いグレーに
                 color: isSelected ? Colors.white : Colors.grey.shade600,
                 size: 26,
               ),
@@ -141,7 +140,6 @@ class _BottomTabState extends State<BottomTab> {
               label,
               style: TextStyle(
                 fontSize: 12,
-                // ★ 修正点: テキストの色もテーマに合わせて変更
                 color: isSelected ? Colors.white : Colors.grey.shade600,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),

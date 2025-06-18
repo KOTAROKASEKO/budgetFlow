@@ -35,13 +35,16 @@ class TaskHiveModelAdapter extends TypeAdapter<TaskHiveModel> {
       userInputNote: fields[15] as String?,
       goalId: fields[16] as String?,
       notificationTime: fields[17] as DateTime?,
+      subSteps: (fields[18] as List?)
+          ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
+          .toList(),
     );
   }
 
   @override
   void write(BinaryWriter writer, TaskHiveModel obj) {
     writer
-      ..writeByte(18)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -77,7 +80,9 @@ class TaskHiveModelAdapter extends TypeAdapter<TaskHiveModel> {
       ..writeByte(16)
       ..write(obj.goalId)
       ..writeByte(17)
-      ..write(obj.notificationTime);
+      ..write(obj.notificationTime)
+      ..writeByte(18)
+      ..write(obj.subSteps);
   }
 
   @override

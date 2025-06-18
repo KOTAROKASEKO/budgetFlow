@@ -74,6 +74,16 @@ class AIFinanceViewModel extends ChangeNotifier {
   
 
   String get picUrl => _picUrl;
+  // AIFinanceViewModel class内
+
+  // ... (既存のメソッド)
+
+  // --- NEW METHOD ---
+  Future<void> deleteTask(String taskId) async {
+    await _repository.deleteTaskWithChildren(taskId);
+    // Reload data to reflect deletion
+    await loadInitialData();
+  }
 
   void _setLoading(bool loading) {
     _isLoading = loading;
@@ -264,6 +274,10 @@ class AIFinanceViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> updateTask(TaskHiveModel hive)async{
+    _repository.updateTask(hive);
+  }
+
   Future<void> _updateStreakAndPoints() async {
     if (_streakData == null) await _loadAndCheckStreak();
 
@@ -357,5 +371,17 @@ class AIFinanceViewModel extends ChangeNotifier {
   void toggleGoalCreationAvailability(bool availability) {
     _goalAvailability = availability;
     notifyListeners();
+  }
+  
+  // AIFinanceViewModel class内
+// ... (既存のメソッド)
+
+  // --- NEW METHOD ---
+  Future<void> addManualTask(TaskHiveModel newTask) async {
+    await _repository.updateTask(newTask);
+    if (_currentActiveGoal != null) {
+      // Reload tasks for the goal to update the UI
+      await _loadTasksForGoal(_currentActiveGoal!.id);
+    }
   }
 }

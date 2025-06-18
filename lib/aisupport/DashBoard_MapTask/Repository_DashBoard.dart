@@ -1,9 +1,10 @@
 // aisupport/DashBoard_MapTask/Repository_AIRoadMap.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
-import 'package:moneymanager/security/uid.dart'; // Assuming userId is available here
+import 'package:moneymanager/security/uid.dart';
 
 class AIFinanceRepository {
   final PlanRepository _localPlanRepository;
@@ -15,34 +16,48 @@ class AIFinanceRepository {
   })  : _localPlanRepository = localPlanRepository,
         _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Backs up an entire plan (goal + all tasks) to Firestore.
   Future<void> backupPlanToFirestore(List<TaskHiveModel> tasks) async {
-    if (tasks.isEmpty) return;
-
-    // This line was causing the crash, but it's correct when saving a full plan.
-    final goalTask = tasks.firstWhere((t) => t.taskLevel == TaskLevelName.Goal, orElse: () => throw Exception("No Goal Task found to back up"));
-    final String currentUserId = userId.uid;
-
-    final WriteBatch batch = _firestore.batch();
-
-    final goalDocRef = _firestore
-        .collection('financialGoals')
-        .doc(currentUserId)
-        .collection('goals')
-        .doc(goalTask.id);
-    batch.set(goalDocRef, _taskToFirestoreMap(goalTask));
-
-    for (final task in tasks) {
-      if (task.taskLevel != TaskLevelName.Goal) {
-        final taskDocRef = goalDocRef.collection('tasks').doc(task.id);
-        batch.set(taskDocRef, _taskToFirestoreMap(task));
-      }
-    }
-    await batch.commit();
+  if (tasks.isEmpty) {
+    print("No tasks provided to backupPlanToFirestore.");
+    return;
   }
 
+  final String currentUserId = userId.uid;
+  if (currentUserId.isEmpty) {
+    throw Exception("Cannot back up tasks: User is not logged in.");
+  }
+  
+  final goalTask = tasks.firstWhere((t) => t.taskLevel == TaskLevelName.Goal,
+      orElse: () => throw Exception("No Goal Task found in the list to back up"));
+  
+  final subTasks = tasks.where((t) => t.taskLevel != TaskLevelName.Goal).toList();
+
+  final WriteBatch batch = _firestore.batch();
+
+  // Goalドキュメントへの参照
+  final goalDocRef = _firestore
+      .collection('financialGoals') // ★このコレクション名を確認
+      .doc(currentUserId)
+      .collection('goals')
+      .doc(goalTask.id);
+  
+  // Goalタスクをバッチに追加
+  batch.set(goalDocRef, _taskToFirestoreMap(goalTask));
+
+  // サブタスクをバッチに追加
+  for (final task in subTasks) {
+    final taskDocRef = goalDocRef.collection('tasks').doc(task.id);
+    batch.set(taskDocRef, _taskToFirestoreMap(task));
+  }
+
+  print("Attempting to commit batch of ${tasks.length} tasks to Firestore at path /financialGoals/...");
+  await batch.commit();
+  print("Batch commit successful.");
+}
+
   Map<String, dynamic> _taskToFirestoreMap(TaskHiveModel task) {
-    return {
+    var data = {
+      'subSteps': task.subSteps,
       'id': task.id,
       'taskLevel': task.taskLevel.toString().split('.').last,
       'parentTaskId': task.parentTaskId,
@@ -52,15 +67,19 @@ class AIFinanceRepository {
       'isDone': task.isDone,
       'order': task.order,
       'createdAt': Timestamp.fromDate(task.createdAt),
-      'dueDate': task.dueDate != null ? Timestamp.fromDate(task.dueDate!) : null,
+      'dueDate':
+          task.dueDate != null ? Timestamp.fromDate(task.dueDate!) : null,
       'status': task.status,
       'userInputEarnTarget': task.userInputEarnTarget,
       'userInputDuration': task.userInputDuration,
       'userInputCurrentSkill': task.userInputCurrentSkill,
       'userInputPreferToEarnMoney': task.userInputPreferToEarnMoney,
       'userInputNote': task.userInputNote,
-      'goalId': task.goalId,
+      'goalId': task.goalId,   
+      'notificationTime': task.notificationTime != null ? Timestamp.fromDate(task.notificationTime!) : null,
     };
+    print(data);
+    return data;
   }
 
   TaskHiveModel _taskFromFirestoreMap(Map<String, dynamic> data, String docId) {
@@ -71,7 +90,7 @@ class AIFinanceRepository {
         orElse: () => TaskLevelName.Daily,
       );
     }
-    
+
     return TaskHiveModel(
       id: docId,
       taskLevel: parseTaskLevel(data['taskLevel']),
@@ -90,6 +109,10 @@ class AIFinanceRepository {
       userInputPreferToEarnMoney: data['userInputPreferToEarnMoney'],
       userInputNote: data['userInputNote'],
       goalId: data['goalId'],
+      notificationTime: (data['notificationTime'] as Timestamp?)?.toDate(),
+      subSteps: data['subSteps'] != null
+          ? List<Map<String, dynamic>>.from(data['subSteps'])
+          : null,
     );
   }
 
@@ -102,7 +125,9 @@ class AIFinanceRepository {
       final remoteTasks = await _fetchAllTasksFromFirestore(userId.uid);
       if (remoteTasks.isNotEmpty) {
         await _localPlanRepository.saveAllTasks(remoteTasks);
-        return remoteTasks.where((t) => t.taskLevel == TaskLevelName.Goal).toList();
+        return remoteTasks
+            .where((t) => t.taskLevel == TaskLevelName.Goal)
+            .toList();
       }
     } catch (e) {
       print("Failed to fetch or sync from remote source: $e");
@@ -128,7 +153,7 @@ class AIFinanceRepository {
     }
     return allTasks;
   }
-  
+
   Future<void> deleteGoalAndAllSubTasks(String goalTaskId) async {
     final String currentUserId = userId.uid;
     final goalDocRef = _firestore
@@ -138,7 +163,7 @@ class AIFinanceRepository {
         .doc(goalTaskId);
 
     final WriteBatch batch = _firestore.batch();
-    
+
     final tasksSnapshot = await goalDocRef.collection('tasks').get();
     for (final doc in tasksSnapshot.docs) {
       batch.delete(doc.reference);
@@ -152,32 +177,37 @@ class AIFinanceRepository {
   }
 
   Future<void> deleteTaskWithSubtasks(TaskHiveModel taskToDelete) async {
-      final allTasksToDelete = await _localPlanRepository.getAllSubTasksRecursive(taskToDelete.id);
-      allTasksToDelete.add(taskToDelete);
+    final allTasksToDelete =
+        await _localPlanRepository.getAllSubTasksRecursive(taskToDelete.id);
+    allTasksToDelete.add(taskToDelete);
 
-      final goalId = taskToDelete.goalId;
-      if (goalId == null) {
-          await _localPlanRepository.deleteTask(taskToDelete.id, recursive: true);
-          return;
-      }
-      
-      final String currentUserId = userId.uid;
-      final goalDocRef = _firestore.collection('financialGoals').doc(currentUserId).collection('goals').doc(goalId);
-      final WriteBatch batch = _firestore.batch();
-
-      for (final task in allTasksToDelete) {
-          if (task.taskLevel != TaskLevelName.Goal) {
-              final taskDocRef = goalDocRef.collection('tasks').doc(task.id);
-              batch.delete(taskDocRef);
-          }
-      }
-      
-      await batch.commit();
+    final goalId = taskToDelete.goalId;
+    if (goalId == null) {
       await _localPlanRepository.deleteTask(taskToDelete.id, recursive: true);
+      return;
+    }
+
+    final String currentUserId = userId.uid;
+    final goalDocRef = _firestore
+        .collection('financialGoals')
+        .doc(currentUserId)
+        .collection('goals')
+        .doc(goalId);
+    final WriteBatch batch = _firestore.batch();
+
+    for (final task in allTasksToDelete) {
+      if (task.taskLevel != TaskLevelName.Goal) {
+        final taskDocRef = goalDocRef.collection('tasks').doc(task.id);
+        batch.delete(taskDocRef);
+      }
+    }
+
+    await batch.commit();
+    await _localPlanRepository.deleteTask(taskToDelete.id, recursive: true);
   }
-  
+
   Future<List<TaskHiveModel>> getGoalTasks() {
-      return _localPlanRepository.getGoalTasks();
+    return _localPlanRepository.getGoalTasks();
   }
 
   Future<List<TaskHiveModel>> getSubTasks(String parentId) {
@@ -188,13 +218,11 @@ class AIFinanceRepository {
   Future<void> updateTask(TaskHiveModel task) async {
     final String currentUserId = userId.uid;
 
-    // A Goal's goalId is its own id. A sub-task should already have it.
     final goalId = task.goalId ?? (task.taskLevel == TaskLevelName.Goal ? task.id : null);
 
-    // If for some reason we can't find the goalId, we can't update Firestore.
-    // Fallback to only updating the local database to prevent a crash.
     if (goalId == null) {
-      print("Error: Cannot update task in Firestore without a goalId. Updating locally only.");
+      print(
+          "Error: Cannot update task in Firestore without a goalId. Updating locally only.");
       await _localPlanRepository.updateTask(task);
       return;
     }
@@ -230,8 +258,44 @@ class AIFinanceRepository {
   Future<void> saveAllTasks(List<TaskHiveModel> tasks) {
     return _localPlanRepository.saveAllTasks(tasks);
   }
-  
+
   Future<void> deleteTask(String taskId, {bool recursive = true}) {
     return _localPlanRepository.deleteTask(taskId, recursive: recursive);
+  }
+
+  // --- NEW METHOD ---
+  Future<void> deleteTaskWithChildren(String taskId) async {
+    final box = await Hive.openBox<TaskHiveModel>(PlanRepository.boxName);
+    await _deleteRecursively(taskId, box);
+
+    // Also delete from Firestore
+    try {
+      // This is a simple deletion, might need to delete sub-collections in a real scenario
+      await _firestore
+          .collection('users')
+          .doc(userId.uid)
+          .collection('tasks')
+          .doc(taskId)
+          .delete();
+    } catch (e) {
+      print(
+          "Firestore deletion failed (task might not have been backed up yet): $e");
+    }
+  }
+
+  Future<void> _deleteRecursively(
+      String parentId, Box<TaskHiveModel> box) async {
+    // Find all direct children of the parent task
+    final children =
+        box.values.where((task) => task.parentTaskId == parentId).toList();
+
+    // Recursively call delete for each child
+    for (final child in children) {
+      await _deleteRecursively(child.id, box);
+    }
+
+    // After all children and their descendants are deleted, delete the parent task itself
+    await box.delete(parentId);
+    print("Deleted task: $parentId");
   }
 }

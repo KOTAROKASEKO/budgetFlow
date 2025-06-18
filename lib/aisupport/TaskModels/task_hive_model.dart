@@ -78,6 +78,9 @@ class TaskHiveModel extends HiveObject {
   @HiveField(17)
   DateTime? notificationTime;
 
+  @HiveField(18)
+  List<Map<String, dynamic>>? subSteps;
+
 
   TaskHiveModel({
     String? id,
@@ -98,11 +101,12 @@ class TaskHiveModel extends HiveObject {
     this.userInputNote,
     this.goalId,
     this.notificationTime,
+    this.subSteps,
   })  : id = id ?? _uuid.v4(),
         createdAt = createdAt ?? DateTime.now();
 
   // Factory to create from AI response
-  factory TaskHiveModel.fromAIMap(Map<String, dynamic> map, TaskLevelName level, String? parentId, int taskOrder, String? goalId) {
+   factory TaskHiveModel.fromAIMap(Map<String, dynamic> map, TaskLevelName level, String? parentId, int taskOrder, String? goalId) {
     return TaskHiveModel(
       id:  _uuid.v4(),
       taskLevel: level,
@@ -112,7 +116,11 @@ class TaskHiveModel extends HiveObject {
       duration: map['estimated_duration'] as String? ?? 'N/A',
       order: taskOrder,
       goalId: goalId,
-      // dueDate and status can be set later or based on AI output if available
+      subSteps: map.containsKey('sub_steps')
+          ? (map['sub_steps'] as List<dynamic>)
+              .map((step) => {'text': step.toString(), 'isDone': false})
+              .toList()
+          : null,
     );
   }
 }

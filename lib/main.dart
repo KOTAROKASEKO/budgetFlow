@@ -15,7 +15,6 @@ import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_repository.d
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/note_veiwmodel.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/streak/streak_repository.dart';
 import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
-import 'package:moneymanager/aisupport/Goal_input/goal_input/ViewModel_goalInput.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
 import 'package:moneymanager/notification_service/notification_service.dart';
 import 'package:moneymanager/security/Authentication.dart';
@@ -92,7 +91,6 @@ Future<void> main() async {
           ),
         ),
 
-        ChangeNotifierProvider(create: (_) => GoalInputViewModel()),
         ChangeNotifierProvider(
           create: (context) => Setting(), // <-- The ONE instance is created here
           child: const MyApp(),

@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_DashBoard.dart';
-import 'package:moneymanager/aisupport/Goal_input/PlanCreation/aiplanning_service.dart';
+import 'package:moneymanager/aisupport/Goal_input/PlanCreation/AI_Service.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 
 // [REMOVED] No longer need to import PlanRepository directly
@@ -306,14 +306,15 @@ class PlanCreationViewModel extends ChangeNotifier {
       await _repository.saveAllTasks(tasksToSave);
 
       // 2. [ADDED] After local save succeeds, back up to Firebase
+      // ViewModel_Plan_Creation.dart の savePlan メソッド内
       try {
         await _repository.backupPlanToFirestore(tasksToSave);
         print("Plan successfully backed up to Firebase.");
-      } catch (e) {
-        // Log the Firebase backup error but don't fail the whole operation.
-        // The local save was successful, which is the most important part.
-        print("Firebase backup failed, but local save succeeded: $e");
-        // Optionally, show a non-blocking message to the user
+      } catch (e, s) { // スタックトレースもキャッチする
+        print("--- FIRESTORE BACKUP FAILED ---");
+        print("EXCEPTION: $e"); // 具体的なエラー内容
+        print("STACK TRACE: $s"); // エラーが発生したコードの箇所
+        print("---------------------------------");
       }
       
       _childrenCache.clear();

@@ -6,6 +6,7 @@ import 'package:moneymanager/ads/ViewModel_ads.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_DashBoard.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart';
+import 'package:moneymanager/aisupport/Goal_input/goal_input/View_goalInput.dart';
 import 'package:moneymanager/aisupport/RoadMaps/ViewModel_Roadmap.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 import 'package:provider/provider.dart';
@@ -374,8 +375,45 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Text(viewModel.errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 16),
+              child: viewModel.errorMessage=="No data found"?
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "No financial plans set up yet. Create one with the AI planner!",
+                    style: const TextStyle(color: Colors.white54, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text("Create Plan"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurpleAccent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () async{
+                      Navigator.of(context).pop(); // Close the modal bottom sheet
+                      await Future.delayed(const Duration(milliseconds: 200)); // Optional: smooth transition
+                      Navigator.of(context).push(
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => const GoalInputPage(),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            final offsetAnimation = Tween<Offset>(
+                              begin: const Offset(0, 1),
+                              end: Offset.zero,
+                            ).animate(animation);
+                            return SlideTransition(position: offsetAnimation, child: child);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ):
+              Text(viewModel.errorMessage!,
+                  style: const TextStyle(color: Color.fromARGB(255, 255, 0, 0), fontSize: 16),
                   textAlign: TextAlign.center),
             ),
           );

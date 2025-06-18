@@ -39,24 +39,19 @@ class NotificationService {
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
-  Future<bool> requestPermissions() async {
+   Future<bool> requestPermissions() async {
     if (Platform.isIOS) {
       return await _notificationsPlugin
               .resolvePlatformSpecificImplementation<
                   IOSFlutterLocalNotificationsPlugin>()
-              ?.requestPermissions(
-                alert: true,
-                badge: true,
-                sound: true,
-              ) ??
+              ?.requestPermissions(alert: true, badge: true, sound: true) ??
           false;
     } else if (Platform.isAndroid) {
       final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
           _notificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
-      final bool? granted =
-          await androidImplementation?.requestNotificationsPermission();
-      return granted ?? false;
+      // ↓ この行がAndroidの許可ポップアップを表示します
+      return await androidImplementation?.requestNotificationsPermission() ?? false;
     }
     return false;
   }
@@ -111,4 +106,6 @@ class NotificationService {
     await _notificationsPlugin.cancel(notificationId);
     print('Notification cancelled for: Task ID Hash $notificationId');
   }
+
+  
 }

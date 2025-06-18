@@ -1,10 +1,12 @@
+// lib/aisupport/DashBoard_MapTask/View_DashBoard.dart
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/ads/ViewModel_ads.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/NoteView.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_DashBoard.dart';
-import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/NoteView.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/model/note_hive_model.dart';
 import 'package:moneymanager/aisupport/RoadMaps/View_roadMapRecord.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
@@ -17,6 +19,20 @@ import 'package:moneymanager/themeColor.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+// --- NEW HELPER METHOD: To show the modal sheet ---
+// This avoids code duplication
+void _showTaskDetailModal(BuildContext context, TaskHiveModel task) {
+  // Ensure the ViewModel is available
+  final viewModel = context.read<AIFinanceViewModel>();
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent, // Make it transparent to use custom decoration
+    builder: (ctx) => TaskDetailModal(task: task, viewModel: viewModel),
+  );
+}
+
 class FinancialGoalPage extends StatefulWidget {
   const FinancialGoalPage({super.key});
   @override
@@ -28,12 +44,30 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
   final TextEditingController _noteController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Ticker? _ticker;
-  String? _expandedTaskId;
+  double _scrollSpeed = 0.0; // スクロール速度を管理する変数
+  // --- REMOVED: No longer needed as we use a modal sheet ---
+  // String? _expandedTaskId; 
   String adkey = 'View_DashBoard_Ad';
 
   @override
   void initState() {
     super.initState();
+        _ticker = createTicker((elapsed) {
+      if (_scrollSpeed == 0.0) return; // 速度が0なら何もしない
+
+      final newOffset = _scrollController.offset + _scrollSpeed;
+      if (newOffset <= _scrollController.position.minScrollExtent) {
+        _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+        _scrollSpeed = 0.0; // 端に達したら停止
+      } else if (newOffset >= _scrollController.position.maxScrollExtent) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        _scrollSpeed = 0.0; // 端に達したら停止
+      } else {
+        _scrollController.jumpTo(newOffset);
+      }
+    });
+    _ticker?.start();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context
           .read<AIFinanceViewModel>()
@@ -42,34 +76,11 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     });
   }
 
-  void _startScrolling(double speed) {
-    _stopScrolling(); // 既存のTickerを停止
-    _ticker = createTicker((elapsed) {
-      final newOffset = _scrollController.offset + speed;
-      if (newOffset < _scrollController.position.minScrollExtent) {
-        _scrollController.jumpTo(_scrollController.position.minScrollExtent);
-        _stopScrolling();
-      } else if (newOffset > _scrollController.position.maxScrollExtent) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-        _stopScrolling();
-      } else {
-        _scrollController.jumpTo(newOffset);
-      }
-    });
-    _ticker?.start();
-  }
-
-  void _stopScrolling() {
-    _ticker?.stop();
-    _ticker?.dispose();
-    _ticker = null;
-  }
-
   Future<void> signOut(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => UserAuthScreen()), // Replace with your actual Auth/Login Screen
+        MaterialPageRoute(builder: (context) => UserAuthScreen()), 
         (Route<dynamic> route) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -103,7 +114,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
         if (viewModel.showCelebration)
         Positioned.fill(
           child: Image.asset(
-            'assets/fireworks.gif', // あなたの花火GIFのパスに置き換えてください
+            'assets/fireworks.gif', 
             fit: BoxFit.cover,
             gaplessPlayback: true,
           ),
@@ -240,77 +251,78 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                       _buildAd(Provider.of<AdViewModel>(context), adkey),
                       _buildAvatar(context, viewModel),
                       _buildStreakTracker(context, viewModel),
-                        // --- NEW: TODAY'S TASKS ---
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: const Color.fromARGB(134, 104, 58, 183),
-                          border: BoxBorder.all(
-                            color: Colors.deepPurple,
-                          )
-                        ),
-                        child:Padding(
-                        padding: EdgeInsets.fromLTRB(24, 24, 24, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                       _buildTodaysTasksSimplified(context, viewModel),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(
-                              "Today's Tasks",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
+                             Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      viewModel.currentActiveGoal?.title != null && viewModel.currentActiveGoal!.title.isNotEmpty
+                                        ? "${viewModel.currentActiveGoal!.title}'s DailyTasks"
+                                        : "No Goal Set",
+                                    maxLines: 1, // 1行に制限
+                                    overflow: TextOverflow.ellipsis, // はみ出た部分を...で表示
+                                    style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w500),
+                                    textAlign: TextAlign.start,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (viewModel.currentActiveGoal?.title.isNotEmpty == true)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.deepPurple),
+                                        borderRadius: BorderRadius.circular(10),
+                                        color: const Color.fromARGB(157, 104, 58, 183)
+                                      ),
+                                      child: const Padding(
+                                        padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+                                        child: Text(
+                                          "Drag -> allocate on day",
+                                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 24.0),
-                              child: _buildDayTasks(context, viewModel, DateTime.now()),
+                            // --- NEW: Add Task Button ---
+                            IconButton(
+                              icon: const Icon(Icons.add_circle, color: Colors.deepPurpleAccent, size: 32),
+                              onPressed: () {
+                                if (viewModel.currentActiveGoal != null) {
+                                    showModalBottomSheet(
+                                    enableDrag: true,
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (ctx) => DraggableScrollableSheet(
+                                      
+                                      initialChildSize: 0.7,
+                                      minChildSize: 0.4,
+                                      maxChildSize: 0.95,
+                                      expand: false,
+                                      builder: (_, scrollController) => AddTaskModal(
+                                        viewModel: viewModel,
+                                        parentGoal: viewModel.currentActiveGoal!,
+                                      ),
+                                    ),
+                                    );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Please create a main goal first.")),
+                                  );
+                                }
+                              },
                             ),
                           ],
-                        ),
-                      ),),
-                      // --- END NEW ---
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                viewModel.currentActiveGoal?.title != null && viewModel.currentActiveGoal!.title.isNotEmpty
-                                  ? "${viewModel.currentActiveGoal!.title}'s DailyTasks"
-                                  : "No Goal Set",
-                              style: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w500),
-                              textAlign: TextAlign.start,
-                            ),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding: EdgeInsetsGeometry.symmetric(vertical: 10),
-                              child:Container(
-                              decoration: BoxDecoration(
-                                border: BoxBorder.all(
-                                  color: Colors.deepPurple,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                                color: const Color.fromARGB(157, 104, 58, 183)
-                              ),
-                              child:Padding(
-                                padding: EdgeInsetsGeometry.fromLTRB(10,0,10,0),
-                                child:Text(
-                              viewModel.currentActiveGoal?.title.isNotEmpty ==
-                                      true
-                                  ? "Drag -> allocate on day"
-                                  : '',
-                              maxLines: 2,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                  color: Color.fromARGB(255, 255, 255, 255),
-                            ),),
-
-                            ))
-                        )],
                         ),
                       ),
                       _buildDraggableTasks(context, viewModel),
@@ -382,7 +394,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                               ),
                             ),
                             const SizedBox(height: 16),
-                            _buildDayTasks(context, viewModel, viewModel.selectedDay),
+                            // --- MODIFIED: This now uses a simple tap to open the modal ---
+                            _buildSelectedDayTasks(context, viewModel),
                             const SizedBox(height: 16),
                             _buildAddNoteField(context, noteViewModel,
                                 viewModel.currentActiveGoal),
@@ -393,7 +406,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                     ],
                   ),
                 ),
-                Align(
+                 Align(
                   alignment: Alignment.topCenter,
                   child: DragTarget<TaskHiveModel>(
                     builder: (context, candidateData, rejectedData) {
@@ -404,15 +417,14 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                       );
                     },
                     onMove: (details) {
-                      if (_ticker == null) {
-                        _startScrolling(-10.0);
-                      }
+                      _scrollSpeed = -10.0; // 上方向のスクロール速度を設定
                     },
                     onLeave: (data) {
-                      _stopScrolling();
+                      _scrollSpeed = 0.0; // 領域から離れたら停止
                     },
                   ),
                 ),
+                // --- MODIFIED: 下部のDragTargetのロジックを簡素化 ---
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: DragTarget<TaskHiveModel>(
@@ -424,12 +436,10 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                       );
                     },
                     onMove: (details) {
-                      if (_ticker == null) {
-                        _startScrolling(10.0);
-                      }
+                      _scrollSpeed = 10.0; // 下方向のスクロール速度を設定
                     },
                     onLeave: (data) {
-                      _stopScrolling();
+                      _scrollSpeed = 0.0; // 領域から離れたら停止
                     },
                   ),
                 ),
@@ -454,12 +464,75 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     ]);
   }
 
+  Widget _buildTodaysTasksSimplified(BuildContext context, AIFinanceViewModel viewModel) {
+    final today = DateTime.now();
+    final tasks = viewModel.getTasksForDay(today);
+
+    if (tasks.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24.0),
+        child: Center(
+          child: Text(
+            "You have no tasks for today. Enjoy your day!",
+            style: TextStyle(color: Colors.white54, fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(154, 75, 75, 75),
+        borderRadius: BorderRadius.circular(20)
+      ),
+      child:Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(24, 24, 24, 8),
+          child: Text(
+            "Today's Tasks",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+         Padding(
+          padding: const EdgeInsets.fromLTRB(24.0,0,24,24),
+          child: Column(
+            children: tasks.map((task) {
+              return Card(
+                color: const Color(0xFF2A2A2A),
+                margin: const EdgeInsets.symmetric(vertical: 4.0),
+                child: ListTile(
+                  title: Text(
+                    task.title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      decoration: task.isDone ? TextDecoration.lineThrough : TextDecoration.none,
+                      decorationColor: Colors.white54
+                    ),
+                  ),
+                  trailing: Icon(
+                    task.isDone ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: task.isDone ? Colors.greenAccent : Colors.white54,
+                  ),
+                  onTap: () => _showTaskDetailModal(context, task),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    ));
+  }
+
   Widget _buildStreakTracker(
       BuildContext context, AIFinanceViewModel viewModel) {
     final streak = viewModel.streakData?.currentStreak ?? 0;
     final points = viewModel.streakData?.totalPoints ?? 0;
-    const streakPoints = {1: 1, 2: 1, 3: 3, 4: 1, 5: 6, 6: 10, 7: 100};
-
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -486,7 +559,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                 children: [
                   const Text("TOTAL POINTS",
                       style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  Text("$points PT",
+                  Text("$points PTS",
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -523,15 +596,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                       style: TextStyle(
                           color: isCompleted ? Colors.white : Colors.white54,
                           fontSize: 12)),
-                  const SizedBox(height: 4),
-                  Text(
-                    "+${streakPoints[dayNumber]} PTS",
-                    style: TextStyle(
-                      color: isCompleted ? Colors.amberAccent.withOpacity(0.8) : Colors.white38,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold
-                    ),
-                  ),
                 ],
               );
             }),
@@ -573,7 +637,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
   }
 
   Widget _buildAvatar(BuildContext context, AIFinanceViewModel viewModel) {
-      return Column( // Wrapped in a Column to place the message below the avatar
+      return Column( 
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ClipRRect(
@@ -600,8 +664,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
               },
             ),
           ),
-          const SizedBox(height: 16), // Spacing
-          // NEW: This container displays the dynamic streak message
+          const SizedBox(height: 16),
           if (viewModel.streakMessage.isNotEmpty)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -673,11 +736,11 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     );
   }
 
-  // --- RENAMED and REFACTORED ---
-  Widget _buildDayTasks(
-      BuildContext context, AIFinanceViewModel viewModel, DateTime? day) {
-    if (day == null) return const SizedBox.shrink();
-    final tasks = viewModel.getTasksForDay(day);
+  // --- REFACTORED: To use modal bottom sheet ---
+  Widget _buildSelectedDayTasks(
+      BuildContext context, AIFinanceViewModel viewModel) {
+    if (viewModel.selectedDay == null) return const SizedBox.shrink();
+    final tasks = viewModel.getTasksForDay(viewModel.selectedDay!);
     if (tasks.isEmpty) {
       return const Center(
           child: Padding(
@@ -689,104 +752,62 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
             );
     }
 
-    final bool isToday = isSameDay(day, DateTime.now());
-
     return Column(
       children: tasks.map((task) {
-        final isExpanded = _expandedTaskId == task.id;
-
-        final expandedContent = _TaskCardExpandedContent(
-          key: ValueKey(task.id),
-          task: task,
-          isToday: isToday,
-          viewModel: viewModel,
-        );
-
         final taskCard = Material(
           color: const Color(0xFF2A2A2A),
-          borderRadius: isExpanded
-              ? const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                )
-              : BorderRadius.circular(12),
-          child: InkWell(
-            onTap: () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedTaskId = null;
-                } else {
-                  _expandedTaskId = task.id;
-                }
-              });
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Column(
-              children: [
-                ListTile(
-                  title: Text(
-                    task.title,
-                    style: TextStyle(
-                      color: Colors.white,
-                      decoration: task.isDone
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                      decorationColor: Colors.white54,
-                    ),
-                  ),
-                  trailing: Icon(
-                    isExpanded
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                    color: Colors.white54,
-                  ),
-                ),
-                AnimatedCrossFade(
-                  firstChild: Container(),
-                  secondChild: expandedContent,
-                  crossFadeState: isExpanded
-                      ? CrossFadeState.showSecond
-                      : CrossFadeState.showFirst,
-                  duration: const Duration(milliseconds: 300),
-                ),
-              ],
+          borderRadius: BorderRadius.circular(12),
+          child: ListTile(
+            title: Text(
+              task.title,
+              style: TextStyle(
+                color: Colors.white,
+                decoration: task.isDone
+                    ? TextDecoration.lineThrough
+                    : TextDecoration.none,
+                decorationColor: Colors.white54,
+              ),
             ),
+            trailing: Icon(
+              task.isDone ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: task.isDone ? Colors.greenAccent : Colors.white54,
+            ),
+            onTap: () => _showTaskDetailModal(context, task),
           ),
-        );
-
-        final draggableItem = LongPressDraggable<TaskHiveModel>(
-          data: task,
-          feedback: Material(
-            color: Colors.transparent,
-            child: ConstrainedBox(
-                constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width - 48),
-                child: Card(
-                  color: const Color(0xFF2A2A2A),
-                  child: ListTile(
-                      title: Text(task.title,
-                          style: const TextStyle(color: Colors.white))),
-                )),
-          ),
-          childWhenDragging: Opacity(
-              opacity: 0.5,
-              child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: taskCard)),
-          onDragEnd: (details) {
-            _stopScrolling();
-          },
-          child: taskCard,
         );
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
-          child: draggableItem,
+          child: LongPressDraggable<TaskHiveModel>(
+            data: task,
+            feedback: Material(
+              color: Colors.transparent,
+              child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width - 48),
+                  child: Card(
+                    color: const Color(0xFF2A2A2A),
+                    child: ListTile(
+                        title: Text(task.title,
+                            style: const TextStyle(color: Colors.white))),
+                  )),
+            ),
+            childWhenDragging: Opacity(
+                opacity: 0.5,
+                child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: taskCard)),
+            onDragEnd: (details) {
+                _scrollSpeed = 0.0;
+              },  
+            child: taskCard,
+          ),
         );
       }).toList(),
     );
   }
 
+  // --- REFACTORED: To use modal bottom sheet ---
   Widget _buildDraggableTasks(
       BuildContext context, AIFinanceViewModel viewModel) {
     final taskListView = ConstrainedBox(
@@ -801,7 +822,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
               width: 200,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                border: BoxBorder.all(
+                border: Border.all(
                   color: Colors.deepPurple,
                   width: 1.0,
                 ),
@@ -816,7 +837,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                     color: const Color.fromARGB(130, 77, 32, 118),
                   ),
                   child: Padding(
-                      padding: EdgeInsetsGeometry.all(5),
+                      padding: EdgeInsets.all(5),
                       child: Text(
                         task.title,
                           style: const TextStyle(
@@ -837,42 +858,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
               ])));
 
           return GestureDetector(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.black,
-                builder: (ctx) => DraggableScrollableSheet(
-                  initialChildSize: 0.7,
-                  minChildSize: 0.4,
-                  maxChildSize: 0.95,
-                  expand: false,
-                  builder: (_, scrollController) => SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          task.title,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          task.purpose ?? 'No description',
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 16),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+            onTap: () => _showTaskDetailModal(context, task),
             child: LongPressDraggable<TaskHiveModel>(
               data: task,
               feedback: Material(color: Colors.transparent, child: taskWidget),
@@ -883,8 +869,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                       color: Colors.grey.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(14))),
               onDragEnd: (details) {
-                _stopScrolling();
-              },
+              _scrollSpeed = 0.0;
+            },
               child: Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: taskWidget,
@@ -940,7 +926,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                 noteViewModel: noteViewModel,
                 day: context.read<AIFinanceViewModel>().selectedDay!,
                 goalId: goal.id,
-                // For a new note, initialContent and noteId are null
                 initialContent: null,
                 noteId: null,
               ),
@@ -1080,7 +1065,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                 leading: const Icon(Icons.edit, color: Colors.white),
                 title: const Text('Edit', style: TextStyle(color: Colors.white)),
                 onTap: () {
-                  Navigator.pop(modalContext); // Close the bottom sheet
+                  Navigator.pop(modalContext); 
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => NoteEditorScreen(
@@ -1099,7 +1084,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                 title: const Text('Delete',
                     style: TextStyle(color: Colors.redAccent)),
                 onTap: () async {
-                  Navigator.pop(modalContext); // Close the bottom sheet
+                  Navigator.pop(modalContext); 
                   await noteViewModel.deleteNote(
                     noteId: note.id,
                     day: aiViewModel.selectedDay!,
@@ -1116,39 +1101,35 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
 }
 }
 
-class _TaskCardExpandedContent extends StatefulWidget {
+// --- NEW WIDGET: Reusable Modal Bottom Sheet for Task Details ---
+class TaskDetailModal extends StatefulWidget {
   final TaskHiveModel task;
-  final bool isToday;
   final AIFinanceViewModel viewModel;
 
-  const _TaskCardExpandedContent({
+  const TaskDetailModal({
     super.key,
     required this.task,
-    required this.isToday,
     required this.viewModel,
   });
 
   @override
-  __TaskCardExpandedContentState createState() =>
-      __TaskCardExpandedContentState();
+  State<TaskDetailModal> createState() => _TaskDetailModalState();
 }
 
-class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
+
+class _TaskDetailModalState extends State<TaskDetailModal> {
   late bool _sendNotification;
   late TimeOfDay _notificationTime;
-  late TimeOfDay _originalNotificationTime;
-  bool _isConfirmed = false;
 
   @override
   void initState() {
     super.initState();
     _sendNotification = widget.task.notificationTime != null;
-    if (widget.task.notificationTime != null) {
+    if (_sendNotification) {
       _notificationTime = TimeOfDay.fromDateTime(widget.task.notificationTime!);
-      _originalNotificationTime = TimeOfDay.fromDateTime(widget.task.notificationTime!);
     } else {
+      // Default time if none is set
       _notificationTime = const TimeOfDay(hour: 9, minute: 0);
-      _originalNotificationTime = const TimeOfDay(hour: 9, minute: 0);
     }
   }
 
@@ -1164,7 +1145,8 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
               onPrimary: Colors.white,
               surface: Color(0xFF2A2A2A),
               onSurface: Colors.white,
-            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1A1A1A)),
+            ),
+            dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1A1A1A)),
           ),
           child: child!,
         );
@@ -1174,182 +1156,363 @@ class __TaskCardExpandedContentState extends State<_TaskCardExpandedContent> {
       setState(() {
         _notificationTime = pickedTime;
       });
+      // Automatically save the new time
+      _confirmNotificationChanges();
     }
   }
 
-  Future<void> _confirmNotificationChanges() async {
-    if (widget.task.dueDate == null) return;
-
+    Future<void> _confirmNotificationChanges() async {
     DateTime? finalNotificationDateTime;
-
     if (_sendNotification) {
+      // --- NEW: パーミッションチェックを追加 ---
       final bool hasPermission = await NotificationService().requestPermissions();
       if (!mounted) return;
 
       if (!hasPermission) {
+        // 許可されなかった場合、ユーザーに通知し、スイッチをオフに戻す
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Notification permission is required for reminders.'),
             backgroundColor: Colors.redAccent,
           ),
         );
-        return;
+        setState(() {
+          _sendNotification = false; 
+        });
+        return; // 処理を中断
       }
+      // ------------------------------------
 
-      final date = widget.task.dueDate!;
-      finalNotificationDateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        _notificationTime.hour,
-        _notificationTime.minute,
-      );
-    } else {
-      finalNotificationDateTime = null;
+      final date = widget.task.dueDate ?? DateTime.now();
+      finalNotificationDateTime = DateTime(date.year, date.month, date.day, _notificationTime.hour, _notificationTime.minute);
     }
+    
+    // 許可がある場合のみ、通知設定/解除のロジックが実行される
+    await widget.viewModel.setTaskNotification(widget.task, finalNotificationDateTime);
 
-    await widget.viewModel
-        .setTaskNotification(widget.task, finalNotificationDateTime);
-
-    if (mounted) {
-      setState(() {
-        _isConfirmed = true;
-        _originalNotificationTime = _notificationTime;
-      });
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _isConfirmed = false;
-          });
-        }
-      });
+    if(mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_sendNotification ? 'Reminder set for ${_notificationTime.format(context)}' : 'Reminder cancelled.'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
+  void _deleteTask() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text('Confirm Deletion', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to delete this task and all its subtasks?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          TextButton(
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+            onPressed: () {
+              Navigator.of(ctx).pop(); // Close dialog
+              Navigator.of(context).pop(); // Close modal sheet
+              widget.viewModel.deleteTask(widget.task.id);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+  
 
   @override
   Widget build(BuildContext context) {
-    final DateTime now = DateTime.now();
-    final DateTime today = DateTime(now.year, now.month, now.day);
-    final DateTime? taskDate = widget.task.dueDate;
-    final bool isTaskDateInPast = taskDate != null && taskDate.isBefore(today);
-    final bool hasTimeChanged = _notificationTime != _originalNotificationTime;
+    bool isTaskForToday = widget.task.dueDate != null && isSameDay(widget.task.dueDate!, DateTime.now());
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Text(
+                  widget.task.title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                
+                // Purpose
+                Text(
+                  widget.task.purpose ?? 'No description provided.',
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 16, height: 1.4),
+                ),
+                const SizedBox(height: 24),
+                
+                // Sub-steps Checklist
+                if (widget.task.subSteps != null && widget.task.subSteps!.isNotEmpty) ...[
+                  const Text('Checklist', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Divider(color: Colors.white38, height: 16),
+                  ...widget.task.subSteps!.map((step) {
+                    bool isDone = step['isDone'] ?? false;
+                    String text = step['text'] ?? '';
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Divider(color: Colors.white24),
-          const SizedBox(height: 8),
-          Text(
-            "Purpose:",
-            style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontWeight: FontWeight.bold,
-                fontSize: 15),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            widget.task.purpose ?? 'No purpose defined.',
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          const Divider(color: Colors.white24, height: 1),
-          SwitchListTile(
-            title: Text("Send Notification",
-                style: TextStyle(
-                  color: isTaskDateInPast ? Colors.white38 : Colors.white,
-                )),
-            value: _sendNotification,
-            onChanged: isTaskDateInPast
-                ? null
-                : (bool value) {
-                    setState(() {
-                      _sendNotification = value;
-                    });
-                  },
-            activeColor: Colors.deepPurpleAccent,
-            inactiveThumbColor: Colors.grey,
-            contentPadding: EdgeInsets.zero,
-          ),
-          if (_sendNotification)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Notify at: ${_notificationTime.format(context)}',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  TextButton(
-                    onPressed: isTaskDateInPast ? null : _pickTime,
-                    style: TextButton.styleFrom(
-                        foregroundColor: Colors.amberAccent,
-                        disabledForegroundColor: Colors.grey),
-                    child: const Text('Change Time'),
-                  ),
+                    return InkWell( // GestureDetectorからInkWellに変更してフィードバックを良くする
+                      onTap: () {
+                        setState(() {
+                          step['isDone'] = !isDone;
+                        });
+                        // 変更をHiveに即時保存
+                        widget.viewModel.updateTask(widget.task);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2.0),
+                              child: Icon(
+                                isDone ? Icons.check_box : Icons.check_box_outline_blank,
+                                size: 22,
+                                color: isDone ? Colors.deepPurpleAccent : Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                text,
+                                style: TextStyle(
+                                  color: isDone ? Colors.white54 : Colors.white,
+                                  fontSize: 15,
+                                  height: 1.4,
+                                  decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 24),
                 ],
-              ),
-            ),
-          if (_sendNotification)
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                onPressed: _isConfirmed || !hasTimeChanged
-                    ? null
-                    : _confirmNotificationChanges,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isConfirmed
-                      ? Colors.green
-                      : Colors.blueAccent.shade700,
-                  disabledBackgroundColor: _isConfirmed
-                      ? Colors.green
-                      : Colors.grey.shade700,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+
+                // Action Buttons
+                const Text('Actions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const Divider(color: Colors.white38, height: 16),
+                
+                // Mark as Done / Incomplete
+                if(widget.task.dueDate != null) // Only show for scheduled tasks
+                  ListTile(
+                    leading: Icon(widget.task.isDone ? Icons.check_circle : Icons.check_circle_outline, color: widget.task.isDone ? Colors.greenAccent : Colors.white),
+                    title: Text(widget.task.isDone ? 'Mark as Incomplete' : 'Mark as Done', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                       if(isTaskForToday){
+                         widget.viewModel.toggleTaskCompletion(widget.task);
+                         Navigator.pop(context);
+                       } else {
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You can only complete tasks scheduled for today.")));
+                       }
+                    },
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                
+                // Set Notification
+                if(widget.task.dueDate != null) // Only show for scheduled tasks
+                  SwitchListTile(
+                    title: Text("Set Reminder", style: TextStyle(color: Colors.white)),
+                    value: _sendNotification,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _sendNotification = value;
+                      });
+                      _confirmNotificationChanges();
+                    },
+                    inactiveThumbColor: Colors.deepPurpleAccent,
+                    activeTrackColor: Colors.deepPurpleAccent,
+                    secondary: Icon(Icons.notifications_outlined, color: const Color.fromARGB(255, 255, 255, 255)),
+                    activeColor: const Color.fromARGB(255, 255, 255, 255),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                if(_sendNotification && widget.task.dueDate != null)
+                   ListTile(
+                    title: Text('Reminder time: ${_notificationTime.format(context)}', style: TextStyle(color: Colors.white70)),
+                    trailing: Icon(Icons.edit, color: Colors.white70),
+                    onTap: _pickTime,
+                    contentPadding: EdgeInsets.only(left: 55),
+                  ),
+                ListTile(
+                  leading: Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: Text('Delete Task', style: TextStyle(color: Colors.redAccent)),
+                  onTap: _deleteTask,
+                  contentPadding: EdgeInsets.zero,
                 ),
-                child: _isConfirmed
-                    ? const Icon(Icons.check, size: 20)
-                    : const Text('Confirm Time'),
-              ),
-            ),
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: widget.isToday
-                  ? () => widget.viewModel.toggleTaskCompletion(widget.task)
-                  : null,
-              icon: Icon(
-                widget.task.isDone
-                    ? Icons.close_rounded
-                    : Icons.check_circle_outline,
-                size: 18,
-              ),
-              label: Text(
-                  widget.task.isDone ? "Mark as Incomplete" : "Mark as Done"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.task.isDone
-                    ? Colors.grey.shade600
-                    : Colors.green.shade600,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey.shade800,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+              ],
             ),
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+class AddTaskModal extends StatefulWidget {
+  final AIFinanceViewModel viewModel;
+  final TaskHiveModel parentGoal;
+
+  const AddTaskModal({super.key, required this.viewModel, required this.parentGoal});
+
+  @override
+  State<AddTaskModal> createState() => _AddTaskModalState();
+}
+
+class _AddTaskModalState extends State<AddTaskModal> {
+  final _titleController = TextEditingController();
+  final _purposeController = TextEditingController();
+  final List<TextEditingController> _subStepControllers = [TextEditingController()];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _purposeController.dispose();
+    for (var controller in _subStepControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _saveTask() {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Title is required."), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    final newTask = TaskHiveModel(
+      title: _titleController.text.trim(),
+      purpose: _purposeController.text.trim().isNotEmpty ? _purposeController.text.trim() : null,
+      subSteps: _subStepControllers
+          .map((c) => c.text.trim())
+          .where((text) => text.isNotEmpty)
+          .map((text) => {'text': text, 'isDone': false})
+          .toList(),
+      taskLevel: TaskLevelName.Daily,
+      duration: '1 day', // Manual daily tasks
+      order: widget.viewModel.draggableDailyTasks.length, // Add to the end
+      parentTaskId: widget.parentGoal.id,
+      goalId: widget.parentGoal.id,
+    );
+
+    widget.viewModel.addManualTask(newTask);
+    Navigator.pop(context);
+  }
+  
+  void _addStepField() {
+    setState(() {
+      _subStepControllers.add(TextEditingController());
+    });
+  }
+
+  void _removeStepField(int index) {
+    setState(() {
+      _subStepControllers[index].dispose();
+      _subStepControllers.removeAt(index);
+    });
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Add a New Daily Task', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _titleController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  fillColor: Colors.black,
+                  labelText: 'Task Title*', labelStyle: TextStyle(color: Colors.white70)),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _purposeController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  fillColor: Colors.black,
+                  labelText: 'Purpose (Optional)', labelStyle: TextStyle(color: Colors.white70)),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 24),
+              const Text('Sub-steps (Optional)', style: TextStyle(color: Colors.white, fontSize: 16)),
+              const SizedBox(height: 8),
+              ..._subStepControllers.asMap().entries.map((entry) {
+                 int index = entry.key;
+                 TextEditingController controller = entry.value;
+                 return Row(
+                   children: [
+                     Expanded(
+                       child: TextField(
+                         controller: controller,
+                         style: const TextStyle(color: Colors.white70),
+                         decoration: InputDecoration(
+                          labelStyle: TextStyle(color: const Color.fromARGB(255, 168, 168, 168)),
+                          fillColor: Colors.black,
+                          labelText: 'Step ${index + 1}'
+                          ),
+                       ),
+                     ),
+                     IconButton(
+                       icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                       onPressed: () => _removeStepField(index),
+                     )
+                   ],
+                 );
+              }),
+              TextButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('Add Step'),
+                onPressed: _addStepField,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saveTask,
+                  child: const Text('Save Task'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
