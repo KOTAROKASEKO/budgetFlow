@@ -34,6 +34,10 @@ class PlanRepository {
     await box.putAll(taskMap);
   }
 
+  Future<List<TaskHiveModel>> getAllTasks() async {
+    final box = await Hive.openBox<TaskHiveModel>(boxName);
+    return box.values.toList();
+  }
 
   Future<List<TaskHiveModel>> getAllSubTasksRecursive(String parentTaskId) async {
     final List<TaskHiveModel> allSubTasks = [];

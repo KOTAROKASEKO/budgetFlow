@@ -165,4 +165,8 @@ class RoadmapViewModel extends ChangeNotifier {
       _setLoading(false);
     }
   }
+
+  void toggleMilestoneGoalCompletion(TaskHiveModel item, goal) {
+    //TODO: Implement toggle completion logic for Milestone Goals
+  }
 }

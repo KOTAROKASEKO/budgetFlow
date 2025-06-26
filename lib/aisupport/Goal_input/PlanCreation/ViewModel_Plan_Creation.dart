@@ -5,20 +5,11 @@ import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_DashBoard.da
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/AI_Service.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
 
-// [REMOVED] No longer need to import PlanRepository directly
-// import 'package:moneymanager/aisupport/Goal_input/PlanCreation/repository/task_repository.dart';
-
 class PlanCreationViewModel extends ChangeNotifier {
-  // [MODIFIED] Only the AIFinanceRepository is needed now.
   final AIFinanceRepository _repository;
-  
-  // [REMOVED] The direct link to PlanRepository is gone.
-  // final PlanRepository _planRepository;
-
   AIPlanningService? _aiService;
 
   String _earnThisYear = '';
-  String _planDuration = '';
   String _currentSkill = '';
   String _preferToEarnMoney = '';
   String _note = '';
@@ -46,29 +37,24 @@ class PlanCreationViewModel extends ChangeNotifier {
     }
     notifyListeners();
   }
-  String get planUserDuration => _planDuration;
-
 
   PlanCreationViewModel({
-    // [MODIFIED] Simplified constructor
     required AIFinanceRepository repository,
     TaskHiveModel? existingPlanRootTask,
-    String? initialEarnThisYear,
-    String? initialPlanDuration,
-    String? initialCurrentSkill,
-    String? initialPreferToEarnMoney,
-    String? initialNote,
-  }) : _repository = repository, // [MODIFIED]
+    required String initialEarnThisYear,
+    required String initialCurrentSkill,
+    required String initialPreferToEarnMoney,
+    required String initialNote,
+  }) : _repository = repository,
        _existingPlanRootForRefinement = existingPlanRootTask {
     if (_existingPlanRootForRefinement != null) {
       _loadExistingPlanForRefinement(_existingPlanRootForRefinement);
-    } else if (initialPlanDuration != null) {
+    } else {
       initializeWithInputs(
-        earnThisYear: initialEarnThisYear!,
-        planDuration: initialPlanDuration,
-        currentSkill: initialCurrentSkill!,
-        preferToEarnMoney: initialPreferToEarnMoney!,
-        note: initialNote!,
+        earnThisYear: initialEarnThisYear,
+        currentSkill: initialCurrentSkill,
+        preferToEarnMoney: initialPreferToEarnMoney,
+        note: initialNote,
       );
     }
   }
@@ -87,21 +73,18 @@ class PlanCreationViewModel extends ChangeNotifier {
 
   void initializeWithInputs({
     required String earnThisYear,
-    required String planDuration,
     required String currentSkill,
     required String preferToEarnMoney,
     required String note,
   }) {
     _earnThisYear = earnThisYear;
-    _planDuration = planDuration;
     _currentSkill = currentSkill;
     _preferToEarnMoney = preferToEarnMoney;
     _note = note;
-    _goalName = "My Plan for $_planDuration";
+    _goalName = "My Plan to earn RM$earnThisYear";
 
     _aiService = AIPlanningService(
       earnThisYear: _earnThisYear,
-      planDuration: _planDuration,
       currentSkill: _currentSkill,
       preferToEarnMoney: _preferToEarnMoney,
       note: _note,
@@ -110,15 +93,13 @@ class PlanCreationViewModel extends ChangeNotifier {
     _currentGoalTask = TaskHiveModel(
       taskLevel: TaskLevelName.Goal,
       title: _goalName,
-      duration: _planDuration,
+      duration: "N/A", // Duration is no longer relevant for the plan structure
       order: 0,
       userInputEarnTarget: _earnThisYear,
-      userInputDuration: _planDuration,
       userInputCurrentSkill: _currentSkill,
       userInputPreferToEarnMoney: _preferToEarnMoney,
       userInputNote: _note,
     );
-    // [MODIFIED] A goal's goalId is its own id.
     _currentGoalTask!.goalId = _currentGoalTask!.id;
 
     _taskHierarchy = [];
@@ -133,14 +114,12 @@ class PlanCreationViewModel extends ChangeNotifier {
     _currentGoalTask = rootGoalTask;
     _goalName = rootGoalTask.title;
     _earnThisYear = rootGoalTask.userInputEarnTarget ?? '';
-    _planDuration = rootGoalTask.userInputDuration ?? _currentGoalTask!.duration;
     _currentSkill = rootGoalTask.userInputCurrentSkill ?? '';
     _preferToEarnMoney = rootGoalTask.userInputPreferToEarnMoney ?? '';
     _note = rootGoalTask.userInputNote ?? '';
 
     _aiService = AIPlanningService(
       earnThisYear: _earnThisYear,
-      planDuration: _planDuration,
       currentSkill: _currentSkill,
       preferToEarnMoney: _preferToEarnMoney,
       note: _note,
@@ -150,7 +129,6 @@ class PlanCreationViewModel extends ChangeNotifier {
     _selectedTasksAtLevel.clear();
     _childrenCache.clear();
 
-    // [MODIFIED] Call getSubTasks via the main repository
     List<TaskHiveModel> firstLevelChildren = await _repository.getSubTasks(rootGoalTask.id);
 
     if (firstLevelChildren.isNotEmpty) {
@@ -195,6 +173,7 @@ class PlanCreationViewModel extends ChangeNotifier {
       _setError("AI Service not initialized.");
       return;
     }
+    
     if (parentTask.taskLevel == TaskLevelName.Daily) {
        notifyListeners();
        return;
@@ -211,6 +190,7 @@ class PlanCreationViewModel extends ChangeNotifier {
         );
         for (var subTask in newSubTasks) {
             subTask.parentTaskId = parentTask.id;
+            subTask.goalId = parentTask.goalId; // Ensure goalId is passed down
         }
         _childrenCache[parentTask.id] = List.from(newSubTasks);
         tasksForHierarchy = newSubTasks;
@@ -218,7 +198,6 @@ class PlanCreationViewModel extends ChangeNotifier {
         if (_childrenCache.containsKey(parentTask.id)) {
           tasksForHierarchy = _childrenCache[parentTask.id]!;
         } else {
-          // [MODIFIED] Call getSubTasks via the main repository
           List<TaskHiveModel> childrenFromDb = await _repository.getSubTasks(parentTask.id);
           if (childrenFromDb.isNotEmpty) {
             _childrenCache[parentTask.id] = List.from(childrenFromDb);
@@ -226,10 +205,10 @@ class PlanCreationViewModel extends ChangeNotifier {
           } else{
             final List<TaskHiveModel> newSubTasks = await _aiService!.fetchAIPlan(
               parentTask: parentTask,
-              additionalUserInstruction: null,
             );
             for (var subTask in newSubTasks) {
                 subTask.parentTaskId = parentTask.id;
+                subTask.goalId = parentTask.goalId; // Ensure goalId is passed down
             }
             _childrenCache[parentTask.id] = List.from(newSubTasks);
             tasksForHierarchy = newSubTasks;
@@ -280,7 +259,6 @@ class PlanCreationViewModel extends ChangeNotifier {
     }
   }
 
-  // [MODIFIED] This entire function is updated for correctness.
   Future<bool> savePlan() async {
     if (_currentGoalTask == null) {
       _setError("No goal to save.");
@@ -297,23 +275,19 @@ class PlanCreationViewModel extends ChangeNotifier {
       _currentGoalTask!.title = _goalName.trim();
       tasksToSave.add(_currentGoalTask!);
 
-      // Gather all children from the cache to save
       for (final children in _childrenCache.values) {
         tasksToSave.addAll(children);
       }
       
-      // 1. Save all tasks locally via the main repository
       await _repository.saveAllTasks(tasksToSave);
 
-      // 2. [ADDED] After local save succeeds, back up to Firebase
-      // ViewModel_Plan_Creation.dart の savePlan メソッド内
       try {
         await _repository.backupPlanToFirestore(tasksToSave);
         print("Plan successfully backed up to Firebase.");
-      } catch (e, s) { // スタックトレースもキャッチする
+      } catch (e, s) { 
         print("--- FIRESTORE BACKUP FAILED ---");
-        print("EXCEPTION: $e"); // 具体的なエラー内容
-        print("STACK TRACE: $s"); // エラーが発生したコードの箇所
+        print("EXCEPTION: $e");
+        print("STACK TRACE: $s");
         print("---------------------------------");
       }
       
@@ -336,7 +310,8 @@ class PlanCreationViewModel extends ChangeNotifier {
         parentTaskToRegenerateChildrenFor = _currentGoalTask;
         selectedLevelForParentContext = null;
     } else {
-        for (int i = _taskHierarchy.length -1; i >= 0; i--) { 
+        final int maxLevel = _selectedTasksAtLevel.keys.reduce((a, b) => a > b ? a : b);
+        for (int i = maxLevel; i >= 0; i--) { 
             if (_selectedTasksAtLevel.containsKey(i) && _selectedTasksAtLevel[i] != null) {
                 parentTaskToRegenerateChildrenFor = _selectedTasksAtLevel[i];
                 selectedLevelForParentContext = i;

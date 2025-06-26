@@ -1,5 +1,5 @@
-// lib/aisupport/DashBoard_MapTask/View_DashBoard.dart
-
+import 'package:confetti/confetti.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/ads/ViewModel_ads.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/NoteView.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_DashBoard.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/View_Progress/View_Progress.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/notes/model/note_hive_model.dart';
 import 'package:moneymanager/aisupport/RoadMaps/View_roadMapRecord.dart';
 import 'package:moneymanager/aisupport/TaskModels/task_hive_model.dart';
@@ -21,17 +22,6 @@ import 'package:table_calendar/table_calendar.dart';
 
 // --- NEW HELPER METHOD: To show the modal sheet ---
 // This avoids code duplication
-void _showTaskDetailModal(BuildContext context, TaskHiveModel task) {
-  // Ensure the ViewModel is available
-  final viewModel = context.read<AIFinanceViewModel>();
-
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent, // Make it transparent to use custom decoration
-    builder: (ctx) => TaskDetailModal(task: task, viewModel: viewModel),
-  );
-}
 
 class FinancialGoalPage extends StatefulWidget {
   const FinancialGoalPage({super.key});
@@ -41,6 +31,8 @@ class FinancialGoalPage extends StatefulWidget {
 
 class _FinancialGoalViewState extends State<FinancialGoalPage>
     with SingleTickerProviderStateMixin {
+  
+  late ConfettiController _confettiController;
   final TextEditingController _noteController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Ticker? _ticker;
@@ -74,6 +66,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
           .onDaySelected(DateTime.now(), DateTime.now());
       Provider.of<AdViewModel>(context, listen: false).loadAd(adkey);
     });
+    _confettiController = ConfettiController(duration: const Duration(seconds: 1));
   }
 
   Future<void> signOut(BuildContext context) async {
@@ -101,8 +94,26 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     _noteController.dispose();
     _ticker?.dispose();
     _scrollController.dispose();
+    _confettiController.dispose(); 
     super.dispose();
+    
   }
+
+  void _showTaskDetailModal(BuildContext context, TaskHiveModel task) {
+  final viewModel = context.read<AIFinanceViewModel>();
+  
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => TaskDetailModal(
+      task: task, 
+      viewModel: viewModel,
+      // Stateのプロパティに直接アクセスできるので安全
+      confettiController: _confettiController, 
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +122,21 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
 
     return Stack(
       children: [
+        Align(
+        alignment: Alignment.topCenter,
+        child: ConfettiWidget(
+          confettiController: _confettiController,
+          blastDirectionality: BlastDirectionality.explosive, // 全方向に爆発
+          shouldLoop: false,
+          colors: const [
+            Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.purple
+          ],
+          emissionFrequency: 0.05,
+          numberOfParticles: 20,
+          gravity: 0.1,
+        ),
+      ),
+
         if (viewModel.showCelebration)
         Positioned.fill(
           child: Image.asset(
@@ -120,7 +146,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
           ),
         ),
       Scaffold(
-
       backgroundColor: const Color.fromARGB(126, 70, 70, 70),
       drawer:Drawer(
           backgroundColor: const Color(0xFF1A1A1A),
@@ -248,10 +273,33 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                     controller: _scrollController,
                     padding: EdgeInsets.zero,
                     children: [
+
                       _buildAd(Provider.of<AdViewModel>(context), adkey),
                       _buildAvatar(context, viewModel),
-                      _buildStreakTracker(context, viewModel),
-                       _buildTodaysTasksSimplified(context, viewModel),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const CompletedTasksScreen()),
+                          );
+                        },
+                        child: _buildProgressTracker(context, viewModel),
+                      ),
+                      SizedBox(height: 15,),
+
+                      _buildTodaysTasksSimplified(context, viewModel),
+
+                       const SizedBox(height: 15),
+                    
+                      if (viewModel.currentActiveGoal != null)
+                        _buildActiveMilestoneTracker(context, viewModel),
+
+                      // NEW: Add the milestone carousel here
+                      if (viewModel.availableMilestones.isNotEmpty)
+                        _buildMilestoneCarousel(context, viewModel),
+                      
+                      SizedBox(height: 20,),
+                      
                       Padding(
                         padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
                         child: Row(
@@ -293,9 +341,8 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                                 ],
                               ),
                             ),
-                            // --- NEW: Add Task Button ---
                             IconButton(
-                              icon: const Icon(Icons.add_circle, color: Colors.deepPurpleAccent, size: 32),
+                              icon: const Icon(Icons.add_circle, color: Colors.deepPurpleAccent, size: 40),
                               onPressed: () {
                                 if (viewModel.currentActiveGoal != null) {
                                     showModalBottomSheet(
@@ -445,9 +492,11 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
                 ),
               ],
             ),
+      
       floatingActionButton: viewModel.goalAvailability
           ? FloatingActionButton(
               onPressed: () async {
+                // MODIFIED: Added await and a check for `mounted` to refresh data upon return.
                 await Navigator.of(context).push(MaterialPageRoute(
                     builder: (context) => const GoalInputPage()));
                 if (context.mounted) {
@@ -459,8 +508,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
             )
           : SizedBox(),
           
-    ),
-       
+      ),
     ]);
   }
 
@@ -529,82 +577,186 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     ));
   }
 
-  Widget _buildStreakTracker(
-      BuildContext context, AIFinanceViewModel viewModel) {
-    final streak = viewModel.streakData?.currentStreak ?? 0;
-    final points = viewModel.streakData?.totalPoints ?? 0;
+  // NEW WIDGET for the active milestone display
+  Widget _buildActiveMilestoneTracker(BuildContext context, AIFinanceViewModel viewModel) {
+    // 1. アクティブなマイルストーンがない場合の表示
+    if (viewModel.activeMilestone == null) {
+      // 次に利用可能なマイルストーンがあるかどうかでメッセージを分岐
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+        child: Text(
+          viewModel.availableMilestones.isNotEmpty
+              ? "No active milestone. Choose one from the 'Next Up' list below to get started!"
+              : "Congratulations! You have completed all milestones for this goal.",
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+              color: Colors.white70, fontSize: 16, fontStyle: FontStyle.italic),
+        ),
+      );
+    }
 
+    // 2. アクティブなマイルストーンがある場合の表示
+    final milestone = viewModel.activeMilestone!;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: Colors.black.withOpacity(0.2),
+      margin: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.deepPurple.shade700,
+            const Color.fromARGB(255, 126, 87, 194)
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.deepPurple.shade900.withOpacity(0.5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("CURRENT STREAK",
-                      style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  Text("$streak DAYS",
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold)),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text("TOTAL POINTS",
-                      style: TextStyle(color: Colors.white54, fontSize: 12)),
-                  Text("$points PTS",
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ],
+          const Text(
+            "CURRENT ACTIVE MILESTONE",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (index) {
-              final dayNumber = index + 1;
-              final isCompleted = dayNumber <= streak;
-              bool isTodayCompleted = isCompleted &&
-                  isSameDay(
-                      viewModel.streakData?.lastCompletionDate, DateTime.now());
-
-              return Column(
-                children: [
-                  Icon(
-                    isCompleted
-                        ? Icons.check_circle
-                        : Icons.check_circle_outline,
-                    color: isCompleted
-                        ? (isTodayCompleted
-                            ? Colors.amberAccent
-                            : Colors.greenAccent)
-                        : Colors.white24,
-                    size: 28,
-                  ),
-                  const SizedBox(height: 4),
-                  Text("Day $dayNumber",
-                      style: TextStyle(
-                          color: isCompleted ? Colors.white : Colors.white54,
-                          fontSize: 12)),
-                ],
-              );
-            }),
+          const SizedBox(height: 8),
+          Text(
+            milestone.title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
           ),
+          if (milestone.purpose != null && milestone.purpose!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              milestone.purpose!,
+              style:
+                  TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+            )
+          ]
         ],
       ),
     );
   }
+  // NEW WIDGET for the milestone selection carousel
+  Widget _buildMilestoneCarousel(BuildContext context, AIFinanceViewModel viewModel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+          child: Text(
+            "NEXT UP: CHOOSE A MILESTONE",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 130,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: viewModel.availableMilestones.length,
+            itemBuilder: (context, index) {
+              final milestone = viewModel.availableMilestones[index];
+              return Card(
+                color: const Color(0xFF3A3A50),
+                elevation: 4,
+                shadowColor: Colors.black.withOpacity(0.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: SizedBox(
+                  width: 220,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          milestone.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton.icon(
+                            onPressed: () async {
+                              final result = await viewModel.startMilestone(milestone);
+                              if (context.mounted && result != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(result), backgroundColor: Colors.red),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                            label: const Text("Start"),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.green.withOpacity(0.8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildAd(AdViewModel adViewModel, String adId) {
+    if (adViewModel.isAdLoaded(adId)) {
+      final bannerAd = adViewModel.getAd(adId);
+      if (bannerAd != null) {
+        return Container(
+          alignment: Alignment.center,
+          width: bannerAd.size.width.toDouble(),
+          height: bannerAd.size.height.toDouble(),
+          child: AdWidget(ad: bannerAd),
+        );
+      } else {
+        return Container(
+          height: 50.0,
+          alignment: Alignment.center,
+          child: Text('Ad data not found.'),
+        );
+      }
+    } else {
+      return Container(
+        height: 50.0,
+        alignment: Alignment.center,
+        child: Text('Ad is loading...'),
+      );
+    }
+  }
+  
   Widget _buildCalendarDayCell(
       BuildContext context, DateTime day, DateTime focusedDay,
       {bool isToday = false, bool isSelected = false, bool isOutside = false}) {
@@ -697,31 +849,6 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
       );
     }
 
-  Widget _buildAd(AdViewModel adViewModel, String adId) {
-    if (adViewModel.isAdLoaded(adId)) {
-      final bannerAd = adViewModel.getAd(adId);
-      if (bannerAd != null) {
-        return Container(
-          alignment: Alignment.center,
-          width: bannerAd.size.width.toDouble(),
-          height: bannerAd.size.height.toDouble(),
-          child: AdWidget(ad: bannerAd),
-        );
-      } else {
-        return Container(
-          height: 50.0,
-          alignment: Alignment.center,
-          child: Text('Ad data not found.'),
-        );
-      }
-    } else {
-      return Container(
-        height: 50.0,
-        alignment: Alignment.center,
-        child: Text('Ad is loading...'),
-      );
-    }
-  }
   
   Widget _buildDrawerItem({required BuildContext context, required IconData icon, required String text, required GestureTapCallback onTap, required Color accentColor}) {
     return ListTile(
@@ -808,8 +935,7 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
   }
 
   // --- REFACTORED: To use modal bottom sheet ---
-  Widget _buildDraggableTasks(
-      BuildContext context, AIFinanceViewModel viewModel) {
+  Widget _buildDraggableTasks(BuildContext context, AIFinanceViewModel viewModel) {
     final taskListView = ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 162),
       child: ListView.builder(
@@ -956,7 +1082,134 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
       ),
     );
   }
-  
+
+  Widget _buildProgressTracker(BuildContext context, AIFinanceViewModel viewModel) {
+    final percentage = viewModel.dailyTaskCompletionPercentage;
+    final percentageText = "${(percentage * 100).toStringAsFixed(0)}%";
+
+    // --- NEW: 進捗率に応じてグラデーションを決定するロジック ---
+    final Gradient progressGradient;
+    if (percentage <= 0.4) {
+      progressGradient = const LinearGradient(
+        colors: [Color(0xFF0077B6), Color(0xFF00B4D8)],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      );
+    } else if (percentage <= 0.8) {
+      progressGradient = const LinearGradient(
+        colors: [Color(0xFF2ECC71), Color(0xFF58D68D)],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      );
+    } else {
+      progressGradient = const LinearGradient(
+        colors: [Color(0xFFF1C40F), Color(0xFFF39C12)],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      );
+    }
+    // ----------------------------------------------------
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24.0, 16.0, 24.0, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.show_chart_rounded, color: Colors.white70, size: 22),
+                    SizedBox(width: 8),
+                    Text(
+                      "Your Progress",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) => progressGradient.createShader(
+                    Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                  ),
+                  child: Text(
+                    percentageText,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final double barWidth = constraints.maxWidth;
+                // グラデーションに合わせた光彩の色を決定
+                final Color glowColor = (percentage <= 0.4) 
+                    ? Colors.blue.withOpacity(0.4)
+                    : (percentage <= 0.8) 
+                        ? Colors.green.withOpacity(0.4) 
+                        : Colors.orange.withOpacity(0.4);
+
+                return SizedBox(
+                  height: 10,
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOutCubic,
+                        width: barWidth * percentage,
+                        decoration: BoxDecoration(
+                          gradient: progressGradient,
+                          borderRadius: BorderRadius.circular(5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: glowColor,
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            )
+                          ]
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+    
   Widget _buildDailyNoteDisplay(
     BuildContext context, NoteViewModel noteViewModel) {
   if (noteViewModel.isLoading) {
@@ -1029,10 +1282,13 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(colors: [
-            Colors.deepPurple.withOpacity(0.85),
-            const Color.fromARGB(255, 178, 151, 252).withOpacity(0.85)
+            const Color.fromARGB(142, 104, 58, 183).withOpacity(0.85),
+            const Color.fromARGB(133, 178, 151, 252).withOpacity(0.85)
           ], begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(18),
+          border: BoxBorder.all(
+            color:Colors.deepPurple
+          )
         ),
         child: const Row(children: [
           Text("Review my plan",
@@ -1099,17 +1355,20 @@ class _FinancialGoalViewState extends State<FinancialGoalPage>
     },
   );
 }
-}
 
+  
+}
 // --- NEW WIDGET: Reusable Modal Bottom Sheet for Task Details ---
 class TaskDetailModal extends StatefulWidget {
   final TaskHiveModel task;
   final AIFinanceViewModel viewModel;
+  final ConfettiController confettiController; 
 
   const TaskDetailModal({
     super.key,
     required this.task,
     required this.viewModel,
+    required this.confettiController,
   });
 
   @override
@@ -1273,6 +1532,7 @@ class _TaskDetailModalState extends State<TaskDetailModal> {
 
                     return InkWell( // GestureDetectorからInkWellに変更してフィードバックを良くする
                       onTap: () {
+                        HapticFeedback.lightImpact();
                         setState(() {
                           step['isDone'] = !isDone;
                         });
@@ -1322,14 +1582,22 @@ class _TaskDetailModalState extends State<TaskDetailModal> {
                   ListTile(
                     leading: Icon(widget.task.isDone ? Icons.check_circle : Icons.check_circle_outline, color: widget.task.isDone ? Colors.greenAccent : Colors.white),
                     title: Text(widget.task.isDone ? 'Mark as Incomplete' : 'Mark as Done', style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                       if(isTaskForToday){
-                         widget.viewModel.toggleTaskCompletion(widget.task);
-                         Navigator.pop(context);
-                       } else {
-                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You can only complete tasks scheduled for today.")));
+                     onTap: () {
+                     if(isTaskForToday){
+                       // --- MODIFIED: エフェクト再生のロジックを修正 ---
+                       // これから完了状態にする場合（＝現在は未完了の場合）のみエフェクトを再生
+                       if (!widget.task.isDone) {
+                         widget.confettiController.play();
+                         HapticFeedback.lightImpact();
                        }
-                    },
+                       
+                       // エフェクトの再生判定後に、タスクの状態を切り替える
+                       widget.viewModel.toggleTaskCompletion(widget.task);
+                       Navigator.pop(context);
+                     } else {
+                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You can only complete tasks scheduled for today.")));
+                     }
+                  },
                     contentPadding: EdgeInsets.zero,
                   ),
                 
@@ -1339,6 +1607,8 @@ class _TaskDetailModalState extends State<TaskDetailModal> {
                     title: Text("Set Reminder", style: TextStyle(color: Colors.white)),
                     value: _sendNotification,
                     onChanged: (bool value) {
+
+                      HapticFeedback.lightImpact();
                       setState(() {
                         _sendNotification = value;
                       });
@@ -1453,7 +1723,7 @@ class _AddTaskModalState extends State<AddTaskModal> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Add a New Daily Task', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Add a Custom DailyTask', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               TextField(
                 controller: _titleController,

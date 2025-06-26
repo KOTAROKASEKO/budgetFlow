@@ -38,13 +38,17 @@ class TaskHiveModelAdapter extends TypeAdapter<TaskHiveModel> {
       subSteps: (fields[18] as List?)
           ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
           .toList(),
+      // NEW
+      definitionOfDone: (fields[19] as List?)
+          ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
+          .toList(),
     );
   }
 
   @override
   void write(BinaryWriter writer, TaskHiveModel obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(20) // UPDATED field count
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -82,7 +86,9 @@ class TaskHiveModelAdapter extends TypeAdapter<TaskHiveModel> {
       ..writeByte(17)
       ..write(obj.notificationTime)
       ..writeByte(18)
-      ..write(obj.subSteps);
+      ..write(obj.subSteps)
+      ..writeByte(19) // NEW
+      ..write(obj.definitionOfDone); // NEW
   }
 
   @override
@@ -108,10 +114,8 @@ class TaskLevelNameAdapter extends TypeAdapter<TaskLevelName> {
       case 1:
         return TaskLevelName.Phase;
       case 2:
-        return TaskLevelName.Monthly;
+        return TaskLevelName.Milestone;
       case 3:
-        return TaskLevelName.Weekly;
-      case 4:
         return TaskLevelName.Daily;
       default:
         return TaskLevelName.Goal;
@@ -127,14 +131,11 @@ class TaskLevelNameAdapter extends TypeAdapter<TaskLevelName> {
       case TaskLevelName.Phase:
         writer.writeByte(1);
         break;
-      case TaskLevelName.Monthly:
+      case TaskLevelName.Milestone:
         writer.writeByte(2);
         break;
-      case TaskLevelName.Weekly:
-        writer.writeByte(3);
-        break;
       case TaskLevelName.Daily:
-        writer.writeByte(4);
+        writer.writeByte(3);
         break;
     }
   }

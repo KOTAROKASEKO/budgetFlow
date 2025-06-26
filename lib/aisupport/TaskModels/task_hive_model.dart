@@ -1,8 +1,8 @@
-// File: lib/aisupport/models/task_hive_model.dart
+// lib/aisupport/models/task_hive_model.dart
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
-part 'task_hive_model.g.dart'; // Remember to generate this file
+part 'task_hive_model.g.dart';
 
 var _uuid = Uuid();
 
@@ -13,18 +13,17 @@ enum TaskLevelName {
   @HiveField(1)
   Phase,
   @HiveField(2)
-  Monthly,
+  Milestone,
   @HiveField(3)
-  Weekly,
-  @HiveField(4)
   Daily,
 }
 
-@HiveType(typeId: 11) // Ensure unique typeId
+@HiveType(typeId: 11)
 class TaskHiveModel extends HiveObject {
+
   @HiveField(0)
   String id;
-
+  
   @HiveField(1)
   TaskLevelName taskLevel;
 
@@ -38,29 +37,28 @@ class TaskHiveModel extends HiveObject {
   String? purpose;
 
   @HiveField(5)
-  String duration; // e.g., "6 months", "1 week"
+  String duration;
 
   @HiveField(6)
   bool isDone;
 
   @HiveField(7)
-  int order; // For display sequence among siblings
+  int order;
 
   @HiveField(8)
   DateTime createdAt;
 
   @HiveField(9)
-  DateTime? dueDate; // Useful for Daily tasks and calendar integration
+  DateTime? dueDate;
 
   @HiveField(10)
-  String? status; // e.g., 'pending', 'scheduled_on_calendar', 'completed'
+  String? status;
 
-  // Store initial user inputs with the top-level Goal task
   @HiveField(11)
   String? userInputEarnTarget;
 
   @HiveField(12)
-  String? userInputDuration; // The original duration string like "2 years"
+  String? userInputDuration;
 
   @HiveField(13)
   String? userInputCurrentSkill;
@@ -71,7 +69,6 @@ class TaskHiveModel extends HiveObject {
   @HiveField(15)
   String? userInputNote;
 
-  // [NEW] Add goalId to easily find the root goal for any task.
   @HiveField(16)
   String? goalId;
 
@@ -80,7 +77,9 @@ class TaskHiveModel extends HiveObject {
 
   @HiveField(18)
   List<Map<String, dynamic>>? subSteps;
-
+  
+  @HiveField(19)
+  List<Map<String, dynamic>>? definitionOfDone;
 
   TaskHiveModel({
     String? id,
@@ -102,23 +101,29 @@ class TaskHiveModel extends HiveObject {
     this.goalId,
     this.notificationTime,
     this.subSteps,
+    this.definitionOfDone,
   })  : id = id ?? _uuid.v4(),
         createdAt = createdAt ?? DateTime.now();
 
-  // Factory to create from AI response
-   factory TaskHiveModel.fromAIMap(Map<String, dynamic> map, TaskLevelName level, String? parentId, int taskOrder, String? goalId) {
+  factory TaskHiveModel.fromAIMap(Map<String, dynamic> map, TaskLevelName level, String? parentId, int taskOrder, String? goalId) {
     return TaskHiveModel(
       id:  _uuid.v4(),
       taskLevel: level,
       parentTaskId: parentId,
       title: map['title'] as String? ?? 'Untitled Task',
       purpose: map['purpose'] as String?,
-      duration: map['estimated_duration'] as String? ?? 'N/A',
+      duration: level == TaskLevelName.Daily ? '1 day' : 'N/A',
       order: taskOrder,
       goalId: goalId,
       subSteps: map.containsKey('sub_steps')
           ? (map['sub_steps'] as List<dynamic>)
               .map((step) => {'text': step.toString(), 'isDone': false})
+              .toList()
+          : null,
+      // NEW: Parse definition_of_done for Milestones
+      definitionOfDone: map.containsKey('definition_of_done')
+          ? (map['definition_of_done'] as List<dynamic>)
+              .map((item) => {'text': item.toString(), 'isDone': false})
               .toList()
           : null,
     );

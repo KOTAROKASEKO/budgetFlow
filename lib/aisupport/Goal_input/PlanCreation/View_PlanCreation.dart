@@ -203,9 +203,9 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
     }
 
     final allLevels = [
+      TaskLevelName.Goal,
       TaskLevelName.Phase,
-      TaskLevelName.Monthly,
-      TaskLevelName.Weekly,
+      TaskLevelName.Milestone,
       TaskLevelName.Daily,
     ];
 
@@ -575,18 +575,7 @@ class _PlanCreationScreenState extends State<PlanCreationScreen> {
                           Text("AI is generating your initial plan based on:",
                               style: theme.textTheme.titleMedium
                                   ?.copyWith(color: Colors.white60)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20.0, vertical: 8.0),
-                            child: Text(
-                              viewModel.planUserDuration.isNotEmpty
-                                  ? "Target duration: ${viewModel.planUserDuration}"
-                                  : "Please wait...",
-                              style: theme.textTheme.bodyLarge
-                                  ?.copyWith(color: Colors.white54),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                         
                           if (viewModel.isLoading)
                             const CircularProgressIndicator()
                           else

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:moneymanager/ads/ViewModel_ads.dart';
 import 'package:moneymanager/aisupport/DashBoard_MapTask/Repository_DashBoard.dart';
+import 'package:moneymanager/aisupport/DashBoard_MapTask/ViewModel_DashBoard.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/View_PlanCreation.dart';
 import 'package:moneymanager/aisupport/Goal_input/PlanCreation/ViewModel_Plan_Creation.dart';
 import 'package:moneymanager/aisupport/Goal_input/goal_input/View_goalInput.dart';
@@ -257,7 +258,11 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
                       builder: (ctx) => ChangeNotifierProvider(
                         create: (_) => PlanCreationViewModel(
                           repository: Provider.of<AIFinanceRepository>(context, listen: false),
-                          existingPlanRootTask: goalTask,
+                          existingPlanRootTask: goalTask, 
+                          initialEarnThisYear: goalTask.userInputEarnTarget ?? '', 
+                          initialCurrentSkill: goalTask.userInputCurrentSkill ?? '', 
+                          initialPreferToEarnMoney: goalTask.userInputPreferToEarnMoney ?? '', 
+                          initialNote: goalTask.userInputNote ?? '',
                         ),
                         child: const PlanCreationScreen(),
                       ),
@@ -302,49 +307,74 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
     );
   }
 
-  Widget _buildItemsList(BuildContext context, RoadmapViewModel viewModel) {
-     if (viewModel.currentLevelItems.isEmpty && !viewModel.isLoading) {
+   Widget _buildItemsList(BuildContext context, RoadmapViewModel viewModel) {
+    if (viewModel.currentLevelItems.isEmpty && !viewModel.isLoading) {
       return Center(child: Text(viewModel.errorMessage ?? "No items at this level.", style: const TextStyle(color: Colors.white54, fontSize: 16)));
     }
-
     return ListView.builder(
       itemCount: viewModel.currentLevelItems.length,
       itemBuilder: (context, index) {
         final item = viewModel.currentLevelItems[index];
-        bool hasChildren = item.taskLevel != TaskLevelName.Daily;
-
-        return GestureDetector(
-          onLongPressStart: (details) {
-            _showItemOptionsMenu(context, viewModel, item, details.globalPosition);
-          },
-          child: Card(
-            color: Colors.deepPurple.shade400,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            elevation: 2,
-            child: ListTile(
-              title: Text(item.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 5),
-                  if (item.purpose != null && item.purpose!.isNotEmpty)
-                    Text("Purpose: ${item.purpose}", style: const TextStyle(color: Colors.white70)),
-                  const Divider(color: Colors.white24),
-                  Text("Duration: ${item.duration}", style: const TextStyle(color: Colors.white70)),
-                ],
-              ),
-              trailing: hasChildren ? const Icon(Icons.chevron_right, color: Colors.white) : null,
-              onTap: () {
-                if (hasChildren) {
-                  viewModel.navigateToTaskChildren(item);
-                }
-              },
-            ),
-          ),
-        );
+        return _buildItemCard(context, viewModel, item);
       },
     );
   }
+
+  Widget _buildItemCard(BuildContext context, RoadmapViewModel viewModel, TaskHiveModel item) {
+    bool isMilestone = item.taskLevel == TaskLevelName.Milestone;
+
+    return Card(
+      color: Colors.deepPurple.shade400,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: !isMilestone ? () => viewModel.navigateToTaskChildren(item) : null,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(item.title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  if (!isMilestone) const Icon(Icons.chevron_right, color: Colors.white),
+                ],
+              ),
+            ),
+          ),
+          // NEW: Display the Definition of Done checklist for milestones
+          if (isMilestone && item.definitionOfDone != null && item.definitionOfDone!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: item.definitionOfDone!.map((goal) {
+                  return CheckboxListTile(
+                    title: Text(goal['text'], style: TextStyle(color: Colors.white, decoration: goal['isDone'] ? TextDecoration.lineThrough : null)),
+                    value: goal['isDone'],
+                    onChanged: (bool? value) {
+                      // TODO : Implement the toggle logic for milestone goals
+                      viewModel.toggleMilestoneGoalCompletion(item, goal['text']);
+                    },
+                    activeColor: Colors.greenAccent,
+                    checkColor: Colors.black,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  );
+                }).toList(),
+              ),
+            ),
+          const SizedBox(height: 8),
+          if (isMilestone) _buildStartMilestoneButton(context, item),
+        ],
+      ),
+    );
+  }
+
+
 
   Widget _buildScaffold(BuildContext context, RoadmapViewModel viewModel) {
     final mainContent = Scaffold(
@@ -482,6 +512,84 @@ class _PlanRoadmapScreenState extends State<PlanRoadmapScreen> {
         child: Text('Ad is loading...'),
       );
     }
+  }
+
+
+  Widget _buildStartMilestoneButton(
+      BuildContext context, TaskHiveModel milestone) {
+    final dashboardViewModel =
+        Provider.of<AIFinanceViewModel>(context, listen: false);
+
+    bool isActive = dashboardViewModel.activeMilestone?.id == milestone.id;
+    bool isCompleted = milestone.isDone;
+
+    if (isCompleted) {
+      return const Padding(
+        padding: EdgeInsets.all(12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle, color: Colors.greenAccent),
+            SizedBox(width: 8),
+            Text("Completed",
+                style: TextStyle(
+                    color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+
+    if (isActive) {
+      return const Padding(
+        padding: EdgeInsets.all(12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+                height: 20,
+                width: 20,
+                child:
+                    CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            SizedBox(width: 8),
+            Text("In Progress",
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(8,0,8,8),
+      child: TextButton.icon(
+        icon: const Icon(Icons.play_circle_fill),
+        label: const Text("Start this Milestone"),
+        style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.green.withOpacity(0.8),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8))),
+        onPressed: () async {
+          final result = await dashboardViewModel.startMilestone(milestone);
+          if (mounted) {
+            if (result == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        "'${milestone.title}' started! Daily tasks are now available on your dashboard."),
+                    backgroundColor: Colors.green),
+              );
+              // Close the modal if it is one
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result), backgroundColor: Colors.red),
+              );
+            }
+          }
+        },
+      ),
+    );
   }
 
 }
